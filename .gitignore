@@ -1,0 +1,45 @@
+# Miscellaneous
+*.class
+*.log
+*.swp
+.DS_Store
+Thumbs.db
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code (optional)
+.vscode/
+
+# Flutter/Dart/Pub related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+generated_plugin_registrant.dart
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Firebase/Crashlytics
+crashlytics/
+firebase-debug.log
+
+# Environment
+.env

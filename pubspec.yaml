@@ -1,0 +1,49 @@
+name: flutter_application_1
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  geolocator: ^11.0.0
+  geocoding: ^2.1.1
+  photo_view: ^0.14.0
+  intl: ^0.18.1
+  camera: ^0.10.5+9
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  flutter_slidable: ^3.0.0
+  flutter_rating_bar: ^4.0.0
+  image_picker: ^1.0.5
+  image_cropper: ^9.1.0
+  confetti: ^0.7.0
+  flutter_screenutil: ^5.8.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: Marykate
+      fonts:
+        - asset: assets/fonts/Marykate.ttf
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins Regular 400.ttf
+
+  assets:
+    - assets/logo only luntian.png
+    - assets/profile picture.png
+    - assets/garbage.png
+    - assets/event.jpg
