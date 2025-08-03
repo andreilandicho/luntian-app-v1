@@ -6,7 +6,7 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.7.2
-
+  
 dependencies:
   flutter:
     sdk: flutter
@@ -25,6 +25,9 @@ dependencies:
   image_cropper: ^9.1.0
   confetti: ^0.7.0
   flutter_screenutil: ^5.8.4
+  # For Firebase Core and Cloud Firestore
+  firebase_core: ^4.0.0
+  cloud_firestore: ^6.0.0
 
 dev_dependencies:
   flutter_test:

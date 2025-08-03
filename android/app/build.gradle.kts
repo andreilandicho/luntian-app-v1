@@ -41,3 +41,13 @@ android {
 flutter {
     source = "../.."
 }
+
+// Add Firebase dependencies if needed (handled by FlutterFire plugins)
+// For manual native integration (rare with Flutter), use:
+// dependencies {
+//     implementation("com.google.firebase:firebase-analytics")
+//     // Add more Firebase libraries as needed.
+// }
+
+// IMPORTANT: Apply the Google Services plugin at the end!
+apply(plugin = "com.google.gms.google-services")

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "470563540523",
+    "firebase_url": "https://luntian-326d1-default-rtdb.firebaseio.com",
+    "project_id": "luntian-326d1",
+    "storage_bucket": "luntian-326d1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:470563540523:android:7b4a5899edd897d1f2246e",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWIa5vonpUjVI8vSNyDUW7Ukf82IND5k0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

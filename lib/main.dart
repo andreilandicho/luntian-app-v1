@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_core/firebase_core.dart'; // <-- Add this import
 import 'screen/user/loading_screen.dart';
 import 'screen/official (mobile)/official.dart';
 import 'screen/admin/admin_dashboard.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // <-- Initialize Firebase
   runApp(const MyApp());
 }
 
