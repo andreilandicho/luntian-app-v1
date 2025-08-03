@@ -45,3 +45,27 @@ class _LoadingPageState extends State<LoadingPage> {
   }
 }
 
+// I used this to test the connection between Firebase Firestore and the application.
+
+// import 'package:flutter/material.dart';
+// // Import the Firestore test widget
+// import '../test_firestore_widget.dart';
+
+// class LoadingPage extends StatefulWidget {
+//   const LoadingPage({super.key});
+
+//   @override
+//   State<LoadingPage> createState() => _LoadingPageState();
+// }
+
+// class _LoadingPageState extends State<LoadingPage> {
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: const Color(0xFF90C67C),
+//       body: Center(
+//         child: FirestoreTestWidget(), // <--- Show Firestore test here!
+//       ),
+//     );
+//   }
+// }
