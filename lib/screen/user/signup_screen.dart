@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -9,16 +11,56 @@ class SignUpPage extends StatefulWidget {
 
 class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passController = TextEditingController();
-  final TextEditingController confirmPassController = TextEditingController();
-  final TextEditingController firstNameController = TextEditingController();
-  final TextEditingController lastNameController = TextEditingController();
+  final emailController = TextEditingController();
+  final passController = TextEditingController();
+  final confirmPassController = TextEditingController();
+  final firstNameController = TextEditingController();
+  final lastNameController = TextEditingController();
 
   bool _isPasswordVisible = false;
   bool _isConfirmVisible = false;
   bool _hasPassword = false;
   bool _hasConfirm = false;
+
+  int? selectedBarangayId;
+  bool isOfficial = false;
+  List<dynamic> barangays = [];
+  bool isLoadingBarangays = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchBarangays();
+  }
+
+  Future<void> fetchBarangays() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:3000/barangays'));
+      print('Barangay response: ${response.body}');
+      if (response.statusCode == 200) {
+        setState(() {
+          barangays = jsonDecode(response.body);
+          isLoadingBarangays = false;
+        });
+      } else {
+        setState(() {
+          barangays = [];
+          isLoadingBarangays = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load barangays'))
+        );
+      }
+    } catch (e) {
+      setState(() {
+        barangays = [];
+        isLoadingBarangays = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading barangays: $e'))
+      );
+    }
+  }
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) return "Please enter email";
@@ -39,6 +81,36 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _validateConfirm(String? value) {
     if (value != passController.text) return "Passwords do not match";
     return null;
+  }
+
+  Future<void> signUpRequest() async {
+    final url = Uri.parse('http://10.0.2.2:3000/users');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': emailController.text,
+        'password': passController.text,
+        'firstName': firstNameController.text,
+        'lastName': lastNameController.text,
+        'barangay_id': selectedBarangayId,
+        'role': isOfficial ? 'official' : 'citizen',
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['message']))
+      );
+      Future.delayed(const Duration(seconds: 1), () {
+        Navigator.pop(context); // Goes back to login screen
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(data['error'] ?? 'Sign-up failed'))
+      );
+    }
   }
 
   @override
@@ -159,20 +231,47 @@ class _SignUpPageState extends State<SignUpPage> {
                               )
                             : null,
                       ),
+                      const SizedBox(height: 15),
+                      // BARANGAY DROPDOWN (dynamic from backend)
+                      isLoadingBarangays
+                        ? const CircularProgressIndicator()
+                        : DropdownButtonFormField<int>(
+                            value: selectedBarangayId,
+                            items: barangays.map<DropdownMenuItem<int>>((b) =>
+                              DropdownMenuItem<int>(
+                                value: b['barangay_id'],
+                                child: Text(b['name']),
+                              ),
+                            ).toList(),
+                            onChanged: (val) => setState(() => selectedBarangayId = val),
+                            decoration: const InputDecoration(
+                              labelText: 'Select Barangay',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(30)),
+                              ),
+                            ),
+                            validator: (value) =>
+                              value == null ? "Please select a barangay" : null,
+                          ),
+                      const SizedBox(height: 15),
+                      // OFFICIAL TICKBOX
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: isOfficial,
+                            onChanged: (val) => setState(() => isOfficial = val ?? false),
+                          ),
+                          const Text(
+                            'Sign up as Barangay Official',
+                            style: TextStyle(fontFamily: 'Poppins'),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 25),
                       ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Sign-up successful!"),
-                              ),
-                            );
-
-                            // Wait 1 second before navigating back
-                            Future.delayed(const Duration(seconds: 1), () {
-                              Navigator.pop(context); // Goes back to login screen
-                            });
+                            signUpRequest();
                           }
                         },
                         style: ElevatedButton.styleFrom(
