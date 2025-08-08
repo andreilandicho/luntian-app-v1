@@ -28,6 +28,8 @@ dependencies:
   # For Firebase Core and Cloud Firestore
   firebase_core: ^4.0.0
   cloud_firestore: ^6.0.0
+  #For supabase dependencies
+  supabase_flutter: ^1.10.4
 
 dev_dependencies:
   flutter_test:
