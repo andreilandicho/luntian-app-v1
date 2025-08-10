@@ -16,8 +16,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // Simulate logged-in role
-  final String role = 'user';
-
+  final String role = 'citizen';
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -46,7 +45,7 @@ class MyApp extends StatelessWidget {
         return const WebNotSupported();
       }
     } else {
-      if (role == 'user') return const LoadingPage();
+      if (role == 'citizen') return const LoadingPage();
       if (role == 'official') return const OfficialDashboard();
       return const UnknownRole();
     }
