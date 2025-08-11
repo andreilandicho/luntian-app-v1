@@ -1,22 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:firebase_core/firebase_core.dart'; // <-- Add this import
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+
 import 'screen/user/loading_screen.dart';
 import 'screen/official (mobile)/official.dart';
 import 'screen/admin/admin_dashboard.dart';
+import 'models/user_model.dart';
+import 'screen/user/login_screen.dart';
+import 'screen/user/home_screen.dart';  // Add this import
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // <-- Initialize Firebase
+void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // Simulate logged-in role
-  final String role = 'citizen';
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  UserModel? currentUser;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userData = prefs.getString('user_data');
+    
+    if (userData != null) {
+      setState(() {
+        currentUser = UserModel.fromJson(jsonDecode(userData));
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(
@@ -31,7 +62,11 @@ class MyApp extends StatelessWidget {
             fontFamily: 'Poppins',
             primarySwatch: Colors.green,
           ),
-          home: getHomeScreen(role),
+          home: isLoading 
+            ? const LoadingPage() 
+            : (currentUser == null 
+                ? const LoginPage()
+                : getHomeScreen(currentUser!.role)),
         );
       },
     );
@@ -45,7 +80,7 @@ class MyApp extends StatelessWidget {
         return const WebNotSupported();
       }
     } else {
-      if (role == 'citizen') return const LoadingPage();
+      if (role == 'citizen') return const UserHomePage();
       if (role == 'official') return const OfficialDashboard();
       return const UnknownRole();
     }

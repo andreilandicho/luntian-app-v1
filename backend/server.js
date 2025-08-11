@@ -1,10 +1,13 @@
 import express from 'express';
+import authRouter from './routes/auth.js';
 import usersRouter from './routes/users.js';
 import barangaysRouter from './routes/barangays.js';
+
 
 const app = express();
 app.use(express.json());
 
+app.use('/auth', authRouter);
 app.use('/users', usersRouter);
 app.use('/barangays', barangaysRouter);
 
