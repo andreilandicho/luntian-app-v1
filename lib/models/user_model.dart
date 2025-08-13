@@ -2,6 +2,7 @@ class UserModel {
   final int id;
   final String email;
   final String role;
+  final int? barangayId;
   final bool? verified;
   final String? firstName;
   final String? lastName;
@@ -14,6 +15,7 @@ class UserModel {
     required this.id,  // Make ID required
     required this.email,
     required this.role,
+    this.barangayId,
     this.verified = false,
     this.firstName,
     this.lastName,
@@ -29,6 +31,7 @@ class UserModel {
       id: json['id'],
       email: json['email'] ?? '',
       role: json['role'] ?? 'citizen',
+      barangayId: json['barangay_id'],
       verified: json['verified'] ?? false,
       firstName: json['firstName'],
       lastName: json['lastName'],
@@ -40,6 +43,7 @@ class UserModel {
       'id': id,
       'email': email,
       'role': role,
+      'barangay_id': barangayId,
       'verified': verified,
       'firstName': firstName,
       'lastName': lastName,
