@@ -105,4 +105,74 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Get reports by user ID
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const { data, error } = await supabase
+      .from('reports')
+      .select(`
+        report_id,
+        user_id,
+        description,
+        photo_urls,
+        status,
+        created_at,
+        anonymous,
+        barangay_id,
+        category,
+        priority,
+        location
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching user reports:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    
+    // Add voting information
+    const enhancedReports = await Promise.all(data.map(async (report) => {
+      // Get upvotes count
+      const { count: upvotes } = await supabase
+        .from('report_votes')
+        .select('*', { count: 'exact', head: true })
+        .eq('report_id', report.report_id)
+        .eq('vote_type', 'upvote');
+      
+      // Get downvotes count
+      const { count: downvotes } = await supabase
+        .from('report_votes')
+        .select('*', { count: 'exact', head: true })
+        .eq('report_id', report.report_id)
+        .eq('vote_type', 'downvote');
+      
+      // Check if current user has voted on this report
+      const { data: userVote } = await supabase
+        .from('report_votes')
+        .select('vote_type')
+        .eq('report_id', report.report_id)
+        .eq('voted_by', userId);
+      
+      const hasUserUpvoted = userVote?.some(v => v.vote_type === 'upvote') || false;
+      const hasUserDownvoted = userVote?.some(v => v.vote_type === 'downvote') || false;
+      
+      return {
+        ...report,
+        upvotes: upvotes || 0,
+        downvotes: downvotes || 0,
+        has_user_upvoted: hasUserUpvoted,
+        has_user_downvoted: hasUserDownvoted
+      };
+    }));
+    
+    res.json(enhancedReports);
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

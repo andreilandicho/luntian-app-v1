@@ -58,4 +58,60 @@ class ReportService {
       throw Exception('Error creating report: $e');
     }
   }
+
+  //Profile page services
+  Future<List<ReportModel>> getUserReports(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reports/user/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((report) => ReportModel.fromJson(report)).toList();
+      } else {
+        throw Exception('Failed to load user reports: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching user reports: $e');
+    }
+  }
+
+  // Method for getting user's event participation
+  Future<List<Map<String, dynamic>>> getUserEvents(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/events/user/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        throw Exception('Failed to load user events: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching user events: $e');
+    }
+  }
+
+  // Method to get report statistics for a user
+  Future<Map<String, dynamic>> getUserReportStats(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/reports/stats/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to load user report stats: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching user report stats: $e');
+    }
+  }
 }
