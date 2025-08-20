@@ -114,4 +114,13 @@ class ReportService {
       throw Exception('Error fetching user report stats: $e');
     }
   }
+  Future<List<ReportModel>> getReportsByUser(int userId) async {
+  final response = await http.get(Uri.parse('$baseUrl/reports/user/$userId'));
+  if (response.statusCode == 200) {
+    final List data = jsonDecode(response.body);
+    return data.map((json) => ReportModel.fromJson(json)).toList();
+  } else {
+    throw Exception('Failed to fetch reports by user');
+  }
+}
 }

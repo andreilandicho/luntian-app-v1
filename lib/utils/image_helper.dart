@@ -1,100 +1,138 @@
+// lib/utils/image_helper.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
 
 class ImageHelper {
-  static ImageProvider getImageProvider(String imagePath) {
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      // For network images, including Supabase URLs
-      return NetworkImage(imagePath);
-    } else if (imagePath.startsWith('assets/')) {
-      // For asset images
-      return AssetImage(imagePath);
-    } else {
-      // For local file paths
-      return FileImage(File(imagePath));
+  // Get appropriate ImageProvider based on path type
+  static ImageProvider getImageProvider(String? imagePath) {
+    // Handle null or empty paths
+    if (imagePath == null || imagePath.isEmpty) {
+      return const AssetImage('assets/profile picture.png');
+    }
+    
+    try {
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return NetworkImage(imagePath);
+      } else if (imagePath.startsWith('assets/')) {
+        return AssetImage(imagePath);
+      } else {
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          return FileImage(file);
+        } else {
+          // Fallback to default if file doesn't exist
+          return const AssetImage('assets/profile picture.png');
+        }
+      }
+    } catch (e) {
+      print('Error creating image provider: $e');
+      // Return default image on error
+      return const AssetImage('assets/profile picture.png');
     }
   }
   
+  // Create a CircleAvatar with error handling
   static Widget buildProfileImage({
-    required String imagePath,
+    required String? imagePath, 
     required double radius,
     Color backgroundColor = Colors.grey,
-    Widget? placeholder,
-    Widget? errorWidget,
   }) {
+    // Handle null or empty paths
+    if (imagePath == null || imagePath.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: backgroundColor,
+        child: Icon(Icons.person, size: radius * 1.2, color: Colors.white),
+      );
+    }
+    
+    // Handle different image sources
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      // Network image with error handling
       return CircleAvatar(
         radius: radius,
         backgroundColor: backgroundColor,
         backgroundImage: NetworkImage(imagePath),
-        onBackgroundImageError: (_, __) {
-          return errorWidget ?? const CircleAvatar(
-            backgroundColor: Colors.grey,
-            child: Icon(Icons.person, color: Colors.white),
-          );
+        onBackgroundImageError: (exception, stackTrace) {
+          // Don't return anything here, just print the error
+          print('Error loading network image: $exception');
         },
+        // Use a transparent child container for better error state handling
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.transparent,
+          ),
+        ),
       );
     } else if (imagePath.startsWith('assets/')) {
+      // Asset image
       return CircleAvatar(
         radius: radius,
+        backgroundColor: backgroundColor,
         backgroundImage: AssetImage(imagePath),
       );
     } else {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: FileImage(File(imagePath)),
-      );
+      try {
+        // Local file with existence check
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          return CircleAvatar(
+            radius: radius,
+            backgroundColor: backgroundColor,
+            backgroundImage: FileImage(file),
+          );
+        } else {
+          return CircleAvatar(
+            radius: radius,
+            backgroundColor: backgroundColor,
+            child: Icon(Icons.person, size: radius * 1.2, color: Colors.white),
+          );
+        }
+      } catch (e) {
+        print('Error loading profile image: $e');
+        return CircleAvatar(
+          radius: radius,
+          backgroundColor: backgroundColor,
+          child: Icon(Icons.person, size: radius * 1.2, color: Colors.white),
+        );
+      }
     }
   }
   
+  // Save a network image to local storage
   static Future<String?> saveNetworkImageLocally(String url, {String? customName}) async {
     try {
       final response = await http.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final appDir = await getApplicationDocumentsDirectory();
-        final fileName = customName ?? '${DateTime.now().millisecondsSinceEpoch}${path.extension(url)}';
+        String fileName;
+        
+        if (customName != null) {
+          fileName = customName;
+        } else {
+          // Extract filename from URL or generate a unique name
+          fileName = url.split('/').last;
+          if (!fileName.contains('.')) {
+            // Add extension if missing
+            fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+          }
+        }
+        
         final filePath = '${appDir.path}/$fileName';
         final file = File(filePath);
         
         await file.writeAsBytes(response.bodyBytes);
         return file.path;
+      } else {
+        print('Failed to download image: ${response.statusCode}');
       }
     } catch (e) {
       print('Error saving image locally: $e');
     }
     return null;
-  }
-  
-  // Helper to determine if a URL is from Supabase storage
-  static bool isSupabaseStorageUrl(String url) {
-    return url.contains('.supabase.co/storage/v1/object/public/');
-  }
-  
-  // Get cached version or download if needed
-  static Future<String> getImagePathForDisplay(String imagePath, int userId) async {
-    // If it's already a local file or asset, just return it
-    if (imagePath.startsWith('assets/') || 
-        (!imagePath.startsWith('http://') && !imagePath.startsWith('https://'))) {
-      return imagePath;
-    }
-    
-    // Try to get a cached version of the network image
-    final fileName = 'profile_${userId}${path.extension(imagePath)}';
-    final appDir = await getApplicationDocumentsDirectory();
-    final localPath = '${appDir.path}/$fileName';
-    final localFile = File(localPath);
-    
-    if (await localFile.exists()) {
-      // Use cached version if it exists
-      return localPath;
-    } else {
-      // Download and cache the image
-      final savedPath = await saveNetworkImageLocally(imagePath, customName: fileName);
-      return savedPath ?? imagePath;
-    }
   }
 }

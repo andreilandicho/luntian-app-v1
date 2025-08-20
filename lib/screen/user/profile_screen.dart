@@ -1,24 +1,16 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/user_model.dart';
-import 'package:flutter_application_1/models/report_model.dart';
-import 'package:flutter_application_1/services/report_service.dart';
-import 'package:flutter_application_1/services/profile_service.dart';  // Import your existing service
-import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_application_1/screen/user/add_event_screen.dart';
-import 'package:flutter_application_1/screen/user/login_screen.dart';4
-import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:path/path.dart' as path;
-import 'package:flutter_application_1/utils/image_helper.dart';
+import 'package:flutter_application_1/screen/user/login_screen.dart';
+import 'package:flutter_application_1/services/report_service.dart';
+import 'package:flutter_application_1/models/report_model.dart';
 
 class ProfilePage extends StatefulWidget {
   final UserModel? user;
-  
+
   const ProfilePage({super.key, this.user});
 
   @override
@@ -27,119 +19,143 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
   String profilePic = 'assets/profile picture.png';
-  late String userName;
-  late String address;
-  bool isLoading = true;
-  
-  // Services
-  final _reportService = ReportService();
-  final _profileService = ProfileService();  // Use your existing ProfileService
-  final _authService = AuthService();
-  
-  // Data containers
-  List<ReportModel> userReports = [];
-  List<Map<String, dynamic>> userEvents = [];
-  List<Map<String, dynamic>> allBadges = [];
-  
+  String userName = 'User';
+  String address = 'Unknown Address';
+
+  final List<String> badges = ['Top Reporter', 'Eco Warrior'];
+
+  // These will be replaced by fetched data
+  List<Map<String, dynamic>> userReports = [];
+  bool isLoadingReports = true;
+  String reportsError = '';
+
+  final List<Map<String, dynamic>> userEvents = [
+    {
+      'title': 'Barangay Cleanup Drive',
+      'dateTime': 'July 28, 2025 • 9:00 AM',
+      'volunteers': 24,
+      'description': 'A cleanup event around the Barangay Hall and nearby streets.',
+      'additionalInfo': 'Bring gloves and garbage bags.',
+      'images': [
+        'assets/event.jpg',
+        'assets/event.jpg',
+        'assets/event.jpg',
+      ],
+      'statusLabel': 'Approved',
+      'statusColor': Colors.green,
+      'adminComment': '',
+    },
+    {
+      'title': 'Reschedule Required',
+      'dateTime': 'July 30, 2025 • 3:00 PM',
+      'volunteers': 8,
+      'description': 'Clean up scheduled for local park.',
+      'additionalInfo': 'Venue needs confirmation.',
+      'images': [
+        'assets/event.jpg',
+        'assets/event.jpg',
+        'assets/event.jpg',
+      ],
+      'statusLabel': 'For Revision',
+      'statusColor': Colors.orange,
+      'adminComment': 'Please revise the event location and clarify volunteer roles.',
+    },
+    {
+      'title': 'Clean-Up Drive',
+      'dateTime': 'August 2, 2025 • 10:00 AM',
+      'volunteers': 0,
+      'description': 'Attempted to organize a clean-up activity at the abandoned lot.',
+      'additionalInfo': 'Security measures not included.',
+      'images': [
+        'assets/event.jpg',
+        'assets/event.jpg',
+        'assets/event.jpg',
+      ],
+      'statusLabel': 'Rejected',
+      'statusColor': Colors.red,
+      'adminComment': 'The event proposal lacks sufficient detail on safety measures.',
+    },
+  ];
+
+  // Simulated badge data (you can replace this with actual data logic later)
+  late List<Map<String, dynamic>> allBadges;
+
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+
+    // User info
+    if (widget.user != null) {
+      userName = widget.user!.name;
+      // You may set address if available in user model
+    }
+
+    allBadges = [
+      {
+        'name': 'Top Reporter',
+        'earned': true,
+        'description': 'Submit 10 valid reports.',
+        'progress': 10,
+        'goal': 10
+      },
+      {
+        'name': 'Eco Warrior',
+        'earned': true,
+        'description': 'Create 3 cleanup events.',
+        'progress': 3,
+        'goal': 3
+      },
+      {
+        'name': 'Event Initiator',
+        'earned': false,
+        'description': 'Organize your first event.',
+        'progress': 0,
+        'goal': 1
+      },
+      {
+        'name': 'Report Master',
+        'earned': false,
+        'description': 'Get 50 upvotes on reports.',
+        'progress': 0,
+        'goal': 50
+      },
+      {
+        'name': 'Community Helper',
+        'earned': false,
+        'description': 'Join 5 events as a volunteer.',
+        'progress': 1,
+        'goal': 5
+      },
+    ];
+
+    _fetchUserReports();
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _fetchUserReports() async {
     if (widget.user == null) {
       setState(() {
-        userName = 'Guest User';
-        address = 'Location not set';
-        isLoading = false;
+        isLoadingReports = false;
+        reportsError = 'No user found';
       });
       return;
     }
-    
-    setState(() {
-      userName = widget.user!.name ?? 'User';
-      // Generate address based on barangay ID if available
-      address = widget.user!.barangayId != null 
-          ? 'Barangay ${widget.user!.barangayId}'
-          : 'Location not set';
-    });
-    
     try {
-      // Load user reports
-      final reports = await _reportService.getUserReports(widget.user!.id);
-      
-      // Load user events
-      final events = await _reportService.getUserEvents(widget.user!.id);
-      
-      // Load badges
-      final badges = await _profileService.getUserBadges(widget.user!.id);
-      
+      final reports = await ReportService().getReportsByUser(widget.user!.id);
       setState(() {
-        userReports = reports;
-        userEvents = events;
-        allBadges = badges;
-        isLoading = false;
+        userReports = reports.map((r) => r.toMap()).toList();
+        isLoadingReports = false;
+        // Optionally, update badge progress here
+        final upvotes = userReports.fold<int>(0, (sum, r) => sum + (r['upvotes'] ?? 0) as int);
+        allBadges.firstWhere((b) => b['name'] == 'Report Master')['progress'] = upvotes;
       });
     } catch (e) {
-      print('Error loading user data: $e');
       setState(() {
-        isLoading = false;
+        isLoadingReports = false;
+        reportsError = e.toString();
       });
     }
   }
 
-  // Helper method to convert ReportModel to the format needed by UI
-  Map<String, dynamic> _reportModelToUiFormat(ReportModel report) {
-    Color statusColor;
-    switch (report.status?.toLowerCase()) {
-      case 'pending':
-        statusColor = Colors.orange;
-        break;
-      case 'in progress':
-        statusColor = Colors.blue;
-        break;
-      case 'resolved':
-        statusColor = Colors.green;
-        break;
-      default:
-        statusColor = Colors.grey;
-    }
-    
-    return {
-      'username': userName,
-      'userProfile': profilePic,
-      'images': report.photoUrls ?? ['assets/garbage.png'],
-      'postContent': report.description ?? 'No description',
-      'statusLabel': report.status ?? 'Unknown',
-      'statusColor': statusColor,
-      'timestamp': _formatTimestamp(report.createdAt),
-      'upvoted': report.hasUserUpvoted,
-      'downvoted': report.hasUserDownvoted,
-      'upvotes': report.upvotes,
-      'downvotes': report.downvotes,
-    };
-  }
-  
-  // Format timestamp to readable format
-  String _formatTimestamp(DateTime? timestamp) {
-    if (timestamp == null) return 'Unknown time';
-    
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  // Only show up to 5 earned badges
   List<Map<String, dynamic>> get earnedBadges =>
       allBadges.where((b) => b['earned'] == true).take(5).toList();
 
@@ -179,90 +195,24 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   void _changeProfilePicture() async {
-  final picker = ImagePicker();
-  
-  try {
-    final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80, // Compress image for faster upload
-    );
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (pickedFile != null && widget.user != null) {
-      // Show loading indicator
+    if (pickedFile != null) {
       setState(() {
-        isLoading = true;
+        profilePic = pickedFile.path; // Use local path instead of asset
       });
-      
-      // Temporarily show the picked image while uploading
-      setState(() {
-        profilePic = pickedFile.path;
-      });
-      
-      try {
-        // Upload to Supabase storage through our API
-        final imageUrl = await _profileService.uploadProfilePicture(
-          widget.user!.id, 
-          pickedFile.path
-        );
-        
-        if (imageUrl != null) {
-          // Update the user profile with the new image URL
-          await _profileService.updateUserProfile(
-            userId: widget.user!.id,
-            profilePicUrl: imageUrl
-          );
-          
-          // Cache the network image locally for faster loading
-          final localPath = await ImageHelper.saveNetworkImageLocally(
-            imageUrl,
-            customName: 'profile_${widget.user!.id}${path.extension(imageUrl)}'
-          );
-          
-          setState(() {
-            profilePic = localPath ?? imageUrl;
-            isLoading = false;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile picture updated successfully'))
-          );
-        } else {
-          // Keep using the local file if upload fails
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to upload image to server. Using local copy.'))
-          );
-          setState(() {
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        print('Error uploading profile picture: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image to server'))
-        );
-        setState(() {
-          isLoading = false;
-        });
-      }
     }
-  } catch (e) {
-    print('Error picking image: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error selecting image'))
-    );
-    setState(() {
-      isLoading = false;
-    });
   }
-}
 
   void _editNameOrAddress() {
     final nameController = TextEditingController(text: userName);
+
+    // Split address to populate fields if previously saved
     final streetController = TextEditingController();
     final floorUnitController = TextEditingController();
     final cityController = TextEditingController();
 
-    // Extract existing address components
     List<String> parts = address.split(', ');
     if (parts.isNotEmpty) streetController.text = parts[0];
     if (parts.length > 2) {
@@ -303,16 +253,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                // Update local state immediately for responsiveness
+              onPressed: () {
                 setState(() {
                   userName = nameController.text;
-                  
-                  // Combine address fields
+
                   String newAddress = streetController.text;
                   if (floorUnitController.text.isNotEmpty) {
                     newAddress += ', ${floorUnitController.text}';
@@ -320,28 +264,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   if (cityController.text.isNotEmpty) {
                     newAddress += ', ${cityController.text}';
                   }
+
                   address = newAddress;
                 });
-                
-                // Then update the backend if user is logged in
-                if (widget.user != null) {
-                  try {
-                    await _profileService.updateUserProfile(
-                      userId: widget.user!.id,
-                      name: nameController.text,
-                      address: address,
-                    );
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Profile updated successfully')),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to update profile: $e')),
-                    );
-                  }
-                }
-                
                 Navigator.pop(context);
               },
               child: const Text('Save'),
@@ -352,20 +277,14 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     );
   }
 
-  Future<void> _logout() async {
-    try {
-      await _authService.logout();
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error logging out: $e')),
-      );
-    }
+  void _showImage(String path) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        child: PhotoView(imageProvider: AssetImage(path)),
+      ),
+    );
   }
 
   void _showAllBadges() {
@@ -393,13 +312,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   ),
                 ),
                 subtitle: Text(
-                badge['goal'] != null
-                    ? '${badge['progress']}/${badge['goal']} ${badge['description'].toLowerCase()}'
-                    : badge['description'],
-                style: TextStyle(
-                  color: badge['earned'] ? Colors.black87 : Colors.grey[600],
+                  badge['goal'] != null
+                      ? '${badge['progress']}/${badge['goal']} ${badge['description'].toLowerCase()}'
+                      : badge['description'],
+                  style: TextStyle(
+                    color: badge['earned'] ? Colors.black87 : Colors.grey[600],
+                  ),
                 ),
-              ),
               );
             },
           ),
@@ -410,22 +329,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             child: const Text('Close'),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showImage(String path) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        child: PhotoView(
-          imageProvider: path.startsWith('http')
-            ? NetworkImage(path) as ImageProvider
-            : path.startsWith('assets/')
-              ? AssetImage(path)
-              : FileImage(File(path)),
-        ),
       ),
     );
   }
@@ -449,7 +352,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             children: [
               ListTile(
                 leading: CircleAvatar(
-                  backgroundImage: _getImageProvider(profilePic),
+                  backgroundImage: AssetImage(profilePic),
                   radius: baseScale * 0.06,
                 ),
                 title: Text(
@@ -459,15 +362,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                subtitle: Text(post['timestamp'] ?? DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now())),
+                subtitle: Text(post['timestamp'] is String
+                    ? post['timestamp']
+                    : DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now())),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: post['statusColor'],
+                    color: post['statusColor'] ?? Colors.grey,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    post['statusLabel'],
+                    post['statusLabel'] ?? '',
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
@@ -478,7 +383,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      post['postContent'],
+                      post['postContent'] ?? '',
                       style: const TextStyle(fontFamily: 'Poppins'),
                     ),
                     const SizedBox(height: 10),
@@ -492,30 +397,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                           onPageChanged: (index) =>
                               setLocalState(() => currentImageIndex = index),
                           itemBuilder: (context, imgIndex) {
-                            final imagePath = post['images'][imgIndex];
                             return GestureDetector(
-                              onTap: () => _showImage(imagePath),
+                              onTap: () => _showImage(post['images'][imgIndex]),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: imagePath.startsWith('http')
-                                  ? Image.network(
-                                      imagePath,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      loadingBuilder: (ctx, child, progress) {
-                                        if (progress == null) return child;
-                                        return Center(child: CircularProgressIndicator(
-                                          value: progress.expectedTotalBytes != null
-                                            ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                                            : null,
-                                        ));
-                                      },
-                                    )
-                                  : Image.asset(
-                                      imagePath,
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                    ),
+                                child: Image.asset(
+                                  post['images'][imgIndex],
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
                               ),
                             );
                           },
@@ -553,17 +443,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       children: [
                         GestureDetector(
                           onTap: () {
-                            setLocalState(() {
+                            setState(() {
                               post['upvoted'] = !(post['upvoted'] ?? false);
-                              if (post['upvoted']) {
-                                post['upvotes'] = (post['upvotes'] ?? 0) + 1;
-                                if (post['downvoted'] ?? false) {
-                                  post['downvoted'] = false;
-                                  post['downvotes'] = (post['downvotes'] ?? 1) - 1;
-                                }
-                              } else {
-                                post['upvotes'] = (post['upvotes'] ?? 1) - 1;
-                              }
+                              if (post['upvoted']) post['downvoted'] = false;
                             });
                           },
                           child: AnimatedScale(
@@ -578,21 +460,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Text((post['upvotes'] ?? 0).toString()),
+                        Text(post['upvotes'].toString()),
                         const SizedBox(width: 12),
                         GestureDetector(
                           onTap: () {
-                            setLocalState(() {
+                            setState(() {
                               post['downvoted'] = !(post['downvoted'] ?? false);
-                              if (post['downvoted']) {
-                                post['downvotes'] = (post['downvotes'] ?? 0) + 1;
-                                if (post['upvoted'] ?? false) {
-                                  post['upvoted'] = false;
-                                  post['upvotes'] = (post['upvotes'] ?? 1) - 1;
-                                }
-                              } else {
-                                post['downvotes'] = (post['downvotes'] ?? 1) - 1;
-                              }
+                              if (post['downvoted']) post['upvoted'] = false;
                             });
                           },
                           child: AnimatedScale(
@@ -607,7 +481,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                           ),
                         ),
                         const SizedBox(width: 4),
-                        Text((post['downvotes'] ?? 0).toString()),
+                        Text(post['downvotes'].toString()),
                       ],
                     ),
                     IconButton(
@@ -622,6 +496,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                           builder: (context) => SafeArea(
                             child: Wrap(
                               children: [
+                                ListTile(
+                                  leading: const Icon(Icons.flag),
+                                  title: const Text('Report Post'),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Post reported')),
+                                    );
+                                  },
+                                ),
                                 ListTile(
                                   leading: const Icon(Icons.share),
                                   title: const Text('Share'),
@@ -677,7 +561,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                 children: [
                   ListTile(
                     leading: CircleAvatar(
-                      backgroundImage: _getImageProvider(profilePic),
+                      backgroundImage: AssetImage(profilePic),
                       radius: baseScale * 0.06,
                     ),
                     title: Text(
@@ -687,17 +571,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: Text(post['createdAt'] != null 
-                      ? DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.parse(post['createdAt']))
-                      : DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now())),
+                    subtitle: Text(DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now())),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: post['statusColor'] ?? Colors.grey,
+                        color: post['statusColor'],
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        post['statusLabel'] ?? 'Unknown',
+                        post['statusLabel'],
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
@@ -708,17 +590,17 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "${post['title'] ?? 'Untitled Event'} — ${post['dateTime'] ?? 'Date TBD'}",
+                          "${post['title']} — ${post['dateTime']}",
                           style: TextStyle(
                             fontSize: baseScale * 0.045,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text("Volunteers Needed: ${post['volunteers'] ?? 'Unknown'}"),
+                        Text("Volunteers Needed: ${post['volunteers']}"),
                         const SizedBox(height: 6),
                         const Text("Description:", style: TextStyle(fontWeight: FontWeight.bold)),
-                        Text(post['description'] ?? 'No description available'),
+                        Text(post['description']),
                         const SizedBox(height: 6),
                         if (post['additionalInfo'] != null && post['additionalInfo'].isNotEmpty) ...[
                           const Text("Additional Info:", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -745,30 +627,15 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                                   onPageChanged: (index) =>
                                       setLocalState(() => currentImageIndex = index),
                                   itemBuilder: (context, imgIndex) {
-                                    final imagePath = post['images'][imgIndex];
                                     return GestureDetector(
-                                      onTap: () => _showImage(imagePath),
+                                      onTap: () => _showImage(post['images'][imgIndex]),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
-                                        child: imagePath.startsWith('http')
-                                          ? Image.network(
-                                              imagePath,
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                              loadingBuilder: (ctx, child, progress) {
-                                                if (progress == null) return child;
-                                                return Center(child: CircularProgressIndicator(
-                                                  value: progress.expectedTotalBytes != null
-                                                    ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                                                    : null,
-                                                ));
-                                              },
-                                            )
-                                          : Image.asset(
-                                              imagePath,
-                                              fit: BoxFit.cover,
-                                              width: double.infinity,
-                                            ),
+                                        child: Image.asset(
+                                          post['images'][imgIndex],
+                                          fit: BoxFit.cover,
+                                          width: double.infinity,
+                                        ),
                                       ),
                                     );
                                   },
@@ -856,66 +723,16 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       );
     });
   }
-  
-  // Helper method for image providers
-  ImageProvider _getImageProvider(String path) {
-    if (path.startsWith('http')) {
-      return NetworkImage(path);
-    } else if (path.startsWith('assets/')) {
-      return AssetImage(path);
-    } else {
-      return FileImage(File(path));
-    }
-  }
-  
-  // Helper for empty state display
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.info_outline, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-                fontFamily: 'Poppins',
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final baseScale = screenSize.shortestSide.clamp(320.0, 480.0);
 
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final reportWidgets = userReports.isEmpty 
-      ? [_buildEmptyState("You haven't posted any reports yet")] 
-      : userReports.map((report) => _buildReportCard(_reportModelToUiFormat(report))).toList();
-    
-    final eventWidgets = userEvents.isEmpty
-      ? [_buildEmptyState("You haven't participated in any events yet")]
-      : userEvents.map((event) => _buildEventCard(event)).toList();
-
     return DefaultTabController(
       length: 2,
       child: RefreshIndicator(
-        onRefresh: () async => _loadUserData(),
+        onRefresh: _fetchUserReports,
         child: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverToBoxAdapter(
@@ -944,7 +761,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                                   ),
                                   onPressed: () {
                                     Navigator.pop(context);
-                                    _logout();
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                                    );
                                   },
                                   child: const Text('Logout'),
                                 ),
@@ -964,11 +784,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ],
                   ),
                   Stack(
-                    alignment: Alignment.center,
                     children: [
                       CircleAvatar(
                         radius: baseScale * 0.13,
-                        backgroundImage: _getImageProvider(profilePic),
+                        backgroundImage: AssetImage(profilePic),
                       ),
                       Positioned(
                         bottom: 0,
@@ -1021,43 +840,40 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Display badges section
-                  earnedBadges.isEmpty 
-                    ? Container()
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: earnedBadges.map((badge) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDBB727),
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.emoji_events, size: 18, color: Colors.white),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    badge['name'],
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontFamily: 'Poppins',
-                                      fontSize: baseScale * 0.032,
-                                    ),
-                                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: earnedBadges.map((badge) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDBB727),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.emoji_events, size: 18, color: Colors.white),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                badge['name'],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Poppins',
+                                  fontSize: baseScale * 0.032,
                                 ),
-                              ],
+                              ),
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
                   TextButton(
                     onPressed: _showAllBadges,
                     child: const Text(
@@ -1081,15 +897,26 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
           ],
           body: TabBarView(
             children: [
-              // Reports tab
-              ListView(
+              isLoadingReports
+                  ? const Center(child: CircularProgressIndicator())
+                  : reportsError.isNotEmpty
+                      ? Center(
+                          child: Text(
+                            'Failed to load reports: $reportsError',
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        )
+                      : userReports.isEmpty
+                          ? const Center(child: Text('No reports found.'))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: userReports.length,
+                              itemBuilder: (context, index) => _buildReportCard(userReports[index]),
+                            ),
+              ListView.builder(
                 padding: const EdgeInsets.all(16),
-                children: reportWidgets,
-              ),
-              // Events tab
-              ListView(
-                padding: const EdgeInsets.all(16),
-                children: eventWidgets,
+                itemCount: userEvents.length,
+                itemBuilder: (context, index) => _buildEventCard(userEvents[index]),
               ),
             ],
           ),

@@ -16,6 +16,7 @@ class ReportModel {
   bool hasUserDownvoted;
   final bool anonymous;
   final int barangayId;
+  final String? location;   // Optional field for location
   
   ReportModel({
     required this.reportId,
@@ -32,14 +33,15 @@ class ReportModel {
     required this.hasUserDownvoted,
     required this.anonymous,
     required this.barangayId,
+    this.location,
   });
   
   factory ReportModel.fromJson(Map<String, dynamic> json) {
     return ReportModel(
       reportId: json['report_id'],
       userId: json['user_id'],
-      username: json['anonymous'] ? 'Anonymous Citizen' : json['username'],
-      userProfileUrl: json['anonymous'] ? null : json['user_profile_url'],
+      username: json['anonymous'] ? 'Anonymous Citizen' : (json['username'] ?? ''),
+      userProfileUrl: json['anonymous'] ? null : (json['user_profile_url'] ?? 'assets/profile picture.png'),
       description: json['description'],
       photoUrls: List<String>.from(json['photo_urls'] ?? []),
       status: json['status'],
@@ -50,6 +52,7 @@ class ReportModel {
       hasUserDownvoted: json['has_user_downvoted'] ?? false,
       anonymous: json['anonymous'] ?? false,
       barangayId: json['barangay_id'],
+      location: json['location']?.toString(), // <-- null safe
     );
   }
   

@@ -105,7 +105,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get reports by user ID
+// Get reports by user ID for user profile/profile page
+// This endpoint retrieves reports created by a specific user
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -121,8 +122,6 @@ router.get('/user/:userId', async (req, res) => {
         created_at,
         anonymous,
         barangay_id,
-        category,
-        priority,
         location
       `)
       .eq('user_id', userId)
@@ -173,6 +172,17 @@ router.get('/user/:userId', async (req, res) => {
     console.error('Server error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+router.get('/user/:userId', async (req, res) => {
+  const userId = req.params.userId;
+  const { data, error } = await supabase
+    .from('reports')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
 });
 
 export default router;
