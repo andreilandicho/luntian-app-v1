@@ -63,6 +63,7 @@ class _UserHomePageState extends State<UserHomePage> {
     }
   }
 
+  //functions to fetch reports based on barangay id of the signed-in user, handle upvotes and downvotes
   Future<void> _fetchReports() async {
     setState(() {
       _isLoading = true;

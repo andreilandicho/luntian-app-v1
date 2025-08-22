@@ -7,6 +7,8 @@ import 'package:flutter_application_1/screen/user/add_event_screen.dart';
 import 'package:flutter_application_1/screen/user/login_screen.dart';
 import 'package:flutter_application_1/services/report_service.dart';
 import 'package:flutter_application_1/models/report_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProfilePage extends StatefulWidget {
   final UserModel? user;
@@ -29,53 +31,13 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   bool isLoadingReports = true;
   String reportsError = '';
 
-  final List<Map<String, dynamic>> userEvents = [
-    {
-      'title': 'Barangay Cleanup Drive',
-      'dateTime': 'July 28, 2025 • 9:00 AM',
-      'volunteers': 24,
-      'description': 'A cleanup event around the Barangay Hall and nearby streets.',
-      'additionalInfo': 'Bring gloves and garbage bags.',
-      'images': [
-        'assets/event.jpg',
-        'assets/event.jpg',
-        'assets/event.jpg',
-      ],
-      'statusLabel': 'Approved',
-      'statusColor': Colors.green,
-      'adminComment': '',
-    },
-    {
-      'title': 'Reschedule Required',
-      'dateTime': 'July 30, 2025 • 3:00 PM',
-      'volunteers': 8,
-      'description': 'Clean up scheduled for local park.',
-      'additionalInfo': 'Venue needs confirmation.',
-      'images': [
-        'assets/event.jpg',
-        'assets/event.jpg',
-        'assets/event.jpg',
-      ],
-      'statusLabel': 'For Revision',
-      'statusColor': Colors.orange,
-      'adminComment': 'Please revise the event location and clarify volunteer roles.',
-    },
-    {
-      'title': 'Clean-Up Drive',
-      'dateTime': 'August 2, 2025 • 10:00 AM',
-      'volunteers': 0,
-      'description': 'Attempted to organize a clean-up activity at the abandoned lot.',
-      'additionalInfo': 'Security measures not included.',
-      'images': [
-        'assets/event.jpg',
-        'assets/event.jpg',
-        'assets/event.jpg',
-      ],
-      'statusLabel': 'Rejected',
-      'statusColor': Colors.red,
-      'adminComment': 'The event proposal lacks sufficient detail on safety measures.',
-    },
-  ];
+  //Events
+  // EVENTS: Fully handled via API
+  List<Map<String, dynamic>> userEvents = [];
+  bool isLoadingEvents = true;
+  String eventsError = '';
+  
+  // Badges
 
   // Simulated badge data (you can replace this with actual data logic later)
   late List<Map<String, dynamic>> allBadges;
@@ -129,6 +91,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     ];
 
     _fetchUserReports();
+    _fetchUserEvents();
   }
 
   Future<void> _fetchUserReports() async {
@@ -155,6 +118,109 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       });
     }
   }
+
+  // Fetch user events or event handling
+  Future<void> _fetchUserEvents() async {
+    if (widget.user == null) {
+      setState(() {
+        isLoadingEvents = false;
+        eventsError = 'No user found';
+      });
+      return;
+    }
+    try {
+      // Example REST API call, adapt endpoint as needed
+      final response = await Future.delayed(
+        const Duration(milliseconds: 400),
+        () async {
+          final uri = Uri.parse('http://10.0.2.2:3000/events/user/${widget.user!.id}');
+          final httpResponse = await Future.sync(() => http.get(uri));
+          return httpResponse;
+        },
+      );
+      if (response.statusCode == 200) {
+        final List<dynamic> data = (response.body.isNotEmpty)
+            ? jsonDecode(response.body)
+            : [];
+        final List<Map<String, dynamic>> events =
+            List<Map<String, dynamic>>.from(data);
+        setState(() {
+          userEvents = events.map(_eventJsonToCardMap).toList();
+          isLoadingEvents = false;
+        });
+      } else {
+        setState(() {
+          isLoadingEvents = false;
+          eventsError = 'Failed to load events: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoadingEvents = false;
+        eventsError = e.toString();
+      });
+    }
+  }
+
+  Map<String, dynamic> _eventJsonToCardMap(Map<String, dynamic> e) {
+    // Transform the event API data to the card data format for UI
+    // You may want to adjust these fields according to your backend model
+    final DateTime? eventDate = e['event_date'] != null && e['event_date'] != ''
+        ? DateTime.tryParse(e['event_date'])
+        : null;
+
+    return {
+      'title': e['title'] ?? '',
+      'dateTime': eventDate != null
+          ? DateFormat('MMM dd, yyyy • h:mm a').format(eventDate)
+          : '',
+      'volunteers': e['volunteers_needed'] ?? 0,
+      'description': e['description'] ?? '',
+      'additionalInfo': e['location'] ?? '',
+      'images': e['photo_urls'] == null
+          ? []
+          : List<String>.from(e['photo_urls']),
+      'statusLabel': _statusLabel(e['approval_status']),
+      'statusColor': _statusColor(e['approval_status']),
+      'adminComment': e['admin_comment'] ?? '',
+      // If you have isPublic, you can add that here
+      'isPublic': e['isPublic'] ?? false,
+    };
+  }
+
+  String _statusLabel(String? status) {
+    if (status == null) return '';
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return 'Approved';
+      case 'pending':
+        return 'Pending';
+      case 'rejected':
+        return 'Rejected';
+      case 'for revision':
+        return 'For Revision';
+      default:
+        return status;
+    }
+  }
+
+  Color _statusColor(String? status) {
+    if (status == null) return Colors.grey;
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      case 'for revision':
+        return Colors.amber;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  //end of fetching user reports and events
 
   List<Map<String, dynamic>> get earnedBadges =>
       allBadges.where((b) => b['earned'] == true).take(5).toList();
@@ -732,7 +798,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     return DefaultTabController(
       length: 2,
       child: RefreshIndicator(
-        onRefresh: _fetchUserReports,
+        onRefresh: () async {
+          await _fetchUserReports();
+          await _fetchUserEvents();
+        },
         child: NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverToBoxAdapter(
@@ -913,10 +982,44 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
                               itemCount: userReports.length,
                               itemBuilder: (context, index) => _buildReportCard(userReports[index]),
                             ),
-              ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: userEvents.length,
-                itemBuilder: (context, index) => _buildEventCard(userEvents[index]),
+              //EVENTS TAB
+              Stack(
+                children: [
+                  isLoadingEvents
+                      ? const Center(child: CircularProgressIndicator())
+                      : eventsError.isNotEmpty
+                          ? Center(
+                              child: Text(
+                                'Failed to load events: $eventsError',
+                                style: const TextStyle(color: Colors.red),
+                              ),
+                            )
+                          : userEvents.isEmpty
+                              ? const Center(child: Text('No events found.'))
+                              : ListView.builder(
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: userEvents.length,
+                                  itemBuilder: (context, index) => _buildEventCard(userEvents[index]),
+                                ),
+              Positioned(
+                    bottom: 24,
+                    right: 24,
+                    child: FloatingActionButton(
+                      backgroundColor: const Color(0xFF328E6E),
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AddEventScreen()),
+                        );
+                        if (result == true) {
+                          await _fetchUserEvents();
+                        }
+                      },
+                      child: const Icon(Icons.add, color: Colors.white),
+                      tooltip: 'Add an Event',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
