@@ -46,6 +46,8 @@ function getStatusColor(status) {
 }
 
 // GET: All events (optionally filter by type and barangay)
+
+//eto ang get method for fetching events based on type and barangay_id
 router.get('/', async (req, res) => {
   try {
     const { type, barangay_id } = req.query;
@@ -82,6 +84,8 @@ router.get('/', async (req, res) => {
 });
 
 // GET: Events for a specific barangay (barangay-exclusive)
+
+//get method naman for fetching events for a specific barangay
 router.get('/barangay/:barangayId', async (req, res) => {
   try {
     const { barangayId } = req.params;
@@ -114,6 +118,7 @@ router.get('/barangay/:barangayId', async (req, res) => {
 });
 
 // GET: All public events
+//get method para sa system-wide public events
 router.get('/public', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -143,6 +148,7 @@ router.get('/public', async (req, res) => {
 });
 
 // GET: Events created by a user
+//get method for displaying events in the user's profile
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -174,21 +180,22 @@ router.get('/user/:userId', async (req, res) => {
 });
 
 // POST: Create a new event
+//post event to create a new event and push it sa database
 router.post('/', async (req, res) => {
   try {
     const {
-      created_by,
-      barangay_id,
-      title,
+      created_by, //user_id ng nagcreate ng event
+      barangay_id, //barangay_id ng nagcreate ng event. isama sa business rules na a user can only create barangay exclusive event to his/her own barangay unless it is a public event
+      title, 
       description,
       event_date,
-      location,
-      isPublic,
-      photo_urls
+      location, //kung saan gaganapin ang event. string not geom or point
+      isPublic, //true kung public event, false kung barangay-exclusive
+      photo_urls //photos na uploaded ng event creator. array of strings (URLs)
     } = req.body;
 
     const { data, error } = await supabase
-      .from('volunteer_events')
+      .from('volunteer_events') //volunteer_events ang table name
       .insert([{
         created_by,
         barangay_id,
@@ -216,6 +223,7 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH: Approve/Reject event (admin/official)
+//patch is katulad lang ng put method, pero pwede lang i-update yung specific field na gusto mo na nasasatisfy yung condition
 router.patch('/:id/approve', async (req, res) => {
   try {
     const { approval_status } = req.body;

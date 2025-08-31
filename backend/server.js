@@ -5,6 +5,8 @@ import usersRouter from './routes/users.js';
 import barangaysRouter from './routes/barangays.js';
 import reportsRouter from './routes/reports.js';
 import eventsRouter from './routes/events.js';
+import getReportsAssignedToAnOfficialRouter from './routes/getReportsAssignedToAnOfficial.js';
+import viewOfficialRequestsRouter from './routes/viewOfficialRequests.js';
 
 
 const app = express();
@@ -15,5 +17,7 @@ app.use('/users', usersRouter);
 app.use('/barangays', barangaysRouter);
 app.use('/reports', reportsRouter);
 app.use('/events', eventsRouter);
+app.use('/getReportsAssignedToAnOfficial', getReportsAssignedToAnOfficialRouter);
+app.use('/viewOfficialRequests', viewOfficialRequestsRouter);
 
 app.listen(3000, () => console.log('Server running on port 3000'));
