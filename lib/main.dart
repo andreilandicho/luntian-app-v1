@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_application_1/screen/official_mobile/official.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'screen/user/loading_screen.dart';
-import 'screen/official (mobile)/official.dart';
-import 'screen/admin/admin_dashboard.dart';
+
+import 'screen/admin/admin_dashboard_stub.dart'
+    if (dart.library.html) 'screen/admin/admin_dashboard.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +15,7 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // Simulate logged-in role
-  final String role = 'user';
+  final String role = 'secretary'; // Change to 'user' or 'official' to test different roles
 
   @override
   Widget build(BuildContext context) {

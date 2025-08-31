@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screen/admin_mobile/admin_dashboard.dart';
 import 'package:flutter_application_1/screen/user/signup_screen.dart';
 import 'package:flutter_application_1/screen/user/forgot_screen.dart';
 import 'package:flutter_application_1/screen/user/home_screen.dart';
@@ -89,13 +90,21 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 25),
                     ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(builder: (_) => const UserHomePage()),
-                          );
-                        }
-                      },
+                            if (_formKey.currentState!.validate()) {
+                              String email = emailController.text.trim().toLowerCase();
+                              if (email == 'official@gmail.com') {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AdminDashboard()),
+                                );
+                              } else {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const UserHomePage()),
+                                );
+                              }
+                            }
+                          },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF328D6E),
                           shape: RoundedRectangleBorder(

@@ -499,8 +499,8 @@ class EventCard extends StatelessWidget {
             ListTile(
               leading: CircleAvatar(backgroundImage: AssetImage(post['userProfile'])),
               title: Row(
-  children: [
-    Expanded(
+      children: [
+      Expanded(
       child: Text(
         post['username'],
         style: TextStyle(
@@ -510,7 +510,7 @@ class EventCard extends StatelessWidget {
         ),
         overflow: TextOverflow.ellipsis,
       ),
-    ),
+      ),
     const SizedBox(width: 6),
     Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
