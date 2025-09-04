@@ -31,6 +31,10 @@ dependencies:
   cloud_firestore: ^6.0.0
   #For supabase dependencies
   supabase_flutter: ^2.9.1
+  # For image compression
+  flutter_image_compress: ^2.1.0
+  # shared preferences
+  shared_preferences: ^2.1.1
 
 dev_dependencies:
   flutter_test:

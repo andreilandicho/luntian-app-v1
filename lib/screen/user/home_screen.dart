@@ -33,7 +33,7 @@ class _UserHomePageState extends State<UserHomePage> {
   bool _isLoading = true;
   final _reportService = ReportService();
   final _authService = AuthService();
-  late UserModel _currentUser;
+  UserModel? _currentUser;
 
   @override
   void initState() {
@@ -43,25 +43,31 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   Future<void> _loadUserAndReports() async {
-    try {
-      final user = await _authService.getCurrentUser();
-      if (user == null) {
-        // Handle case where user is not logged in
-        return;
-      }
-      
-      _currentUser = user;
-      await _fetchReports();
-    } catch (e) {
-      print('Error loading user data: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load user data: $e')),
-      );
+  try {
+    final user = await _authService.getCurrentUser();
+    if (user == null) {
+      // Handle case where user is not logged in
       setState(() {
+        _currentUser = null;
         _isLoading = false;
+        _reports = [];
       });
+      return;
     }
+    
+    _currentUser = user;
+    await _fetchReports();
+  } catch (e) {
+    print('Error loading user data: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to load user data: $e')),
+    );
+    setState(() {
+      _currentUser = null;
+      _isLoading = false;
+    });
   }
+}
 
   //functions to fetch reports based on barangay id of the signed-in user, handle upvotes and downvotes
   Future<void> _fetchReports() async {
@@ -70,10 +76,18 @@ class _UserHomePageState extends State<UserHomePage> {
     });
     
     try {
-      final reports = await _reportService.getReportsByBarangay(
-        _currentUser.barangayId ?? 0, 
-        _currentUser.id
-      );
+      if (_currentUser == null) {
+  setState(() {
+    _isLoading = false;
+    _reports = [];
+  });
+  return;
+}
+
+final reports = await _reportService.getReportsByBarangay(
+  _currentUser!.barangayId ?? 0, 
+  _currentUser!.id
+);
       
       setState(() {
         _reports = reports;
@@ -110,11 +124,19 @@ class _UserHomePageState extends State<UserHomePage> {
     });
     
     try {
-      await _reportService.voteReport(
-        report.reportId, 
-        _currentUser.id,
-        wasUpvoted ? 'remove' : 'upvote'
-      );
+      if (_currentUser == null) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Please log in to vote'))
+  );
+  return;
+}
+
+await _reportService.voteReport(
+  report.reportId, 
+  _currentUser!.id,
+  wasUpvoted ? 'remove' : 'upvote'
+);
+
     } catch (e) {
       // Revert on error
       setState(() {
@@ -158,7 +180,7 @@ class _UserHomePageState extends State<UserHomePage> {
     try {
       await _reportService.voteReport(
         report.reportId, 
-        _currentUser.id,
+        _currentUser?.id ?? 0,
         wasDownvoted ? 'remove' : 'downvote'
       );
     } catch (e) {
@@ -243,7 +265,23 @@ class _UserHomePageState extends State<UserHomePage> {
       const SearchPage(),
       const LeaderboardPage(),
       NotificationPage(),
-      ProfilePage(user: _currentUser),
+      _currentUser != null 
+    ? ProfilePage(user: _currentUser!)
+    : Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("Please log in to view profile"),
+            ElevatedButton(
+              onPressed: () {
+                // Navigate to login or refresh user data
+                _loadUserAndReports();
+              },
+              child: Text("Refresh"),
+            ),
+          ],
+        ),
+      ),
     ];
 
     return Scaffold(

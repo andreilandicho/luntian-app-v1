@@ -11,7 +11,19 @@ import 'models/user_model.dart';
 import 'screen/user/login_screen.dart';
 import 'screen/user/home_screen.dart';  // Add this import
 
-void main() {
+// main.dart
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: 'https://ewogpmjmlefwzddoldwb.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3b2dwbWptbGVmd3pkZG9sZHdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQzNTk5OTgsImV4cCI6MjA2OTkzNTk5OH0.WdaKfVVirpGhDYB-NKSGTpsIkMNZsKF21fcybIaKe3E',
+  );
+  
   runApp(const MyApp());
 }
 

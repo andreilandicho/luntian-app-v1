@@ -240,7 +240,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             items: barangays.map<DropdownMenuItem<int>>((b) =>
                               DropdownMenuItem<int>(
                                 value: b['barangay_id'],
-                                child: Text(b['name']),
+                                child: Text(b['barangay_name']),
                               ),
                             ).toList(),
                             onChanged: (val) => setState(() => selectedBarangayId = val),

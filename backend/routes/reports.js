@@ -76,7 +76,6 @@ router.post('/', async (req, res) => {
       barangayId,
       description,
       photoUrls,
-      location,
       anonymous = false
     } = req.body;
     
@@ -87,7 +86,6 @@ router.post('/', async (req, res) => {
         barangay_id: parseInt(barangayId),
         description,
         photo_urls: photoUrls,
-        location,
         anonymous,
         status: 'pending' // Your default status
       })
@@ -121,8 +119,7 @@ router.get('/user/:userId', async (req, res) => {
         status,
         created_at,
         anonymous,
-        barangay_id,
-        location
+        barangay_id
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
