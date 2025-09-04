@@ -13,7 +13,7 @@ class PendingReportsPage extends StatelessWidget {
         children: [
           PendingPostCard(
             reporterName: 'Juan Dela Cruz',
-            profileImage: 'assets/profile picture.png',
+            profileImage: 'assets/profilepicture.png',
             reportTime: '7:30 PM',
             reportDate: 'Aug 15, 2025',
             priority: 'Medium',
@@ -25,7 +25,7 @@ class PendingReportsPage extends StatelessWidget {
           ),
           PendingPostCard(
             reporterName: 'Maria Clara',
-            profileImage: 'assets/profile picture.png',
+            profileImage: 'assets/profilepicture.png',
             reportTime: '8:00 AM',
             reportDate: 'Aug 16, 2025',
             priority: 'High',

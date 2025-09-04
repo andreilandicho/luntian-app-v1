@@ -48,7 +48,7 @@ class _BacklogsReportsPageState extends State<BacklogsReportsPage> {
               /// Example of calling PendingPostCard
               BacklogsPostCard(
                 reporterName: 'Juan Dela Cruz',
-                profileImage: 'assets/profile picture.png',
+                profileImage: 'assets/profilepicture.png',
                 reportTime: '7:30 PM',
                 reportDate: 'Aug 15, 2025', // <-- Date here
                 priority: 'High',

@@ -18,7 +18,7 @@ final List<Map<String, dynamic>> _notifications = [
     "type": "report",
     "title": "New Cleanliness Report",
     "subtitle": "Juan Dela Cruz reported a new case",
-    "profile": "assets/profile picture.png",
+    "profile": "assets/profilepicture.png",
     "time": DateTime.now().subtract(const Duration(minutes: 20)),
     "unread": true,
     "report": {
@@ -40,7 +40,7 @@ final List<Map<String, dynamic>> _notifications = [
     "type": "event",
     "title": "New Event Proposal",
     "subtitle": "Juan Dela Cruz created an event proposal",
-    "profile": "assets/profile picture.png",
+    "profile": "assets/profilepicture.png",
     "time": DateTime.now().subtract(const Duration(hours: 3)),
     "unread": true,
     "event": {
@@ -58,7 +58,7 @@ final List<Map<String, dynamic>> _notifications = [
     "type": "report",
     "title": "New Cleanliness Report",
     "subtitle": "Maria Santos reported a new case",
-    "profile": "assets/profile picture.png",
+    "profile": "assets/profilepicture.png",
     "time": DateTime.now().subtract(const Duration(days: 1, hours: 2)),
     "unread": false,
     "report": {
@@ -80,7 +80,7 @@ final List<Map<String, dynamic>> _notifications = [
     "type": "report",
     "title": "New Cleanliness Report",
     "subtitle": "Pedro Ramirez reported a new case",
-    "profile": "assets/profile picture.png",
+    "profile": "assets/profilepicture.png",
     "time": DateTime.now().subtract(const Duration(hours: 5)),
     "unread": true,
     "report": {
@@ -95,7 +95,7 @@ final List<Map<String, dynamic>> _notifications = [
   }
 ];
 
-  String _filter = "All";
+String _filter = "All";
   final Set<int> _selected = {}; // bulk actions
 
   bool _isSameDate(DateTime a, DateTime b) =>
@@ -182,32 +182,32 @@ final List<Map<String, dynamic>> _notifications = [
     String query = "";
     // Keep a master list; filter from it each time
     final List<Map<String, String>> people = [
-      {"name": "Alice", "avatar": "assets/profile picture.png"},
-      {"name": "Bob", "avatar": "assets/profile picture.png"},
-      {"name": "Charlie", "avatar": "assets/profile picture.png"},
-      {"name": "Diana", "avatar": "assets/profile picture.png"},
-      {"name": "Ethan", "avatar": "assets/profile picture.png"},
-      {"name": "Fiona", "avatar": "assets/profile picture.png"},
-      {"name": "George", "avatar": "assets/profile picture.png"},
-      {"name": "Hannah", "avatar": "assets/profile picture.png"},
-      {"name": "Ian", "avatar": "assets/profile picture.png"},
-      {"name": "Jasmine", "avatar": "assets/profile picture.png"},
-      {"name": "Kevin", "avatar": "assets/profile picture.png"},
-      {"name": "Laura", "avatar": "assets/profile picture.png"},
-      {"name": "Michael", "avatar": "assets/profile picture.png"},
-      {"name": "Nina", "avatar": "assets/profile picture.png"},
-      {"name": "Oscar", "avatar": "assets/profile picture.png"},
-      {"name": "Paula", "avatar": "assets/profile picture.png"},
-      {"name": "Quinn", "avatar": "assets/profile picture.png"},
-      {"name": "Rachel", "avatar": "assets/profile picture.png"},
-      {"name": "Sam", "avatar": "assets/profile picture.png"},
-      {"name": "Tina", "avatar": "assets/profile picture.png"},
-      {"name": "Uma", "avatar": "assets/profile picture.png"},
-      {"name": "Victor", "avatar": "assets/profile picture.png"},
-      {"name": "Wendy", "avatar": "assets/profile picture.png"},
-      {"name": "Xavier", "avatar": "assets/profile picture.png"},
-      {"name": "Yara", "avatar": "assets/profile picture.png"},
-      {"name": "Zack", "avatar": "assets/profile picture.png"},
+      {"name": "Alice", "avatar": "assets/profilepicture.png"},
+      {"name": "Bob", "avatar": "assets/profilepicture.png"},
+      {"name": "Charlie", "avatar": "assets/profilepicture.png"},
+      {"name": "Diana", "avatar": "assets/profilepicture.png"},
+      {"name": "Ethan", "avatar": "assets/profilepicture.png"},
+      {"name": "Fiona", "avatar": "assets/profilepicture.png"},
+      {"name": "George", "avatar": "assets/profilepicture.png"},
+      {"name": "Hannah", "avatar": "assets/profilepicture.png"},
+      {"name": "Ian", "avatar": "assets/profilepicture.png"},
+      {"name": "Jasmine", "avatar": "assets/profilepicture.png"},
+      {"name": "Kevin", "avatar": "assets/profilepicture.png"},
+      {"name": "Laura", "avatar": "assets/profilepicture.png"},
+      {"name": "Michael", "avatar": "assets/profilepicture.png"},
+      {"name": "Nina", "avatar": "assets/profilepicture.png"},
+      {"name": "Oscar", "avatar": "assets/profilepicture.png"},
+      {"name": "Paula", "avatar": "assets/profilepicture.png"},
+      {"name": "Quinn", "avatar": "assets/profilepicture.png"},
+      {"name": "Rachel", "avatar": "assets/profilepicture.png"},
+      {"name": "Sam", "avatar": "assets/profilepicture.png"},
+      {"name": "Tina", "avatar": "assets/profilepicture.png"},
+      {"name": "Uma", "avatar": "assets/profilepicture.png"},
+      {"name": "Victor", "avatar": "assets/profilepicture.png"},
+      {"name": "Wendy", "avatar": "assets/profilepicture.png"},
+      {"name": "Xavier", "avatar": "assets/profilepicture.png"},
+      {"name": "Yara", "avatar": "assets/profilepicture.png"},
+      {"name": "Zack", "avatar": "assets/profilepicture.png"},
     ];
     List<Map<String, String>> filtered = List.from(people);
     
@@ -489,7 +489,7 @@ final List<Map<String, dynamic>> _notifications = [
                         children: [
                           const CircleAvatar(
                             radius: 18,
-                            backgroundImage: AssetImage("assets/profile picture.png"),
+                            backgroundImage: AssetImage("assets/profilepicture.png"),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
@@ -749,11 +749,6 @@ final List<Map<String, dynamic>> _notifications = [
       widget.onUnreadChanged?.call(unreadCount);
     });
 
-    final reportsToday = _notifications
-        .where((n) => n["type"] == "report" && _isSameDate(n["time"], DateTime.now()))
-        .length;
-    final eventsUpcoming = _notifications.where((n) => n["type"] == "event").length;
-
     // filter
     final filtered = _notifications.where((n) {
       if (_filter == "Unread") return n["unread"] == true;
@@ -777,17 +772,16 @@ final List<Map<String, dynamic>> _notifications = [
         title: const Text(
           "Notifications",
           style: TextStyle(
-            fontSize: 30,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
-            fontFamily: "Marykate",
-            color: Colors.black,
+            color: Colors.black87,
           ),
         ),
         actions: [
           if (_selected.isNotEmpty)
             IconButton(
               tooltip: "Delete selected",
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: Colors.redAccent),
               onPressed: _deleteSelected,
             ),
           DropdownButtonHideUnderline(
@@ -812,12 +806,18 @@ final List<Map<String, dynamic>> _notifications = [
       ),
       body: Column(
         children: [
-          // Summary bar
           Container(
             margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.blue.withOpacity(0.9),
+                  Colors.blue.withOpacity(0.7),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -828,41 +828,49 @@ final List<Map<String, dynamic>> _notifications = [
               ],
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Text("Unread: $unreadCount",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text("Reports: $reportsToday",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text("Events: $eventsUpcoming",
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    ],
-                  ),
-                ),
-                Row(
+                Column(
                   children: [
-                    Checkbox(
-                      value: _selected.length == _notifications.length && _notifications.isNotEmpty,
-                      onChanged: (val) {
-                        setState(() {
-                          if (val == true) {
-                            _selected.addAll(_notifications.map((n) => n["id"] as int));
-                          } else {
-                            _selected.clear();
-                          }
-                        });
-                      },
+                    Text(
+                      "Unread",
+                      style: TextStyle(
+                          color: Colors.blue.shade900, fontWeight: FontWeight.w600),
                     ),
-                    const Text("Select All"),
+                    Text("$unreadCount",
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                Column(
+                  children: [
+                    Text(
+                      "Reports",
+                      style: TextStyle(
+                          color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                        "${filtered.where((n) => n["type"] == "report").length}",
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                Column(
+                  children: [
+                    Text(
+                      "Events",
+                      style: TextStyle(
+                          color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                        "${filtered.where((n) => n["type"] == "event").length}",
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
                 ),
               ],
             ),
           ),
-
           // List
           Expanded(
             child: grouped.isEmpty
@@ -881,7 +889,10 @@ final List<Map<String, dynamic>> _notifications = [
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                             child: Text(entry.key,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: Colors.black87)),
                           ),
                           ...entry.value.map((notif) {
                             final bool isUnread = notif["unread"] as bool;
@@ -889,37 +900,53 @@ final List<Map<String, dynamic>> _notifications = [
                             final idKey = ValueKey<int>(notif["id"] as int);
 
                             final card = Card(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(
-                                  color: isSelected
-                                      ? Colors.blue
-                                      : (isUnread ? Colors.blue.shade200 : Colors.grey.shade300),
-                                  width: isSelected ? 2 : 1,
-                                ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: isSelected
+                                    ? Colors.blue
+                                    : isUnread
+                                        ? Colors.blue.shade400
+                                        : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1,
                               ),
-                              margin: const EdgeInsets.symmetric(vertical: 6),
-                              elevation: isUnread ? 3 : 1,
-                              child: InkWell(
-                                onTap: () {
-                                  if (_selected.isNotEmpty) {
-                                    setState(() {
-                                      if (isSelected) {
-                                        _selected.remove(notif["id"]);
-                                      } else {
-                                        _selected.add(notif["id"]);
-                                      }
-                                    });
-                                  } else {
-                                    _openNotification(notif);
-                                  }
-                                },
-                                onLongPress: () {
+                            ),
+                            elevation: isUnread ? 4 : 1,
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            child: InkWell(
+                              onTap: () {
+                                if (_selected.isNotEmpty) {
                                   setState(() {
-                                    _selected.add(notif["id"]);
+                                    if (isSelected) {
+                                      _selected.remove(notif["id"]);
+                                    } else {
+                                      _selected.add(notif["id"]);
+                                    }
                                   });
-                                },
-                                borderRadius: BorderRadius.circular(10),
+                                } else {
+                                  _openNotification(notif);
+                                }
+                              },
+                              onLongPress: () {
+                                setState(() {
+                                  _selected.add(notif["id"]);
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                decoration: isUnread
+                                    ? BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.blue.withOpacity(0.2),
+                                            Colors.blue.withOpacity(0.05)
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      )
+                                    : null,
                                 child: ListTile(
                                   leading: CircleAvatar(
                                     backgroundImage: AssetImage(notif["profile"]),
@@ -942,8 +969,7 @@ final List<Map<String, dynamic>> _notifications = [
                                           notif["title"],
                                           style: TextStyle(
                                             fontSize: 16,
-                                            fontWeight:
-                                                isUnread ? FontWeight.bold : FontWeight.normal,
+                                            fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
                                           ),
                                         ),
                                       ),
@@ -964,8 +990,7 @@ final List<Map<String, dynamic>> _notifications = [
                                             backgroundColor: Colors.blue.shade50,
                                             labelStyle: const TextStyle(fontSize: 11, color: Colors.blue),
                                             visualDensity: VisualDensity.compact,
-                                            materialTapTargetSize:
-                                                MaterialTapTargetSize.shrinkWrap,
+                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                           ),
                                         ),
                                       Padding(
@@ -995,9 +1020,10 @@ final List<Map<String, dynamic>> _notifications = [
                                   ),
                                 ),
                               ),
-                            );
+                            ),
+                          );
 
-                            // Enable swipe-to-delete on narrow screens (mobile)
+                            // Enable swipe-to-delete on mobile
                             final isNarrow = MediaQuery.of(context).size.width < 800;
                             if (!isNarrow) return card;
 
@@ -1009,11 +1035,15 @@ final List<Map<String, dynamic>> _notifications = [
                               background: Container(
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                                color: Colors.red,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Colors.red.shade400, Colors.red.shade600],
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                                 child: const Icon(Icons.delete, color: Colors.white),
                               ),
                               confirmDismiss: (_) async {
-                                // avoid swiping while some items are selected
                                 return _selected.isEmpty;
                               },
                               onDismissed: (_) => _delete(notif["id"]),

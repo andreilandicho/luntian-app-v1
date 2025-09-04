@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screen/official_mobile/leaderboard.dart';
+import 'package:flutter_application_1/screen/official_mobile/notificationpage.dart';
+import 'package:flutter_application_1/screen/official_mobile/official.dart';
+import 'package:flutter_application_1/screen/official_mobile/profilepage.dart';
 
 class LuntianFooter extends StatelessWidget {
   final int selectedIndex;
@@ -50,24 +54,67 @@ class LuntianFooter extends StatelessWidget {
   }
 
   Widget _buildNavIcon(BuildContext context, IconData icon, int index) {
-    bool isSelected = selectedIndex == index;
+  bool isSelected = selectedIndex == index;
 
-    return GestureDetector(
-      onTap: () => onItemTapped(index), // delegate back to parent
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF328E6E) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isSelected ? [const BoxShadow(color: Colors.black26, blurRadius: 6)] : [],
-        ),
-        child: Icon(
-          icon,
-          color: isSelected ? Colors.white : Colors.grey[600],
-          size: isSelected ? (isSmallScreen ? 26 : 30) : (isSmallScreen ? 20 : 24),
-        ),
+  return GestureDetector(
+    onTap: () {
+      onItemTapped(index); // update selectedIndex in parent
+
+      if (index == 0) {
+        Future.microtask(() {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const OfficialDashboard()),
+          );
+        });
+      }
+
+      if (index == 1) {
+        Future.microtask(() {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const LeaderboardPage()),
+          );
+        });
+      }
+
+      if (index == 2) {
+        Future.microtask(() {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationPage()),
+          );
+        });
+      }
+
+      if (index == 3) {
+        Future.microtask(() {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfilePage()),
+          );
+        });
+      }
+      
+    },
+    
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      padding: EdgeInsets.all(isSmallScreen ? 8 : 10),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFF328E6E) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isSelected
+            ? [const BoxShadow(color: Colors.black26, blurRadius: 6)]
+            : [],
       ),
-    );
-  }
+      child: Icon(
+        icon,
+        color: isSelected ? Colors.white : Colors.grey[600],
+        size: isSelected ? (isSmallScreen ? 26 : 30) : (isSmallScreen ? 20 : 24),
+      ),
+    ),
+  );
+}
+
 }

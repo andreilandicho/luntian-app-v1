@@ -140,7 +140,7 @@ class _EventCardState extends State<EventCard> {
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
                 radius: isSmall ? 16 : 20,
-                backgroundImage: const AssetImage('assets/profile picture.png'),
+                backgroundImage: const AssetImage('assets/profilepicture.png'),
               ),
               title: Row(
                 children: [

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'upload.dart'; // Import the next page
+import 'upload.dart'; // Your next page
 import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 
@@ -19,7 +19,8 @@ class _ProofActionState extends State<ProofAction> {
 
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
-  XFile? _capturedImage;
+  List<XFile> _capturedImages = [];
+  XFile? _selectedImage;
 
   @override
   void initState() {
@@ -51,23 +52,23 @@ class _ProofActionState extends State<ProofAction> {
     super.dispose();
   }
 
-  /// Capture photo
   Future<void> _capturePhoto() async {
     try {
       await _initializeControllerFuture;
       final image = await _controller!.takePicture();
       setState(() {
-        _capturedImage = image;
+        _capturedImages.add(image);
+        _selectedImage = image;
       });
     } catch (e) {
       debugPrint("Error capturing photo: $e");
     }
   }
 
-  /// Retake photo
-  void _retakePhoto() {
+  void _retakeAllPhotos() {
     setState(() {
-      _capturedImage = null;
+      _capturedImages.clear();
+      _selectedImage = null;
     });
   }
 
@@ -84,29 +85,64 @@ class _ProofActionState extends State<ProofAction> {
       ),
       body: Stack(
         children: [
-          /// CAMERA PREVIEW or CAPTURED PHOTO
+          /// CAMERA PREVIEW
           Positioned.fill(
-            child: _capturedImage == null
-                ? FutureBuilder<void>(
-                    future: _initializeControllerFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.done &&
-                          _controller != null) {
-                        return CameraPreview(_controller!);
-                      } else {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                    },
-                  )
-                : Image.file(
-                    File(_capturedImage!.path),
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
+            child: FutureBuilder<void>(
+              future: _initializeControllerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done &&
+                    _controller != null) {
+                  return CameraPreview(_controller!);
+                } else {
+                  return const Center(child: CircularProgressIndicator());
+                }
+              },
+            ),
           ),
 
-          /// OVERLAY BUTTONS
+          /// THUMBNAIL PREVIEW
+          if (_capturedImages.isNotEmpty)
+            Positioned(
+              bottom: 120,
+              left: 0,
+              right: 0,
+              child: SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _capturedImages.length,
+                  itemBuilder: (context, index) {
+                    final image = _capturedImages[index];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedImage = image;
+                        });
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _selectedImage == image
+                                ? Colors.green
+                                : Colors.white,
+                            width: 3,
+                          ),
+                        ),
+                        child: Image.file(
+                          File(image.path),
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          /// BUTTONS
           Positioned(
             bottom: 30,
             left: 0,
@@ -114,63 +150,57 @@ class _ProofActionState extends State<ProofAction> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (_capturedImage == null) ...[
-                  /// Capture Button
-                  ElevatedButton(
-                    onPressed: _capturePhoto,
-                    style: ElevatedButton.styleFrom(
-                      shape: const CircleBorder(),
-                      padding: const EdgeInsets.all(18),
-                      backgroundColor: Colors.white,
-                    ),
-                    child: const Icon(Icons.camera_alt,
-                        color: Colors.black, size: 30),
+                /// Capture Button
+                ElevatedButton(
+                  onPressed: _capturePhoto,
+                  style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(18),
+                    backgroundColor: Colors.white,
                   ),
-                ] else ...[
-                  /// Retake Button
+                  child: const Icon(Icons.camera_alt,
+                      color: Colors.black, size: 30),
+                ),
+                const SizedBox(width: 20),
+
+                /// Retake All Button
+                if (_capturedImages.isNotEmpty)
                   ElevatedButton.icon(
-                    onPressed: _retakePhoto,
+                    onPressed: _retakeAllPhotos,
                     icon: const Icon(Icons.refresh, color: Colors.red),
                     label: const Text(
-                      "Retake",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, // <-- bold text
-                        fontSize: 16, // optional
-                      ),
+                      "Retake All",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.red,
                     ),
                   ),
-                  const SizedBox(width: 20),
+                const SizedBox(width: 20),
 
-
-                  /// Use Button → Go to ProofReviewPage
+                /// Use Selected Button
+                if (_selectedImage != null)
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => ProofReviewPage(imagePath: _capturedImage!.path),
+                          builder: (_) =>
+                              ProofReviewPage(imagePath: _selectedImage!.path),
                         ),
                       );
                     },
                     icon: const Icon(Icons.check, color: Colors.green),
                     label: const Text(
-                      "Use Photo",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, // <-- makes text bold
-                        fontSize: 16, // optional: adjust size
-                      ),
+                      "Use Selected",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.green,
                     ),
                   ),
-
-                ]
               ],
             ),
           ),

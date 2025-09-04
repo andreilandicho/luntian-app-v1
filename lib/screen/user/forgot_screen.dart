@@ -122,7 +122,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 backgroundColor: Colors.white,
                 radius: 50,
                 child: Image(
-                  image: AssetImage('assets/logo only luntian.png'),
+                  image: AssetImage('assets/logoonlyluntian.png'),
                   height: 70,
                 ),
               ),

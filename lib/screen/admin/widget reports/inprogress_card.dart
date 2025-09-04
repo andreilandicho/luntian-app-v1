@@ -523,7 +523,7 @@ class _ReportCardState extends State<ReportCard> {
                     children: [
                       const CircleAvatar(
                         radius: 16,
-                        backgroundImage: AssetImage("assets/profile picture.png"),
+                        backgroundImage: AssetImage("assets/profilepicture.png"),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

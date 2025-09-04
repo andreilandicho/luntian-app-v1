@@ -187,13 +187,25 @@ class _CompletedPostCardState extends State<CompletedPostCard> {
               children: [
                 ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ViewReport()
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ViewReport(
+                        report: {
+                          "reporterName": "Juan Dela Cruz",
+                          "profileImage": "assets/profilepicture.png",
+                          "description": "There are uncollected garbage bags near the park entrance.",
+                          "postImage": "assets/garbage.png",
+                          "reportDate": "Aug 10, 2025",
+                          "reportTime": "10:30 AM",
+                          "statusDescription": "Photo is unclear, please provide a closer picture.",
+                        },
+                        status: "Rejected", // or "Accepted", "Pending"
                       ),
-                    );
-                  },
+                    ),
+                  );
+                },
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 5, 102, 181),
                     padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 6),

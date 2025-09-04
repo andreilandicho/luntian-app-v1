@@ -23,7 +23,7 @@ android {
         applicationId = "com.example.flutter_application_1"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -41,3 +41,13 @@ android {
 flutter {
     source = "../.."
 }
+
+// Add Firebase dependencies if needed (handled by FlutterFire plugins)
+// For manual native integration (rare with Flutter), use:
+// dependencies {
+//     implementation("com.google.firebase:firebase-analytics")
+//     // Add more Firebase libraries as needed.
+// }
+
+// IMPORTANT: Apply the Google Services plugin at the end!
+apply(plugin = "com.google.gms.google-services")

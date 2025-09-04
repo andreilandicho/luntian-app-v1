@@ -9,7 +9,10 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
-
+import 'package:flutter_application_1/models/report_model.dart';
+import 'package:flutter_application_1/services/report_service.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
+import 'package:flutter_application_1/models/user_model.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -25,60 +28,171 @@ class _UserHomePageState extends State<UserHomePage> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey<ReportPageState> reportPageKey = GlobalKey<ReportPageState>();
 
-  final List<Map<String, dynamic>> posts = [
-    {
-      'username': 'Kristel Cruz',
-      'userProfile': 'assets/profile picture.png',
-      'images': ['assets/garbage.png', 'assets/garbage.png', 'assets/garbage.png'],
-      'postContent': 'We’ve observed an increasing amount of trash being dumped in Caimito Street.',
-      'priorityLabel': 'High',
-      'priorityColor': Colors.red,
-      'timestamp': '2h ago',
-      'upvotes': 12,
-      'downvotes': 3,
-      'upvoted': false,
-      'downvoted': false,
-
-    },
-    {
-      'username': 'Kristel Cruz',
-      'userProfile': 'assets/profile picture.png',
-      'images': ['assets/garbage.png', 'assets/garbage.png', 'assets/garbage.png'],
-      'postContent': 'A few potholes need attention near the school entrance.',
-      'priorityLabel': 'Medium',
-      'priorityColor': Colors.orange,
-      'timestamp': '5h ago',
-      'upvotes': 12,
-      'downvotes': 3,
-      'upvoted': false,
-      'downvoted': false,
-    },
-    {
-      'username': 'Kristel Cruz',
-      'userProfile': 'assets/profile picture.png',
-      'images': ['assets/garbage.png', 'assets/garbage.png', 'assets/garbage.png'],
-      'postContent': 'Please check the uncollected garbage behind the canteen area.',
-      'priorityLabel': 'Low',
-      'priorityColor': Colors.green,
-      'timestamp': '1d ago',
-      'upvotes': 12,
-      'downvotes': 3,
-      'upvoted': false,
-      'downvoted': false,
-    },
-  ];
+  // New variables
+  List<ReportModel> _reports = [];
+  bool _isLoading = true;
+  final _reportService = ReportService();
+  final _authService = AuthService();
+  UserModel? _currentUser;
 
   @override
   void initState() {
     super.initState();
     _determinePosition();
+    _loadUserAndReports();
+  }
+
+  Future<void> _loadUserAndReports() async {
+    try {
+      final user = await _authService.getCurrentUser();
+      if (user == null) {
+        // Handle case where user is not logged in
+        return;
+      }
+      
+      _currentUser = user;
+      await _fetchReports();
+    } catch (e) {
+      print('Error loading user data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load user data: $e')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  //functions to fetch reports based on barangay id of the signed-in user, handle upvotes and downvotes
+  Future<void> _fetchReports() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final reports = await _reportService.getReportsByBarangay(
+        _currentUser!.barangayId ?? 0, 
+        _currentUser!.id
+      );
+      
+      setState(() {
+        _reports = reports;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching reports: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load reports: $e')),
+      );
+    }
+  }
+
+  void _handleUpvote(int index) async {
+    final report = _reports[index];
+    final wasUpvoted = report.hasUserUpvoted;
+    
+    setState(() {
+      if (wasUpvoted) {
+        report.hasUserUpvoted = false;
+        report.upvotes -= 1;
+      } else {
+        report.hasUserUpvoted = true;
+        report.upvotes += 1;
+        if (report.hasUserDownvoted) {
+          report.hasUserDownvoted = false;
+          report.downvotes -= 1;
+        }
+      }
+    });
+    
+    try {
+      await _reportService.voteReport(
+        report.reportId, 
+        _currentUser!.id,
+        wasUpvoted ? 'remove' : 'upvote'
+      );
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        if (wasUpvoted) {
+          report.hasUserUpvoted = true;
+          report.upvotes += 1;
+        } else {
+          report.hasUserUpvoted = false;
+          report.upvotes -= 1;
+          if (report.hasUserDownvoted) {
+            report.hasUserDownvoted = true;
+            report.downvotes += 1;
+          }
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update vote: $e'))
+      );
+    }
+  }
+  
+  void _handleDownvote(int index) async {
+    final report = _reports[index];
+    final wasDownvoted = report.hasUserDownvoted;
+    
+    setState(() {
+      if (wasDownvoted) {
+        report.hasUserDownvoted = false;
+        report.downvotes -= 1;
+      } else {
+        report.hasUserDownvoted = true;
+        report.downvotes += 1;
+        if (report.hasUserUpvoted) {
+          report.hasUserUpvoted = false;
+          report.upvotes -= 1;
+        }
+      }
+    });
+    
+    try {
+      await _reportService.voteReport(
+        report.reportId, 
+        _currentUser!.id,
+        wasDownvoted ? 'remove' : 'downvote'
+      );
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        if (wasDownvoted) {
+          report.hasUserDownvoted = true;
+          report.downvotes += 1;
+        } else {
+          report.hasUserDownvoted = false;
+          report.downvotes -= 1;
+          if (report.hasUserUpvoted) {
+            report.hasUserUpvoted = true;
+            report.upvotes += 1;
+          }
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update vote: $e'))
+      );
+    }
+  }
+  
+  // Convert ReportModels to the format expected by ReportPage
+  List<Map<String, dynamic>> _getFormattedReports() {
+    return _reports.map((report) => report.toMap()).toList();
   }
 
   Future<void> _determinePosition() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _currentAddress = 'Location services are disabled.';
+        setState(() => _currentAddress = 'Location services are disabled.');
         return;
       }
 
@@ -86,13 +200,13 @@ class _UserHomePageState extends State<UserHomePage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _currentAddress = 'Location permissions are denied.';
+          setState(() => _currentAddress = 'Location permissions are denied.');
           return;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _currentAddress = 'Location permissions are permanently denied.';
+        setState(() => _currentAddress = 'Location permissions are permanently denied.');
         return;
       }
 
@@ -119,45 +233,17 @@ class _UserHomePageState extends State<UserHomePage> {
     final pages = [
       ReportPage(
         key: reportPageKey,
-        posts: posts,
+        posts: _getFormattedReports(),
         scrollController: _scrollController,
-        onUpvote: (index) {
-  setState(() {
-    final post = posts[index];
-    if (post['upvoted']) {
-      post['upvoted'] = false;
-      post['upvotes'] -= 1;
-    } else {
-      post['upvoted'] = true;
-      post['upvotes'] += 1;
-      if (post['downvoted']) {
-        post['downvoted'] = false;
-        post['downvotes'] -= 1;
-      }
-    }
-  });
-},
-onDownvote: (index) {
-  setState(() {
-    final post = posts[index];
-    if (post['downvoted']) {
-      post['downvoted'] = false;
-      post['downvotes'] -= 1;
-    } else {
-      post['downvoted'] = true;
-      post['downvotes'] += 1;
-      if (post['upvoted']) {
-        post['upvoted'] = false;
-        post['upvotes'] -= 1;
-      }
-    }
-  });
-},
+        onUpvote: _handleUpvote,
+        onDownvote: _handleDownvote,
+        isLoading: _isLoading,
+        onRefresh: _fetchReports,
       ),
       const SearchPage(),
       const LeaderboardPage(),
       NotificationPage(),
-      const ProfilePage(),
+      ProfilePage(user: _currentUser),
     ];
 
     return Scaffold(
@@ -166,52 +252,52 @@ onDownvote: (index) {
         backgroundColor: const Color(0xFF328E6E),
         elevation: 0,
         title: Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    // Logo and Title
-    Row(
-      children: [
-        Image.asset(
-          'assets/logo only luntian.png',
-          width: isSmallScreen ? 24 : 30,
-          height: isSmallScreen ? 24 : 30,
-        ),
-        const SizedBox(width: 8),
-        Text(
-          'LUNTIAN',
-          style: TextStyle(
-            fontFamily: 'MaryKate',
-            fontSize: isSmallScreen ? 20 : 24,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    ),
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Logo and Title
+            Row(
+              children: [
+                Image.asset(
+                  'assets/logoonlyluntian.png',
+                  width: isSmallScreen ? 24 : 30,
+                  height: isSmallScreen ? 24 : 30,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'LUNTIAN',
+                  style: TextStyle(
+                    fontFamily: 'MaryKate',
+                    fontSize: isSmallScreen ? 20 : 24,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
 
-    // Location Icon and Text
-    Row(
-  mainAxisSize: MainAxisSize.min,
-  crossAxisAlignment: CrossAxisAlignment.center,
-  children: [
-    const Icon(Icons.location_on, color: Colors.red, size: 18),
-    const SizedBox(width: 4),
-    Flexible(
-      child: Text(
-        _currentAddress,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.left,
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontSize: isSmallScreen ? 12 : 14,
-          color: Colors.white,
+            // Location Icon and Text
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(Icons.location_on, color: Colors.red, size: 18),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    _currentAddress,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: isSmallScreen ? 12 : 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          ],
         ),
-      ),
-    ),
-  ],
-)
-  ],
-),
       ),
       body: pages[selectedIndex],
       bottomNavigationBar: AnimatedContainer(
@@ -288,6 +374,8 @@ class ReportPage extends StatefulWidget {
   final ScrollController scrollController;
   final void Function()? onScrollUp;
   final void Function()? onScrollDown;
+  final bool isLoading;
+  final Future<void> Function() onRefresh;
 
   const ReportPage({
     super.key,
@@ -297,6 +385,8 @@ class ReportPage extends StatefulWidget {
     required this.scrollController,
     this.onScrollUp,
     this.onScrollDown,
+    this.isLoading = false,
+    required this.onRefresh,
   });
 
   @override
@@ -386,65 +476,92 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
               child: TabBarView(
                 children: [
                   RefreshIndicator(
-                    onRefresh: () async {
-                      await Future.delayed(const Duration(seconds: 1));
-                      setState(() {});
-                    },
-                    child: ListView.builder(
-                      controller: widget.scrollController,
-                      padding: EdgeInsets.all(screenWidth * 0.04),
-                      itemCount: widget.posts.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) {
-                          return Column(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const AddPage()),
-                                  );
-                                },
-                                child: Card(
-                                  elevation: 2,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  child: Padding(
-                                    padding: EdgeInsets.all(screenWidth * 0.03),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.add_a_photo, color: Color(0xFF328E6E)),
-                                        SizedBox(width: screenWidth * 0.025),
-                                        const Text(
-                                          "Capture a report...",
-                                          style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
-                                        ),
-                                      ],
+                    onRefresh: widget.onRefresh,
+                    child: widget.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : widget.posts.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    "No reports available",
+                                    style: TextStyle(
+                                      fontFamily: 'Poppins',
+                                      fontSize: 16,
+                                      color: Colors.grey,
                                     ),
                                   ),
-                                ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => const AddPage()),
+                                      );
+                                    },
+                                    child: const Text('Create a Report'),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: screenHeight * 0.015),
-                            ],
-                          );
-                        }
+                            )
+                          : ListView.builder(
+                              controller: widget.scrollController,
+                              padding: EdgeInsets.all(screenWidth * 0.04),
+                              itemCount: widget.posts.length + 1,
+                              itemBuilder: (context, index) {
+                                if (index == 0) {
+                                  return Column(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(builder: (_) => const AddPage()),
+                                          );
+                                        },
+                                        child: Card(
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          child: Padding(
+                                            padding: EdgeInsets.all(screenWidth * 0.03),
+                                            child: Row(
+                                              children: [
+                                                const Icon(Icons.add_a_photo, color: Color(0xFF328E6E)),
+                                                SizedBox(width: screenWidth * 0.025),
+                                                const Text(
+                                                  "Capture a report...",
+                                                  style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(height: screenHeight * 0.015),
+                                    ],
+                                  );
+                                }
 
-                        final post = widget.posts[index - 1];
-                        final pageController = PageController(initialPage: currentPages[index - 1] ?? 0);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: EventCard(
-                            post: post,
-                            pageController: pageController,
-                            screenHeight: screenHeight,
-                            currentIndex: index - 1,
-                            onUpvote: widget.onUpvote,
-                            onDownvote: widget.onDownvote,
-                            onImageTap: _showImage,
-                            currentPages: currentPages,
-                          ),
-                        );
-                      },
-                    ),
+                                final post = widget.posts[index - 1];
+                                final pageController = PageController(initialPage: currentPages[index - 1] ?? 0);
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: EventCard(
+                                    post: post,
+                                    pageController: pageController,
+                                    screenHeight: screenHeight,
+                                    currentIndex: index - 1,
+                                    onUpvote: widget.onUpvote,
+                                    onDownvote: widget.onDownvote,
+                                    onImageTap: _showImage,
+                                    currentPages: currentPages,
+                                  ),
+                                );
+                              },
+                            ),
                   ),
                   const EventsScreen(),
                 ],
@@ -499,37 +616,37 @@ class EventCard extends StatelessWidget {
             ListTile(
               leading: CircleAvatar(backgroundImage: AssetImage(post['userProfile'])),
               title: Row(
-      children: [
-      Expanded(
-      child: Text(
-        post['username'],
-        style: TextStyle(
-          fontFamily: 'Poppins',
-          fontWeight: FontWeight.bold,
-          fontSize: isSmall ? 14 : 16,
-        ),
-        overflow: TextOverflow.ellipsis,
-      ),
-      ),
-    const SizedBox(width: 6),
-    Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Text(
-        "Top Reporter",
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
-      ),
-    ),
-  ],
-),
+                children: [
+                  Expanded(
+                    child: Text(
+                      post['username'],
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                        fontSize: isSmall ? 14 : 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      "Top Reporter",
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
               subtitle: Text(
-  DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now()),
-  style: TextStyle(fontSize: isSmall ? 11 : 13),
-  overflow: TextOverflow.ellipsis,
-),
+                post['timestamp'] ?? DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now()),
+                style: TextStyle(fontSize: isSmall ? 11 : 13),
+                overflow: TextOverflow.ellipsis,
+              ),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: post['priorityColor'], borderRadius: BorderRadius.circular(12)),
@@ -542,10 +659,10 @@ class EventCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-  post['postContent'],
-  style: const TextStyle(fontFamily: 'Poppins'),
-  overflow: TextOverflow.visible, // You may want to add maxLines or clamp width
-),
+                    post['postContent'],
+                    style: const TextStyle(fontFamily: 'Poppins'),
+                    overflow: TextOverflow.visible,
+                  ),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: clampedImageHeight,
@@ -585,89 +702,89 @@ class EventCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Row(
-  children: [
-    GestureDetector(
-      onTap: () => onUpvote(currentIndex),
-      child: Column(
-        children: [
-          AnimatedScale(
-            scale: post['upvoted'] ? 1.2 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: Icon(
-              Icons.arrow_upward_rounded,
-              size: 28,
-              color: post['upvoted'] ? Colors.green : Colors.grey[700],
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            "${post['upvotes']}",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    ),
-    const SizedBox(width: 30),
-    GestureDetector(
-      onTap: () => onDownvote(currentIndex),
-      child: Column(
-        children: [
-          AnimatedScale(
-            scale: post['downvoted'] ? 1.2 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: Icon(
-              Icons.arrow_downward_rounded,
-              size: 28,
-              color: post['downvoted'] ? Colors.red : Colors.grey[700],
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            "${post['downvotes']}",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    ),
-    const Spacer(),
-    IconButton(
-      icon: const Icon(Icons.more_vert_rounded),
-      onPressed: () {
-        final isOwner = post['username'] == 'Kristel Cruz';
-        showModalBottomSheet(
-          context: context,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          builder: (context) => SafeArea(
-            child: Wrap(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.flag),
-                  title: const Text('Report Post'),
-                  onTap: () => Navigator.pop(context),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.share),
-                  title: const Text('Share'),
-                  onTap: () => Navigator.pop(context),
-                ),
-                if (isOwner)
-                  ListTile(
-                    leading: const Icon(Icons.delete, color: Colors.red),
-                    title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                    onTap: () => Navigator.pop(context),
+                    children: [
+                      GestureDetector(
+                        onTap: () => onUpvote(currentIndex),
+                        child: Column(
+                          children: [
+                            AnimatedScale(
+                              scale: post['upvoted'] ? 1.2 : 1.0,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              child: Icon(
+                                Icons.arrow_upward_rounded,
+                                size: 28,
+                                color: post['upvoted'] ? Colors.green : Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "${post['upvotes']}",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 30),
+                      GestureDetector(
+                        onTap: () => onDownvote(currentIndex),
+                        child: Column(
+                          children: [
+                            AnimatedScale(
+                              scale: post['downvoted'] ? 1.2 : 1.0,
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              child: Icon(
+                                Icons.arrow_downward_rounded,
+                                size: 28,
+                                color: post['downvoted'] ? Colors.red : Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "${post['downvotes']}",
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        onPressed: () {
+                          final isOwner = post['username'] == 'Kristel Cruz';
+                          showModalBottomSheet(
+                            context: context,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            ),
+                            builder: (context) => SafeArea(
+                              child: Wrap(
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.flag),
+                                    title: const Text('Report Post'),
+                                    onTap: () => Navigator.pop(context),
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.share),
+                                    title: const Text('Share'),
+                                    onTap: () => Navigator.pop(context),
+                                  ),
+                                  if (isOwner)
+                                    ListTile(
+                                      leading: const Icon(Icons.delete, color: Colors.red),
+                                      title: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                      onTap: () => Navigator.pop(context),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-              ],
-            ),
-          ),
-        );
-      },
-    ),
-  ],
-)
                 ],
               ),
             ),

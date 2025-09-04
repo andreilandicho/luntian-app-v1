@@ -4,11 +4,19 @@ import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 import 'package:flutter_application_1/widgets/official/offviewreport.dart';
 
 class ViewReport extends StatefulWidget {
-  const ViewReport({super.key});
+  final Map<String, dynamic> report;
+  final String status;
+
+  const ViewReport({
+    super.key,
+    required this.report,
+    required this.status,
+  });
 
   @override
   State<ViewReport> createState() => _ViewReportState();
 }
+
 
 class _ViewReportState extends State<ViewReport> {
   int selectedIndex = 0;
@@ -46,15 +54,16 @@ class _ViewReportState extends State<ViewReport> {
               const SizedBox(height: 15),
 
               ViewReportPage(
-                reporterName: "Juan Dela Cruz",
-                profileImage: "assets/profile picture.png",
-                description: "There are uncollected garbage bags near the park entrance.",
-                postImage: "assets/garbage.png",
-                status: "Pending",
-                reportDate: "Aug 10, 2025",
-                reportTime: "10:30 AM",
-                statusDescription: "Photo is unclear, please provide a closer picture.",
+                reporterName: widget.report['reporterName'] ?? "Unknown",
+                profileImage: widget.report['profileImage'] ?? "assets/profilepicture.png",
+                description: widget.report['description'] ?? "No description",
+                postImage: widget.report['postImage'] ?? "assets/placeholder.png",
+                status: widget.status, // ✅ Dynamic
+                reportDate: widget.report['reportDate'] ?? "N/A",
+                reportTime: widget.report['reportTime'] ?? "N/A",
+                statusDescription: widget.report['statusDescription'] ?? "",
               ),
+
             ],
           ),
         ),

@@ -28,7 +28,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Image.asset('assets/logo only luntian.png', height: 200),
+                          Image.asset('assets/logoonlyluntian.png', height: 200),
                           const SizedBox(height: 20),
                           const Text(
                             "LUNTIAN",
@@ -157,7 +157,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               backgroundColor: Colors.white,
                               radius: 50,
                               child: Image(
-                                image: AssetImage('assets/logo only luntian.png'),
+                                image: AssetImage('assets/logoonlyluntian.png'),
                                 height: 70,
                               ),
                             ),
@@ -279,7 +279,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 backgroundColor: Colors.white,
                 radius: 50,
                 child: Image(
-                  image: AssetImage('assets/logo only luntian.png'),
+                  image: AssetImage('assets/logoonlyluntian.png'),
                   height: 70,
                 ),
               ),

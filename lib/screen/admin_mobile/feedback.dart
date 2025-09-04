@@ -57,7 +57,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
               /// Example FeedbackPostCard with mock data
               FeedbackPostCard(
                 reporterName: 'John Doe',
-                profileImage: 'assets/profile picture.png',
+                profileImage: 'assets/profilepicture.png',
                 reportTime: '10:45 AM',
                 reportDate: 'Aug 15, 2025',
                 postImage: 'assets/garbage.png',

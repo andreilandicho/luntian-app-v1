@@ -22,7 +22,7 @@ class LuntianHeader extends StatelessWidget implements PreferredSizeWidget {
           Row(
             children: [
               Image.asset(
-                'assets/logo only luntian.png',
+                'assets/logoonlyluntian.png',
                 width: isSmallScreen ? 24 : 30,
                 height: isSmallScreen ? 24 : 30,
               ),

@@ -96,7 +96,7 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                         children: [
                           const CircleAvatar(
                             radius: 28,
-                            backgroundImage: AssetImage("assets/profile picture.png"),
+                            backgroundImage: AssetImage("assets/profilepicture.png"),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -524,7 +524,7 @@ Widget _buildDetailRow(String label, String value) {
                       const CircleAvatar(
                         radius: 16,
                         backgroundImage:
-                            AssetImage("assets/profile picture.png"),
+                            AssetImage("assets/profilepicture.png"),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

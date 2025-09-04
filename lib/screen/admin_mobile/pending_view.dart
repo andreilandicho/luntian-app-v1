@@ -48,7 +48,7 @@ class _PendingReportsPageState extends State<PendingReportsPage> {
               /// Example of calling PendingPostCard
               PendingPostCard(
                 reporterName: 'Juan Dela Cruz',
-                profileImage: 'assets/profile picture.png',
+                profileImage: 'assets/profilepicture.png',
                 reportTime: '7:30 PM',
                 reportDate: 'Aug 15, 2025', // <-- Date here
                 priority: 'Low',
@@ -61,7 +61,7 @@ class _PendingReportsPageState extends State<PendingReportsPage> {
 
               PendingPostCard(
                 reporterName: 'Juan Dela Cruz',
-                profileImage: 'assets/profile picture.png',
+                profileImage: 'assets/profilepicture.png',
                 reportTime: '7:30 PM',
                 reportDate: 'Aug 15, 2025', // <-- Date here
                 priority: 'High',

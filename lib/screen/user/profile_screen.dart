@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/models/user_model.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,14 +8,16 @@ import 'package:flutter_application_1/screen/user/add_event_screen.dart';
 import 'package:flutter_application_1/screen/user/login_screen.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final UserModel? user;
+  
+  const ProfilePage({super.key, this.user});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
-  String profilePic = 'assets/profile picture.png';
+  String profilePic = 'assets/profilepicture.png';
   String userName = 'Kristel Cruz';
   String address = 'Quezon City, Metro Manila';
 
@@ -22,7 +25,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   final List<Map<String, dynamic>> userReports = [
   {
     'username': 'Kristel Cruz',
-    'userProfile': 'assets/profile picture.png',
+    'userProfile': 'assets/profilepicture.png',
     'images': ['assets/garbage.png', 'assets/garbage.png'],
     'postContent': 'Trash piling up near Caimito Street again. Please assist!',
     'statusLabel': 'Pending',
@@ -35,7 +38,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   },
   {
     'username': 'Kristel Cruz',
-    'userProfile': 'assets/profile picture.png',
+    'userProfile': 'assets/profilepicture.png',
     'images': ['assets/garbage.png'],
     'postContent': 'Garbage cleared! Thanks to the local unit.',
     'statusLabel': 'Resolved',
@@ -48,7 +51,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   },
   {
     'username': 'Kristel Cruz',
-    'userProfile': 'assets/profile picture.png',
+    'userProfile': 'assets/profilepicture.png',
     'images': ['assets/garbage.png', 'assets/garbage.png'],
     'postContent': 'There’s suspicious dumping behind the basketball court.',
     'statusLabel': 'In Progress',

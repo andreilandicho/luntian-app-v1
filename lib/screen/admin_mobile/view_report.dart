@@ -48,7 +48,7 @@ class _ViewReportPageState extends State<ViewReportPage> {
               /// Example of calling PendingPostCard
               ViewPostCard(
                 reporterName: 'Aifah Mae Maddie',
-                profileImage: 'assets/profile picture.png',
+                profileImage: 'assets/profilepicture.png',
                 reportTime: '7:30 PM',
                 reportDate: 'Aug 15, 2025', // <-- Date here
                 priority: 'High',

@@ -27,7 +27,7 @@ class _NotificationPageState extends State<NotificationPage> {
       'timestamp': DateTime.now(),
       'post': {
         'username': 'Kristel Cruz',
-        'userProfile': 'assets/profile picture.png',
+        'userProfile': 'assets/profilepicture.png',
         'postContent': 'There’s a lot of garbage near the street.',
         'images': ['assets/garbage.png', 'assets/garbage.png'],
         'priorityColor': Colors.red,
@@ -58,7 +58,7 @@ class _NotificationPageState extends State<NotificationPage> {
       'timestamp': DateTime.now().subtract(const Duration(days: 1)),
       'post': {
         'username': 'Kristel Cruz',
-        'userProfile': 'assets/profile picture.png',
+        'userProfile': 'assets/profilepicture.png',
         'postContent': 'Tree Planting this Sunday at 7AM',
         'images': ['assets/garbage.png'],
         'priorityColor': Colors.green,
@@ -318,7 +318,7 @@ class _NotificationPageState extends State<NotificationPage> {
                     showPostFullScreen(context, post);
                   }
                 },
-                leading: CircleAvatar(backgroundImage: AssetImage(post?['userProfile'] ?? 'assets/logo only luntian.png')),
+                leading: CircleAvatar(backgroundImage: AssetImage(post?['userProfile'] ?? 'assets/logoonlyluntian.png')),
                 title: Text(
                   notif['message'],
                   style: TextStyle(

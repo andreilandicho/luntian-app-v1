@@ -476,14 +476,14 @@ class _ProfilePageState extends State<ProfilePage>
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Profile picture (tap to change)
+            // profilepicture (tap to change)
             GestureDetector(
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage: _profileImage != null
                     ? FileImage(_profileImage!)
-                    : const AssetImage("assets/profile picture.png")
+                    : const AssetImage("assets/profilepicture.png")
                         as ImageProvider,
               ),
             ),
