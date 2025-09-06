@@ -11,8 +11,12 @@ import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_application_1/models/report_model.dart';
 import 'package:flutter_application_1/services/report_service.dart';
+import 'package:flutter_application_1/services/event_service.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/models/user_model.dart';
+import 'package:flutter_application_1/models/event_model.dart';
+
+
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -262,7 +266,7 @@ await _reportService.voteReport(
         isLoading: _isLoading,
         onRefresh: _fetchReports,
       ),
-      const SearchPage(),
+      const EventsScreen(),
       const LeaderboardPage(),
       NotificationPage(),
       _currentUser != null 
@@ -361,7 +365,7 @@ await _reportService.voteReport(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavIcon(Icons.home_rounded, 0, isSmallScreen),
-                    _buildNavIcon(Icons.search_rounded, 1, isSmallScreen),
+                    _buildNavIcon(Icons.newspaper_rounded, 1, isSmallScreen),
                     _buildNavIcon(Icons.emoji_events_rounded, 2, isSmallScreen),
                     _buildNavIcon(Icons.notifications_rounded, 3, isSmallScreen),
                     _buildNavIcon(Icons.person_rounded, 4, isSmallScreen),
@@ -487,131 +491,97 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
         }
         return false;
       },
-      child: DefaultTabController(
-        length: 2,
-        child: Column(
-          children: [
-            const Material(
-              type: MaterialType.transparency,
-              child: TabBar(
-                isScrollable: false,
-                labelColor: Color(0xFF328E6E),
-                unselectedLabelColor: Colors.grey,
-                indicator: BoxDecoration(
-                  color: Color(0xFFE0F2F1),
-                  borderRadius: BorderRadius.all(Radius.circular(0)),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                labelStyle: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.w600),
-                tabs: [
-                  Tab(text: 'Reports'),
-                  Tab(text: 'Events'),
-                ],
-              ),
-            ),
-            SizedBox(height: screenHeight * 0.015),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  RefreshIndicator(
-                    onRefresh: widget.onRefresh,
-                    child: widget.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : widget.posts.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.info_outline, size: 48, color: Colors.grey),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    "No reports available",
-                                    style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      fontSize: 16,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const AddPage()),
-                                      );
-                                    },
-                                    child: const Text('Create a Report'),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              controller: widget.scrollController,
-                              padding: EdgeInsets.all(screenWidth * 0.04),
-                              itemCount: widget.posts.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == 0) {
-                                  return Column(
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(builder: (_) => const AddPage()),
-                                          );
-                                        },
-                                        child: Card(
-                                          elevation: 2,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                          child: Padding(
-                                            padding: EdgeInsets.all(screenWidth * 0.03),
-                                            child: Row(
-                                              children: [
-                                                const Icon(Icons.add_a_photo, color: Color(0xFF328E6E)),
-                                                SizedBox(width: screenWidth * 0.025),
-                                                const Text(
-                                                  "Capture a report...",
-                                                  style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(height: screenHeight * 0.015),
-                                    ],
-                                  );
-                                }
-
-                                final post = widget.posts[index - 1];
-                                final pageController = PageController(initialPage: currentPages[index - 1] ?? 0);
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: EventCard(
-                                    post: post,
-                                    pageController: pageController,
-                                    screenHeight: screenHeight,
-                                    currentIndex: index - 1,
-                                    onUpvote: widget.onUpvote,
-                                    onDownvote: widget.onDownvote,
-                                    onImageTap: _showImage,
-                                    currentPages: currentPages,
-                                  ),
-                                );
-                              },
-                            ),
+      child: RefreshIndicator(
+      onRefresh: widget.onRefresh,
+      child: widget.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : widget.posts.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.info_outline, size: 48, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "No reports available",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AddPage()),
+                          );
+                        },
+                        child: const Text('Create a Report'),
+                      ),
+                    ],
                   ),
-                  const EventsScreen(),
-                ],
-              ),
-            ),
-          ],
-        ),
+                )
+              : ListView.builder(
+                  controller: widget.scrollController,
+                  padding: EdgeInsets.all(screenWidth * 0.04),
+                  itemCount: widget.posts.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return Column(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AddPage()),
+                              );
+                            },
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              child: Padding(
+                                padding: EdgeInsets.all(screenWidth * 0.03),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.add_a_photo, color: Color(0xFF328E6E)),
+                                    SizedBox(width: screenWidth * 0.025),
+                                    const Text(
+                                      "Capture a report...",
+                                      style: TextStyle(fontFamily: 'Poppins', color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: screenHeight * 0.015),
+                        ],
+                      );
+                    }
+
+                    final post = widget.posts[index - 1];
+                    final pageController = PageController(initialPage: currentPages[index - 1] ?? 0);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: EventCard(
+                        post: post,
+                        pageController: pageController,
+                        screenHeight: screenHeight,
+                        currentIndex: index - 1,
+                        onUpvote: widget.onUpvote,
+                        onDownvote: widget.onDownvote,
+                        onImageTap: _showImage,
+                        currentPages: currentPages,
+                      ),
+                    );
+                  },
+                ),
       ),
     );
   }
 }
-
 class EventCard extends StatelessWidget {
   final Map<String, dynamic> post;
   final PageController pageController;

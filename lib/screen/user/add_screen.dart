@@ -582,7 +582,12 @@ class _AddPageState extends State<AddPage> {
                               'Baradong Kanal', //2
                               'Masangsang na Estero', //3
                               'Tagas ng Langis/Oil Spills', //4
-                              'Tambak ng Basura'] //5
+                              'Tambak ng Basura' //5
+                              'Patay na Hayop', //6
+                              'Basag na Bote', //7
+                              'Illegal Dumping', //8
+                              'Oil/Chemical Spills' //9
+                              ]
                           .map((cat) => DropdownMenuItem(
                                 value: cat,
                                 child: Text(cat, style: const TextStyle(fontFamily: 'Poppins')),

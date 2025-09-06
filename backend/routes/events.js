@@ -147,6 +147,29 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// GET: Interested user per event postings
+//get method for displaying the number of interested volunteers for each event
+router.get('/interested/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    const { data, error } = await supabase
+      .from('volunteer_events_interested')
+      //use count method to count the number of interested volunteers for a specific event
+      .select('citizen_id', { count: 'exact' })
+      .eq('event_id', parseInt(eventId));
+
+    if (error) {
+      console.error('Error fetching user events:', error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json({ count: data?.length || 0 });
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET: Events created by a user
 //get method for displaying events in the user's profile
 router.get('/user/:userId', async (req, res) => {
@@ -178,6 +201,7 @@ router.get('/user/:userId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // POST: Create a new event
 //post event to create a new event and push it sa database

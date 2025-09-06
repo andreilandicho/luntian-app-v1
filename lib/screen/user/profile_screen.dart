@@ -54,6 +54,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
     allBadges = [
       {
+        //check if the total reports created by the user id in the reports table is 10+
         'name': 'Top Reporter',
         'earned': true,
         'description': 'Submit 10 valid reports.',
@@ -61,6 +62,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         'goal': 10
       },
       {
+        //check if the total events created by the user id in the events table is 3+
         'name': 'Eco Warrior',
         'earned': true,
         'description': 'Create 3 cleanup events.',
@@ -68,6 +70,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         'goal': 3
       },
       {
+        //check if there is at least one event created by the user id in the events table
         'name': 'Event Initiator',
         'earned': false,
         'description': 'Organize your first event.',
@@ -75,6 +78,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         'goal': 1
       },
       {
+        //check if ang total upvotes ng reports based sa signed in na user id ay 50+
         'name': 'Report Master',
         'earned': false,
         'description': 'Get 50 upvotes on reports.',
@@ -82,6 +86,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         'goal': 50
       },
       {
+        //check if the total events interested ang user id sa volunteer_events_interested table ay 5+
         'name': 'Community Helper',
         'earned': false,
         'description': 'Join 5 events as a volunteer.',

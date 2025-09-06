@@ -60,6 +60,8 @@ router.post('/', async (req, res) => {
     }]);
   }
 
+  
+
   res.status(201).json({
     message: role === 'official'
       ? 'Account created. Pending approval by barangay admin.'
