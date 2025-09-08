@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const notifSchema = () => {
+export const notifSchema = () => {
   const notifSubmissionSchema = z.object({
     reportID: z.string().uuid({ message: "Invalid UUID" }),
     createdAt: z.string().datetime({ message: "Invalid datetime format" }),
