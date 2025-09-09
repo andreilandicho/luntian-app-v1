@@ -4,17 +4,14 @@ import 'package:flutter_application_1/screen/user/event_screen.dart';
 import 'package:flutter_application_1/screen/user/leaderboard_screen.dart';
 import 'package:flutter_application_1/screen/user/notification_screen.dart';
 import 'package:flutter_application_1/screen/user/profile_screen.dart';
-import 'package:flutter_application_1/screen/user/search_screen.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:flutter_application_1/models/report_model.dart';
 import 'package:flutter_application_1/services/report_service.dart';
-import 'package:flutter_application_1/services/event_service.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/models/user_model.dart';
-import 'package:flutter_application_1/models/event_model.dart';
 
 
 

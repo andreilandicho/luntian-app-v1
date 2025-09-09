@@ -829,7 +829,7 @@ class _AddPageState extends State<AddPage> {
           .from('reports')
           .insert(reportData)
           .select();
-      
+
       // 6. clean up local images
       await _cleanupLocalImages();
       

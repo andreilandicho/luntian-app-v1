@@ -68,41 +68,6 @@ router.post('/:reportId/vote', async (req, res) => {
   }
 });
 
-// Create a new report
-router.post('/', async (req, res) => {
-  try {
-    const {
-      userId,
-      barangayId,
-      description,
-      photoUrls,
-      anonymous = false
-    } = req.body;
-    
-    const { data, error } = await supabase
-      .from('reports')
-      .insert({
-        user_id: parseInt(userId),
-        barangay_id: parseInt(barangayId),
-        description,
-        photo_urls: photoUrls,
-        anonymous,
-        status: 'pending' // Your default status
-      })
-      .select();
-    
-    if (error) {
-      console.error('Error creating report:', error);
-      return res.status(500).json({ error: error.message });
-    }
-    
-    return res.status(201).json(data[0]);
-  } catch (err) {
-    console.error('Server error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Get reports by user ID for user profile/profile page
 // This endpoint retrieves reports created by a specific user
 router.get('/user/:userId', async (req, res) => {
@@ -180,6 +145,25 @@ router.get('/user/:userId', async (req, res) => {
     .order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+
+//get method for getting all solved reports in a barangay for the user to rate
+router.get('/solved/:barangayId', async (req, res) => {
+  try {
+    const { barangayId } = req.params;
+    const { data, error } = await supabase
+      .from('reports')
+      .select('*')
+      .eq('barangay_id', barangayId)
+      .eq('status', 'resolved')
+      .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+  } catch (err) {
+    console.error('Server error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;
