@@ -830,6 +830,8 @@ class _AddPageState extends State<AddPage> {
           .insert(reportData)
           .select();
 
+      //emailer insert
+
       // 6. clean up local images
       await _cleanupLocalImages();
       
