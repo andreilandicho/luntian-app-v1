@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_application_1/screen/user/login_screen.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -84,34 +85,45 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> signUpRequest() async {
+  try {
     final url = Uri.parse('http://10.0.2.2:3000/users');
+
+    // Prepare the body with everything including email & password
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
-        'email': emailController.text,
-        'password': passController.text,
-        'firstName': firstNameController.text,
-        'lastName': lastNameController.text,
+        'firstName': firstNameController.text.trim(),
+        'lastName': lastNameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passController.text.trim(),
         'barangay_id': selectedBarangayId,
         'role': isOfficial ? 'official' : 'citizen',
       }),
     );
 
-    final data = jsonDecode(response.body);
     if (response.statusCode == 201) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['message']))
+        const SnackBar(content: Text('Account created successfully!')),
       );
-      Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pop(context); // Goes back to login screen
-      });
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()), // your login page
+        (route) => false, // remove all previous routes
+      );
+
     } else {
+      final data = jsonDecode(response.body);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(data['error'] ?? 'Sign-up failed'))
+        SnackBar(content: Text(data['error'] ?? 'Failed to save profile')),
       );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +279,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 15),
                       ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
@@ -292,6 +304,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screen/admin_mobile/admin_dashboard.dart';
 import 'package:flutter_application_1/screen/user/home_screen.dart';
-import 'package:flutter_application_1/screen/user/signup_screen.dart';
+import 'package:flutter_application_1/screen/user/MagicLinkSignUpPage.dart';
 import 'package:flutter_application_1/screen/user/forgot_screen.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
+import 'package:flutter_application_1/screen/official_mobile/official.dart';
 import 'package:flutter_application_1/main.dart';  // Add this import for MyApp
 
 class LoginPage extends StatefulWidget {
@@ -111,14 +111,14 @@ class _LoginPageState extends State<LoginPage> {
                               if (email == 'official@gmail.com') {
                                 Navigator.pushReplacement(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const AdminDashboard()),
+                                  MaterialPageRoute(builder: (_) => const OfficialDashboard()),
                                 );
                               } else {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(builder: (_) => const UserHomePage()),
                                 );
-                              }
+                              } 
                             }
                           },
                         style: ElevatedButton.styleFrom(
@@ -170,7 +170,7 @@ class _LoginPageState extends State<LoginPage> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const SignUpPage()),
+                                MaterialPageRoute(builder: (_) => const MagicLinkSignUpPage()),
                               );
                             },
                             child: const Text(
