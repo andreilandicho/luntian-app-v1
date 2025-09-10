@@ -24,6 +24,7 @@ dependencies:
   flutter_rating_bar: ^4.0.0
   image_picker: ^1.0.5
   image_cropper: ^9.1.0
+  cached_network_image: ^3.3.0
   confetti: ^0.8.0
   flutter_screenutil: ^5.8.4
   # For Firebase Core and Cloud Firestore

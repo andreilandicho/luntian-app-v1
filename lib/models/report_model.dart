@@ -17,6 +17,8 @@ class ReportModel {
   final bool anonymous;
   final int barangayId;
   final String? location;   // Optional field for location
+
+  bool isResolved = true;
   
   ReportModel({
     required this.reportId,
@@ -39,7 +41,7 @@ class ReportModel {
   factory ReportModel.fromJson(Map<String, dynamic> json) {
     return ReportModel(
       reportId: json['report_id'],
-      userId: json['user_id'],
+      userId: json['user_id'] ?? -1,
       username: json['anonymous'] ? 'Anonymous Citizen' : (json['username'] ?? ''),
       userProfileUrl: json['anonymous'] ? null : (json['user_profile_url'] ?? 'assets/profile picture.png'),
       description: json['description'],

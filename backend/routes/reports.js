@@ -147,19 +147,63 @@ router.get('/user/:userId', async (req, res) => {
   res.json(data);
 });
 
-
-//get method for getting all solved reports in a barangay for the user to rate
+//=======endpoint for showing solved  reports
 router.get('/solved/:barangayId', async (req, res) => {
   try {
     const { barangayId } = req.params;
-    const { data, error } = await supabase
+
+    // Use a single query with nested relationships
+    const { data: reports, error } = await supabase
       .from('reports')
-      .select('*')
+      .select(`
+        *,
+        report_solutions(*),
+        report_assignments(official_id),
+        report_ratings(average_user_rate)
+      `)
       .eq('barangay_id', barangayId)
       .eq('status', 'resolved')
       .order('created_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!reports || reports.length === 0) {
+      return res.json([]);
+    }
+
+    const formattedReports = reports.map(report => {
+      const assignedOfficials = report.report_assignments 
+        ? report.report_assignments.map(assignment => assignment.official_id)
+        : [];
+      
+      let overallAverageRating = null;
+      if (report.report_ratings && report.report_ratings.length > 0) {
+        const sum = report.report_ratings.reduce((total, rating) => {
+          return total + (rating.average_user_rate || 0);
+        }, 0);
+        overallAverageRating = sum / report.report_ratings.length;
+      }
+      
+      const solution = report.report_solutions && report.report_solutions.length > 0 
+        ? report.report_solutions[0] 
+        : {};
+
+      // Create a new object without the nested relationships
+      const { report_solutions, report_assignments, report_ratings, ...reportData } = report;
+      
+      return {
+        ...reportData,
+        cleanup_notes: solution.cleanup_notes,
+        solution_updated: solution.updated_at,
+        after_photo_urls: solution.after_photo_urls,
+        assigned_officials: assignedOfficials,
+        overall_average_rating: overallAverageRating
+      };
+    });
+
+    res.json(formattedReports);
   } catch (err) {
     console.error('Server error:', err);
     res.status(500).json({ error: 'Internal server error' });

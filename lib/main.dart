@@ -9,10 +9,7 @@ import 'screen/official (mobile)/official.dart';
 import 'screen/admin/admin_dashboard.dart';
 import 'models/user_model.dart';
 import 'screen/user/login_screen.dart';
-import 'screen/user/home_screen.dart';  // Add this import
-
-// main.dart
-import 'package:flutter/material.dart';
+import 'screen/user/home_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
