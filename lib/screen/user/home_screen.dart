@@ -203,45 +203,42 @@ class _UserHomePageState extends State<UserHomePage> {
   void _handleUpvote(int index) async {
     final report = _reports[index];
     final wasUpvoted = report.hasUserUpvoted;
+    final wasDownvoted = report.hasUserDownvoted;
+
+    // 1. Optimistically update UI
     setState(() {
-      if (wasUpvoted) {
-        report.hasUserUpvoted = false;
-        report.upvotes -= 1;
-      } else {
-        report.hasUserUpvoted = true;
-        report.upvotes += 1;
-        if (report.hasUserDownvoted) {
-          report.hasUserDownvoted = false;
-          report.downvotes -= 1;
-        }
+      report.hasUserUpvoted = !wasUpvoted;
+      report.upvotes += wasUpvoted ? -1 : 1;
+      if (!wasUpvoted && wasDownvoted) {
+        report.hasUserDownvoted = false;
+        report.downvotes -= 1;
       }
+      // update formattedReports for UI
+      _formattedReports[index]['has_user_upvoted'] = report.hasUserUpvoted;
+      _formattedReports[index]['upvotes'] = report.upvotes;
+      _formattedReports[index]['has_user_downvoted'] = report.hasUserDownvoted;
+      _formattedReports[index]['downvotes'] = report.downvotes;
     });
+
     try {
-      if (_currentUser == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please log in to vote'))
-        );
-        return;
-      }
       await _reportService.voteReport(
         report.reportId, 
         _currentUser!.id,
         wasUpvoted ? 'remove' : 'upvote'
       );
+      // no further action needed
     } catch (e) {
-      // Revert on error
+      // 2. Revert UI on error
       setState(() {
-        if (wasUpvoted) {
-          report.hasUserUpvoted = true;
-          report.upvotes += 1;
-        } else {
-          report.hasUserUpvoted = false;
-          report.upvotes -= 1;
-          if (report.hasUserDownvoted) {
-            report.hasUserDownvoted = true;
-            report.downvotes += 1;
-          }
-        }
+        report.hasUserUpvoted = wasUpvoted;
+        report.upvotes += wasUpvoted ? 1 : -1;
+        report.hasUserDownvoted = wasDownvoted;
+        report.downvotes += wasDownvoted ? 1 : 0;
+
+        _formattedReports[index]['has_user_upvoted'] = report.hasUserUpvoted;
+        _formattedReports[index]['upvotes'] = report.upvotes;
+        _formattedReports[index]['has_user_downvoted'] = report.hasUserDownvoted;
+        _formattedReports[index]['downvotes'] = report.downvotes;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update vote: $e'))
@@ -249,42 +246,42 @@ class _UserHomePageState extends State<UserHomePage> {
     }
   }
 
+  // Optimistic UI update for downvote
   void _handleDownvote(int index) async {
     final report = _reports[index];
     final wasDownvoted = report.hasUserDownvoted;
+    final wasUpvoted = report.hasUserUpvoted;
+
     setState(() {
-      if (wasDownvoted) {
-        report.hasUserDownvoted = false;
-        report.downvotes -= 1;
-      } else {
-        report.hasUserDownvoted = true;
-        report.downvotes += 1;
-        if (report.hasUserUpvoted) {
-          report.hasUserUpvoted = false;
-          report.upvotes -= 1;
-        }
+      report.hasUserDownvoted = !wasDownvoted;
+      report.downvotes += wasDownvoted ? -1 : 1;
+      if (!wasDownvoted && wasUpvoted) {
+        report.hasUserUpvoted = false;
+        report.upvotes -= 1;
       }
+      _formattedReports[index]['has_user_downvoted'] = report.hasUserDownvoted;
+      _formattedReports[index]['downvotes'] = report.downvotes;
+      _formattedReports[index]['has_user_upvoted'] = report.hasUserUpvoted;
+      _formattedReports[index]['upvotes'] = report.upvotes;
     });
+
     try {
       await _reportService.voteReport(
         report.reportId, 
-        _currentUser?.id ?? 0,
+        _currentUser!.id,
         wasDownvoted ? 'remove' : 'downvote'
       );
     } catch (e) {
-      // Revert on error
       setState(() {
-        if (wasDownvoted) {
-          report.hasUserDownvoted = true;
-          report.downvotes += 1;
-        } else {
-          report.hasUserDownvoted = false;
-          report.downvotes -= 1;
-          if (report.hasUserUpvoted) {
-            report.hasUserUpvoted = true;
-            report.upvotes += 1;
-          }
-        }
+        report.hasUserDownvoted = wasDownvoted;
+        report.downvotes += wasDownvoted ? 1 : -1;
+        report.hasUserUpvoted = wasUpvoted;
+        report.upvotes += wasUpvoted ? 1 : 0;
+
+        _formattedReports[index]['has_user_downvoted'] = report.hasUserDownvoted;
+        _formattedReports[index]['downvotes'] = report.downvotes;
+        _formattedReports[index]['has_user_upvoted'] = report.hasUserUpvoted;
+        _formattedReports[index]['upvotes'] = report.upvotes;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update vote: $e'))
