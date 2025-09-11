@@ -3,10 +3,12 @@ import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'dart:io' show Platform;
 
 import 'screen/user/loading_screen.dart';
 import 'screen/user/signup_screen.dart';
 import 'screen/user/login_screen.dart'; // 👈 added this import
+import 'screen/admin/login_screen.dart';
 import 'package:flutter_application_1/screen/official_mobile/official.dart';
 import 'package:flutter_application_1/screen/user/home_screen.dart';
 
@@ -95,16 +97,32 @@ class _MyAppState extends State<MyApp> {
   // Check if current session exists
   Future<void> _checkSession() async {
     final session = supabase.auth.currentSession;
+
     if (session != null) {
       await _handleAuth(session);
     } else {
       debugPrint("❌ No session");
+
+      Widget redirectPage;
+
+      if (kIsWeb) {
+        // Web (Chrome)
+        redirectPage = const AdminLoginPage();
+      } else if (Platform.isAndroid || Platform.isIOS) {
+        // Mobile (Android/iOS)
+        redirectPage = const LoginPage();
+      } else {
+        // Other platforms (desktop)
+        redirectPage = const LoginPage();
+      }
+
       navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()), // 👈 go to login
+        MaterialPageRoute(builder: (_) => redirectPage),
         (route) => false,
       );
     }
   }
+
 
   // Handle auth and route based on user existence & role
   Future<void> _handleAuth(Session? session, {bool fromMagicLink = false}) async {
