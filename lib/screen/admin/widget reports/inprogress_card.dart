@@ -7,7 +7,12 @@ import 'package:flutter_application_1/screen/admin/report_pdf.dart';
 import 'dart:typed_data';
 import 'dart:io' show File, Directory; // only for mobile
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html; // ✅ only works for web
+import 'package:flutter_application_1/screen/admin/web_utils.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+
 
 
 class ReportCard extends StatefulWidget {
@@ -35,6 +40,11 @@ class ReportCard extends StatefulWidget {
 }
 
 class _ReportCardState extends State<ReportCard> {
+  
+  List<Map<String, dynamic>> _assignments = [];
+  bool _loadingAssignments = true;
+  DateTime? _reportDeadline;
+  bool _loadingDeadline = true;
   int _currentImageIndex = 0;
   late PageController _pageController;
   final GlobalKey _cardKey = GlobalKey();
@@ -46,7 +56,113 @@ class _ReportCardState extends State<ReportCard> {
     super.initState();
     _pageController = PageController(viewportFraction: 1.0);
     WidgetsBinding.instance.addPostFrameCallback((_) => _measureHeight());
+    _loadAssignments();
+    _loadDeadline();
   }
+
+  Future<void> _loadDeadline() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      final result = await supabase
+          .from('reports')
+          .select('report_deadline')
+          .eq('report_id', widget.report['reportId'])
+          .maybeSingle();
+          
+      if (result == null || result['report_deadline'] == null) {
+        setState(() {
+          _reportDeadline = null;
+          _loadingDeadline = false;
+        });
+        return;
+      }
+
+      // parse timestamp directly
+      setState(() {
+        _reportDeadline = DateTime.parse(result['report_deadline']);
+        _loadingDeadline = false;
+      });
+    } catch (e) {
+      print("Error fetching report_deadline: $e");
+      setState(() => _loadingDeadline = false);
+    }
+  }
+
+  Future<void> _loadAssignments() async {
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Get assignments for this report
+      final assignments = await supabase
+          .from('report_assignments')
+          .select('official_id, assigned_at')
+          .eq('report_id', widget.report['reportId'])
+          .order('assigned_at', ascending: false);
+
+      if (assignments.isEmpty) {
+        setState(() {
+          _assignments = [];
+          _loadingAssignments = false;
+        });
+        return;
+      }
+
+      List<Map<String, dynamic>> enriched = [];
+
+      for (var a in assignments) {
+        final userId = a['official_id']; // This is actually a user_id
+
+        try {
+          // Get user details directly
+          final user = await supabase
+              .from('users')
+              .select('name, user_profile_url')
+              .eq('user_id', userId)
+              .maybeSingle();
+
+          if (user != null) {
+            enriched.add({
+              'assigned_at': a['assigned_at'],
+              'name': user['name'] ?? 'User ID: $userId',
+              'avatar': user['user_profile_url'] ?? 'assets/profilepicture.png',
+            });
+          } else {
+            // If user not found, try to get official name as fallback
+            final official = await supabase
+                .from('officials')
+                .select('name')
+                .eq('user_id', userId)
+                .maybeSingle();
+
+            enriched.add({
+              'assigned_at': a['assigned_at'],
+              'name': official?['name'] ?? 'User ID: $userId',
+              'avatar': 'assets/profilepicture.png',
+            });
+          }
+        } catch (e) {
+          print("Error fetching user $userId: $e");
+          enriched.add({
+            'assigned_at': a['assigned_at'],
+            'name': 'User ID: $userId (Error)',
+            'avatar': 'assets/profilepicture.png',
+          });
+        }
+      }
+
+      setState(() {
+        _assignments = enriched;
+        _loadingAssignments = false;
+      });
+
+    } catch (e) {
+      print("Error fetching assignments: $e");
+      setState(() => _loadingAssignments = false);
+    }
+  }
+  
+
 
   void _measureHeight() {
     final context = _cardKey.currentContext;
@@ -128,216 +244,237 @@ class _ReportCardState extends State<ReportCard> {
   }
 
   void _openActionModal(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (sheetCtx) {
-      return StatefulBuilder(
-        builder: (modalCtx, setModalState) {
-          final bool hasProof = true; // always true since we use asset image
-          final bool stepAssignedCompleted = true;
-          final bool stepWaitingCompleted =
-              (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
-          final bool stepProofCompleted = hasProof && (_actionAccepted == true);
 
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          "Report Action",
-                          style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+    String getDeadlineSubtitle() {
+      if (_loadingDeadline) return "Loading...";
+      if (_reportDeadline == null) return "Deadline: N/A";
 
-                  // Timeline
-                  _buildTimelineStep(
-                    title: "Deployment personnel assigned",
-                    subtitle:
-                        "Assigned to: ${widget.report["personnelName"] ?? "N/A"}",
-                    completed: stepAssignedCompleted,
-                    isLast: false,
-                  ),
-                  _buildTimelineStep(
-                    title: "Waiting for action",
-                    subtitle: "Deadline: 7 days",
-                    completed: stepWaitingCompleted || hasProof,
-                    isLast: false,
-                  ),
-                  _buildTimelineStep(
-                    title: "Proof of Action",
-                    subtitle: (_actionAccepted == null
-                        ? "Awaiting decision"
-                        : (_actionAccepted == true ? "Accepted" : "Rejected")),
-                    completed: _actionAccepted == true,
-                    trailing: GestureDetector(
-                      onTap: () {
-                        _openImageDialog(
-                          url: widget.report["proofImage"], // or pass bytes/path if needed
-                        );
-                      },
-                      child: buildProofImage(null, widget.report["proofImage"]),
-                    ),
-                    isLast: true,
-                  ),
-                  const SizedBox(height: 16),
+      final now = DateTime.now();
+      final difference = _reportDeadline!.difference(now);
 
-                  // Decision buttons
-                  if (_actionAccepted == null) ...[
+      if (difference.isNegative) return "Deadline Passed";
+
+      final days = difference.inDays;
+      final hours = difference.inHours % 24;
+
+      if (days == 0 && hours == 0) return "Deadline: Less than an hour left";
+      if (days == 0) return "Deadline: $hours hour${hours > 1 ? 's' : ''} left";
+      if (hours == 0) return "Deadline: $days day${days > 1 ? 's' : ''} left";
+
+      return "Deadline: $days day${days > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''} left";
+    }
+
+
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final bool hasProof = true; // always true since we use asset image
+            final bool stepAssignedCompleted = true;
+            final bool stepWaitingCompleted =
+                (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
+            final bool stepProofCompleted = hasProof && (_actionAccepted == true);
+
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
                     Row(
                       children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              setState(() => _actionAccepted = true);
-                              setModalState(() {});
-                              _showDecisionBar(
-                                accepted: true,
-                                setModalState: setModalState,
-                                messengerCtx: sheetCtx,
-                              );
-                            },
-                            icon: const Icon(Icons.thumb_up),
-                            label: const Text("Accept"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
+                        const Expanded(
+                          child: Text(
+                            "Report Action",
+                            style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              setState(() => _actionAccepted = false);
-                              setModalState(() {});
-                              _showDecisionBar(
-                                accepted: false,
-                                setModalState: setModalState,
-                                messengerCtx: sheetCtx,
-                              );
-                            },
-                            icon: const Icon(Icons.thumb_down),
-                            label: const Text("Reject"),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              side: const BorderSide(color: Colors.red),
-                              foregroundColor: Colors.red,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        )
                       ],
                     ),
-                    const SizedBox(height: 12),
-                  ],
+                    const SizedBox(height: 8),
 
-                  // Chip status
-                  if (_actionAccepted != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Chip(
-                        avatar: Icon(
-                          _actionAccepted == true
-                              ? Icons.check_circle
-                              : Icons.cancel,
-                        ),
-                        label: Text(
-                          _actionAccepted == true
-                              ? "Action Accepted"
-                              : "Action Rejected",
-                        ),
-                        backgroundColor: _actionAccepted == true
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        side: BorderSide(
-                          color: _actionAccepted == true
-                              ? Colors.green
-                              : Colors.red,
-                        ),
-                      ),
+                    // Timeline
+                  _buildTimelineStep(
+                      title: "Deployment personnel assigned",
+                      subtitle: _loadingAssignments
+                      ? "Loading..."
+                      : _assignments.isNotEmpty
+                          ? "Assigned to: ${_assignments.map((a) => a['name']).join(', ')}"
+                          : "Assigned to: N/A",
+                      completed: stepAssignedCompleted,
+                      isLast: false,
                     ),
-                    const SizedBox(height: 12),
-                  ],
 
-                  // Generate Report
-                  if (_actionAccepted == true)
-                    ElevatedButton.icon(
-                     onPressed: () async {
-                      try {
-                        final pdfBytes = await ReportPdf.generate(context, widget.report);
-                        if (pdfBytes == null) return;
+                    _buildTimelineStep(
+                      title: "Waiting for action",
+                      subtitle: getDeadlineSubtitle(),
+                      completed: stepWaitingCompleted || hasProof,
+                      isLast: false,
+                    ),
 
-                        if (kIsWeb) {
-                          // ✅ Web: trigger browser download
-                          final blob = html.Blob([pdfBytes]);
-                          final url = html.Url.createObjectUrlFromBlob(blob);
-                          final anchor = html.AnchorElement(href: url)
-                            ..setAttribute("download", "report.pdf")
-                            ..click();
-                          html.Url.revokeObjectUrl(url);
-                        } else {
-                          // ✅ Mobile / Desktop: use printing package
-                          await Printing.layoutPdf(
-                            onLayout: (PdfPageFormat format) async => pdfBytes,
+                    _buildTimelineStep(
+                      title: "Proof of Action",
+                      subtitle: (_actionAccepted == null
+                          ? "Awaiting decision"
+                          : (_actionAccepted == true ? "Accepted" : "Rejected")),
+                      completed: _actionAccepted == true,
+                      trailing: GestureDetector(
+                        onTap: () {
+                          _openImageDialog(
+                            url: widget.report["proofImage"], // or pass bytes/path if needed
                           );
-                        }
+                        },
+                        child: buildProofImage(null, widget.report["proofImage"]),
+                      ),
+                      isLast: true,
+                    ),
+                    const SizedBox(height: 16),
 
-                        widget.onCompleted();
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text("Error generating PDF: $e"),
-                              backgroundColor: Colors.red,
+                    // Decision buttons
+                    if (_actionAccepted == null) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() => _actionAccepted = true);
+                                setModalState(() {});
+                                _showDecisionBar(
+                                  accepted: true,
+                                  setModalState: setModalState,
+                                  messengerCtx: sheetCtx,
+                                );
+                              },
+                              icon: const Icon(Icons.thumb_up),
+                              label: const Text("Accept"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
                             ),
-                          );
-                        }
-                      }
-                    },
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text("Generate Report"),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                setState(() => _actionAccepted = false);
+                                setModalState(() {});
+                                _showDecisionBar(
+                                  accepted: false,
+                                  setModalState: setModalState,
+                                  messengerCtx: sheetCtx,
+                                );
+                              },
+                              icon: const Icon(Icons.thumb_down),
+                              label: const Text("Reject"),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                side: const BorderSide(color: Colors.red),
+                                foregroundColor: Colors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Chip status
+                    if (_actionAccepted != null) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Chip(
+                          avatar: Icon(
+                            _actionAccepted == true
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                          ),
+                          label: Text(
+                            _actionAccepted == true
+                                ? "Action Accepted"
+                                : "Action Rejected",
+                          ),
+                          backgroundColor: _actionAccepted == true
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          side: BorderSide(
+                            color: _actionAccepted == true
+                                ? Colors.green
+                                : Colors.red,
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Generate Report
+                    if (_actionAccepted == true)
+                      ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          final pdfBytes = await ReportPdf.generate(context, widget.report);
+                          if (pdfBytes == null) return;
+
+                          if (kIsWeb) {
+                            downloadPdfWeb(pdfBytes, "report.pdf"); // ✅ only runs on web
+                          } else {
+                            await Printing.layoutPdf(
+                              onLayout: (PdfPageFormat format) async => pdfBytes,
+                            );
+                          }
+
+
+                          widget.onCompleted();
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Error generating PDF: $e"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text("Generate Report"),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+            );
+          },
+        );
+      },
+    );
+  }
 
   Widget _buildTimelineStep({
     required String title,
@@ -425,10 +562,27 @@ class _ReportCardState extends State<ReportCard> {
                     setState(() => _currentImageIndex = index);
                   },
                   itemBuilder: (context, index) {
-                    return Image.asset(
+                    return Image.network(
                       images[index],
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                    progress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(child: Icon(Icons.broken_image, size: 40)),
+                        );
+                      },
                     );
                   },
                 ),

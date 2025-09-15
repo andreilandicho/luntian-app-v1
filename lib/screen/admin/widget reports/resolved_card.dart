@@ -204,12 +204,23 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            _photoCard("Before", "assets/garbage.png"),
-                            const SizedBox(width: 12),
-                            _photoCard("After", "assets/clean.jpg"),
+                            // Before photos
+                            ...((report["beforePhotos"] as List<String>?) ?? ["assets/garbage.png"])
+                                .map((url) => Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: _photoCard("Before", url),
+                                    )),
+
+                            // After photos
+                            ...((report["afterPhotos"] as List<String>?) ?? ["assets/clean.jpg"])
+                                .map((url) => Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: _photoCard("After", url),
+                                    )),
                           ],
                         ),
                       ),
+
 
                       const SizedBox(height: 20),
 
@@ -321,6 +332,14 @@ Widget _sectionHeader(String title, IconData icon) {
 
 /// Reusable Photo Card
 Widget _photoCard(String label, String imagePath) {
+  final ImageProvider imageProvider;
+
+  if (imagePath.startsWith('http')) {
+    imageProvider = NetworkImage(imagePath); // For Supabase URLs
+  } else {
+    imageProvider = AssetImage(imagePath); // For local assets
+  }
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
@@ -332,15 +351,19 @@ Widget _photoCard(String label, String imagePath) {
         onTap: () => _showImageFullScreen(imagePath),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.asset(imagePath,
-              height: 120, width: 160, fit: BoxFit.cover),
+          child: Image(
+            image: imageProvider,
+            height: 120,
+            width: 160,
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     ],
   );
 }
 
-void _showImageFullScreen(String imagePath) {
+void _showImageFullScreen(String imageUrl) {
   showDialog(
     context: context,
     builder: (context) {
@@ -354,9 +377,20 @@ void _showImageFullScreen(String imagePath) {
               minScale: 0.8,
               maxScale: 4.0,
               child: Center(
-                child: Image.asset(
-                  imagePath,
+                child: Image.network(
+                  imageUrl, // Use network here
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.broken_image, color: Colors.white, size: 50),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    );
+                  },
                 ),
               ),
             ),
@@ -375,6 +409,8 @@ void _showImageFullScreen(String imagePath) {
   );
 }
 
+
+/// helper widget for details rows
 /// helper widget for details rows
 Widget _buildDetailRow(String label, String value) {
   return Padding(
@@ -384,7 +420,7 @@ Widget _buildDetailRow(String label, String value) {
         Text("$label: ",
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         Expanded(
-          child: Text(value,
+          child: Text(value ?? "N/A", // Add null check here
               style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
         ),
       ],
@@ -427,10 +463,27 @@ Widget _buildDetailRow(String label, String value) {
                     setState(() => _currentImageIndex = index);
                   },
                   itemBuilder: (context, index) {
-                    return Image.asset(
+                    return Image.network(
                       images[index],
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                    progress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(child: Icon(Icons.broken_image, size: 40)),
+                        );
+                      },
                     );
                   },
                 ),
@@ -543,7 +596,7 @@ Widget _buildDetailRow(String label, String value) {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    widget.report["location"],
+                                    widget.report["location"] ?? "Unknown location",
                                     style: TextStyle(
                                         color: Colors.grey[600], fontSize: 12),
                                     maxLines: 1,

@@ -162,7 +162,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                         if (_formKey.currentState!.validate()) {
                                           Navigator.pushReplacement(
                                             context,
-                                            MaterialPageRoute(builder: (_) => const LoginPage()),
+                                            MaterialPageRoute(builder: (_) => const AdminLoginPage()),
                                           );
                                         }
                                       },
@@ -197,7 +197,7 @@ class _SignUpPageState extends State<SignUpPage> {
                                           onTap: () {
                                             Navigator.pushReplacement(
                                               context,
-                                              MaterialPageRoute(builder: (_) => const LoginPage()),
+                                              MaterialPageRoute(builder: (_) => const AdminLoginPage()),
                                             );
                                           },
                                           child: const Text(
@@ -323,7 +323,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           if (_formKey.currentState!.validate()) {
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (_) => const LoginPage()),
+                              MaterialPageRoute(builder: (_) => const AdminLoginPage()),
                             );
                           }
                         },
@@ -356,7 +356,7 @@ class _SignUpPageState extends State<SignUpPage> {
                             onTap: () {
                               Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(builder: (_) => const LoginPage()),
+                                MaterialPageRoute(builder: (_) => const AdminLoginPage()),
                               );
                             },
                             child: const Text(

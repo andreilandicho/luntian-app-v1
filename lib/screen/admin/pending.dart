@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_application_1/screen/admin/widget reports/report_card.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 Color _priorityColor(String priority) {
   switch (priority.toLowerCase()) {
@@ -28,6 +31,9 @@ class PendingPage extends StatefulWidget {
   State<PendingPage> createState() => _PendingPageState();
 }
 
+bool isLoading = true;
+
+
 class _PendingPageState extends State<PendingPage> {
   String selectedFilter = "All";
   String selectedSort = "Newest First";
@@ -48,29 +54,99 @@ class _PendingPageState extends State<PendingPage> {
   @override
   void initState() {
     super.initState();
-    allReports = _generateMockReports();
+    allReports = []; // start empty
+    fetchReports();  // fetch from Supabase
+    fetchOfficials();
   }
 
-  List<Map<String, dynamic>> _generateMockReports() {
-    final priorities = ["High", "Medium", "Low"];
-    return List.generate(12, (index) {
-      return {
-        "userName": "User ${index + 1}",
-        "location": "Barangay ${index + 1}",
-        "hazardous": index % 2 == 0,
-        "priority": priorities[index % priorities.length],
-        "images": [
-          "assets/garbage.png",
-          "assets/garbage.png",
-          "assets/garbage.png",
-        ],
-        "description":
-            "Sample description for report number ${index + 1}. This is a preview of the issue the user has reported.",
-        "createdAt":
-            DateTime.now().subtract(Duration(hours: (index + 1) * 3)),
+
+  Future<void> fetchReports() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final barangayId = prefs.getInt('barangay_id');
+
+      if (barangayId == null) {
+        throw Exception("No barangay_id found for logged in user");
+      }
+
+      if (!mounted) return;
+      setState(() => isLoading = true);
+
+      // 1️⃣ Fetch reports
+      final data = await Supabase.instance.client
+          .from('reports')
+          .select('*')
+          .eq('status', 'pending')
+          .eq('barangay_id', barangayId)
+          .order('created_at', ascending: false);
+
+      if (!mounted) return;
+
+      final reportsList = data as List<dynamic>;
+
+      if (reportsList.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          allReports = [];
+          isLoading = false;
+        });
+        return;
+      }
+
+      // 2️⃣ Unique user_ids
+      final userIds = reportsList.map((r) => r['user_id']).toSet().toList();
+
+      // 3️⃣ Fetch users
+      final usersData = await Supabase.instance.client
+          .from('users')
+          .select('user_id, name, user_profile_url')
+          .inFilter('user_id', userIds);
+
+      final Map<int, Map<String, dynamic>> userMap = {
+        for (var u in usersData as List<dynamic>)
+          u['user_id'] as int: Map<String, dynamic>.from(u),
       };
-    });
+
+      // 4️⃣ Build reports
+      final reports = reportsList.map<Map<String, dynamic>>((r) {
+        final report = Map<String, dynamic>.from(r);
+        final userData = userMap[report['user_id']] ?? {};
+
+        return {
+          'reportId': report['report_id'],
+          'userId': report['user_id'],
+          'userName': report['anonymous'] == true
+              ? 'Anonymous'
+              : userData['name'] ?? 'Unknown',
+          'avatar': userData['user_profile_url'] ?? 'assets/profilepicture.png',
+          'description': report['description'] ?? '',
+          'images': report['photo_urls'] ?? [],
+          'priority': report['priority'] ?? 'Low',
+          'hazardous':
+              report['hazardous'] == true || report['hazardous'] == 'true',
+          'location': (report['lat'] != null && report['lon'] != null)
+              ? '${report['lat']}, ${report['lon']}'
+              : 'Location unavailable',
+          'createdAt': DateTime.parse(report['created_at']),
+        };
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        allReports = reports;
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("❌ Error fetching reports: $e");
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
+
+
+
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -82,34 +158,40 @@ class _PendingPageState extends State<PendingPage> {
   bool _isDesktop(BuildContext context) =>
   MediaQuery.of(context).size.width >= 800;
 
-  final List<Map<String, String>> dummyPeople = [
-    {"name": "Alice", "avatar": "assets/profilepicture.png"},
-    {"name": "Bob", "avatar": "assets/profilepicture.png"},
-    {"name": "Charlie", "avatar": "assets/profilepicture.png"},
-    {"name": "Diana", "avatar": "assets/profilepicture.png"},
-    {"name": "Ethan", "avatar": "assets/profilepicture.png"},
-    {"name": "Fiona", "avatar": "assets/profilepicture.png"},
-    {"name": "George", "avatar": "assets/profilepicture.png"},
-    {"name": "Hannah", "avatar": "assets/profilepicture.png"},
-    {"name": "Ian", "avatar": "assets/profilepicture.png"},
-    {"name": "Jasmine", "avatar": "assets/profilepicture.png"},
-    {"name": "Kevin", "avatar": "assets/profilepicture.png"},
-    {"name": "Laura", "avatar": "assets/profilepicture.png"},
-    {"name": "Michael", "avatar": "assets/profilepicture.png"},
-    {"name": "Nina", "avatar": "assets/profilepicture.png"},
-    {"name": "Oscar", "avatar": "assets/profilepicture.png"},
-    {"name": "Paula", "avatar": "assets/profilepicture.png"},
-    {"name": "Quinn", "avatar": "assets/profilepicture.png"},
-    {"name": "Rachel", "avatar": "assets/profilepicture.png"},
-    {"name": "Sam", "avatar": "assets/profilepicture.png"},
-    {"name": "Tina", "avatar": "assets/profilepicture.png"},
-    {"name": "Uma", "avatar": "assets/profilepicture.png"},
-    {"name": "Victor", "avatar": "assets/profilepicture.png"},
-    {"name": "Wendy", "avatar": "assets/profilepicture.png"},
-    {"name": "Xavier", "avatar": "assets/profilepicture.png"},
-    {"name": "Yara", "avatar": "assets/profilepicture.png"},
-    {"name": "Zack", "avatar": "assets/profilepicture.png"},
-  ]..sort((a, b) => a["name"]!.compareTo(b["name"]!));
+  List<Map<String, dynamic>> officials = [];
+
+  Future<void> fetchOfficials() async {
+  final prefs = await SharedPreferences.getInstance();
+  final barangayId = prefs.getInt('barangay_id'); // the logged-in user's barangay
+
+  if (barangayId == null) {
+      throw Exception("No barangay_id found for logged in user");
+  }
+
+  try {
+    final response = await Supabase.instance.client
+        .from('officials')
+        .select('official_id, user_id, users(name, user_profile_url)')
+        .eq('barangay_id', barangayId);
+
+    final data = response as List<dynamic>;
+
+    setState(() {
+      officials = data
+          .map((o) => {
+                'officialId': o['official_id'].toString(),
+                'userId': o['user_id'].toString(),
+                'name': o['users']?['name'] ?? 'Unknown',
+                'avatar': o['users']?['user_profile_url'] ?? 'assets/profilepicture.png',
+              })
+          .toList();
+    });
+  } catch (e) {
+    print("❌ Error fetching officials: $e");
+  }
+}
+
+
 
   /// Mobile: bottom sheet with filter & sort
   void _showFilterSortMenu() {
@@ -387,40 +469,63 @@ class _PendingPageState extends State<PendingPage> {
           ),
           SliverPadding(
             padding: const EdgeInsets.all(16),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final report = filteredReports[index];
-                  return ReportCard(
-                    report: report,
-                    priorityColor: _priorityColor(report["priority"]),
-                    timeAgo: _timeAgo(report["createdAt"] as DateTime),
-                    onMarkInProgress: () {
-                      setState(() {
-                        allReports.remove(report);
-                      });
-                    },
-                    fixedHeight: _tallestCardHeight > 0 ? _tallestCardHeight : null,
-                    onHeightMeasured: _updateTallestHeight,
-                    people: dummyPeople, // new
-                    onAssign: (updatedReport) {
-                      setState(() {
-                        allReports.remove(report); // remove from pending
-                        // here you could add to "In Progress" list later
-                      });
-                    },
-                  );
-                },
-                childCount: filteredReports.length,
-              ),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 500,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 0.74,
-              ),
-            ),
-          ),
+            sliver: isLoading
+                ? const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                : filteredReports.isEmpty
+                    ? const SliverFillRemaining(
+                        child: Center(child: Text("No pending reports")),
+                      )
+                    : SliverGrid(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final report = filteredReports[index];
+                            return ReportCard(
+                              report: report,
+                              priorityColor: _priorityColor(report["priority"]),
+                              timeAgo: _timeAgo(report["createdAt"] as DateTime),
+                              onMarkInProgress: () {
+                                setState(() {
+                                  allReports.remove(report);
+                                });
+                              },
+                              fixedHeight: _tallestCardHeight > 0 ? _tallestCardHeight : null,
+                              onHeightMeasured: _updateTallestHeight,
+                              people: officials,
+                              onAssign: (updatedReport) async {
+                                try {
+                                  // Update status in Supabase
+                                  await Supabase.instance.client
+                                      .from('reports')
+                                      .update({'status': 'in_progress'}) // or whatever status you want
+                                      .eq('report_id', report['reportId']);
+
+                                  // Update local state
+                                  setState(() {
+                                    report['status'] = 'in_progress';
+                                    // Optionally remove it from allReports if you don't want to show it anymore
+                                    allReports.remove(report);
+                                  });
+                                } catch (e) {
+                                  print("Error updating report status: $e");
+                                  // Optionally show a SnackBar or alert
+                                }
+                              },
+
+                            );
+                          },
+                          childCount: filteredReports.length,
+                        ),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 500,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                          childAspectRatio: 0.74,
+                        ),
+                      ),
+          )
+
         ],
       ),
     );

@@ -2,15 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screen/admin/signup_screen.dart';
 import 'package:flutter_application_1/screen/admin/forgot_screen.dart';
 import 'package:flutter_application_1/screen/admin/admin_dashboard.dart' as admin_dashboard;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bcrypt/bcrypt.dart'; // Add bcrypt import
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class AdminLoginPage extends StatefulWidget {
+  const AdminLoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _AdminLoginPageState extends State<AdminLoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -126,12 +129,91 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     const SizedBox(height: 25),
                                     ElevatedButton(
-                                      onPressed: () {
+                                      onPressed: () async {
                                         if (_formKey.currentState!.validate()) {
-                                          Navigator.pushReplacement(
-                                            context,
-                                            MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
-                                          );
+                                          try {
+                                            final email = emailController.text.trim();
+                                            final password = passwordController.text.trim();
+
+                                            // 1️⃣ Fetch user by email
+                                            final user = await Supabase.instance.client
+                                                .from('users')
+                                                .select('user_id, role, password, barangay_id')
+                                                .eq('email', email)
+                                                .maybeSingle();
+
+                                            if (user == null) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text("❌ No account found with this email"),
+                                                  backgroundColor: Color.fromARGB(255, 0, 0, 0),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            final storedPassword = user['password'] as String? ?? "";
+                                            
+                                            // 2️⃣ Check password using bcrypt
+                                            bool passwordMatches = false;
+                                            
+                                            // Check if password is hashed (starts with $2a$ or $2b$)
+                                            if (storedPassword.startsWith(r"$2a$") || storedPassword.startsWith(r"$2b$")) {
+                                              // Password is hashed - use bcrypt to verify
+                                              try {
+                                                passwordMatches = BCrypt.checkpw(password, storedPassword);
+                                              } catch (e) {
+                                                debugPrint("❌ BCrypt error: $e");
+                                                passwordMatches = false;
+                                              }
+                                            } else {
+                                              // Password is plain text (for backward compatibility)
+                                              passwordMatches = storedPassword == password;
+                                            }
+
+                                            if (!passwordMatches) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text("❌ Incorrect password"),
+                                                  backgroundColor: Color.fromARGB(255, 0, 0, 0),
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            // 3️⃣ Check role
+                                            if (user['role'] != 'barangay') {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text("❌ Only barangay accounts are allowed to log in"),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                              return;
+                                            }
+
+                                            // ✅ Passed all checks → navigate to dashboard
+                                            final barangayId = user['barangay_id'];
+
+                                            // store globally or in SharedPreferences
+                                            final prefs = await SharedPreferences.getInstance();
+                                            await prefs.setInt('barangay_id', barangayId);
+
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
+                                            );
+
+                                          } catch (e) {
+                                            debugPrint("❌ Login error: $e");
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text("Something went wrong during login"),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                       style: ElevatedButton.styleFrom(
@@ -151,6 +233,7 @@ class _LoginPageState extends State<LoginPage> {
                                         ),
                                       ),
                                     ),
+
                                     const SizedBox(height: 10),
                                     TextButton(
                                       onPressed: () {
@@ -282,12 +365,91 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 25),
                       ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           if (_formKey.currentState!.validate()) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
-                            );
+                            try {
+                              final email = emailController.text.trim();
+                              final password = passwordController.text.trim();
+
+                              // 1️⃣ Fetch user by email
+                              final user = await Supabase.instance.client
+                                  .from('users')
+                                  .select('user_id, role, password, barangay_id')
+                                  .eq('email', email)
+                                  .maybeSingle();
+
+                              if (user == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("❌ No account found with this email"),
+                                    backgroundColor: Color.fromARGB(255, 0, 0, 0),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              final storedPassword = user['password'] as String? ?? "";
+                              
+                              // 2️⃣ Check password using bcrypt
+                              bool passwordMatches = false;
+                              
+                              // Check if password is hashed (starts with $2a$ or $2b$)
+                              if (storedPassword.startsWith(r"$2a$") || storedPassword.startsWith(r"$2b$")) {
+                                // Password is hashed - use bcrypt to verify
+                                try {
+                                  passwordMatches = BCrypt.checkpw(password, storedPassword);
+                                } catch (e) {
+                                  debugPrint("❌ BCrypt error: $e");
+                                  passwordMatches = false;
+                                }
+                              } else {
+                                // Password is plain text (for backward compatibility)
+                                passwordMatches = storedPassword == password;
+                              }
+
+                              if (!passwordMatches) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("❌ Incorrect password"),
+                                    backgroundColor: Color.fromARGB(255, 0, 0, 0),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // 3️⃣ Check role
+                              if (user['role'] != 'barangay') {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("❌ Only barangay accounts are allowed to log in"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // ✅ Passed all checks → navigate to dashboard
+                              final barangayId = user['barangay_id'];
+
+                              // store globally or in SharedPreferences
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setInt('barangay_id', barangayId);
+
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
+                              );
+
+                            } catch (e) {
+                              debugPrint("❌ Login error: $e");
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("Something went wrong during login"),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
                         },
                         style: ElevatedButton.styleFrom(

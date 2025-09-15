@@ -1,4 +1,7 @@
 // lib/main.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -13,11 +16,32 @@ import 'package:flutter_application_1/screen/admin/resolved.dart';
 import 'package:flutter_application_1/screen/admin/request_screen.dart';
 import 'package:flutter_application_1/screen/admin/threshold.dart';
 import 'package:flutter_application_1/screen/admin/leaderboard.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 void main() {
   runApp(const LuntianAdminApp());
 }
+
+Future<List<Map<String, dynamic>>> fetchBarangay2Reports() async {
+   final prefs = await SharedPreferences.getInstance();
+    final barangayId = prefs.getInt('barangay_id'); // the logged-in user's barangay
+
+    if (barangayId == null) {
+      throw Exception("No barangay_id found for logged in user");
+    }
+
+  final response = await Supabase.instance.client
+      .from('reports')
+      .select('*')
+      .eq('barangay_id', barangayId)
+      .order('created_at', ascending: false);
+
+  // Supabase already gives List<Map<String, dynamic>>
+  return List<Map<String, dynamic>>.from(response);
+}
+
+
 
 class LuntianAdminApp extends StatelessWidget {
   const LuntianAdminApp({super.key});
@@ -60,7 +84,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   String? _hoveredCard; // track which card is hovered
 
   // Nav
-  late int _selectedNav;
+  late int _selectedNav = 0;
   int _unreadCount = 0;
 
   // Counts for the pie (updated by the date-range filter)
@@ -71,49 +95,8 @@ int _resolved = 0;
 String? _selectedFilter; 
 DateTimeRange? _selectedDateRange;
 
-final List<Map<String, dynamic>> _reports = [
-  {"date": DateTime(2025, 8, 1), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 1), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 2), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 2), "status": "inProgress", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 2), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 3), "status": "pending", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 3), "status": "resolved", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 3), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 4), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 4), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 4), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 5), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 5), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 5), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 5), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 6), "status": "pending", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 6), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 6), "status": "inProgress", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 6), "status": "resolved", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 7), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 7), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 7), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 8), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 8), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 8), "status": "inProgress", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 8), "status": "resolved", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 9), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 9), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 9), "status": "resolved", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 10), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 10), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 10), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 10), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 8, 11), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 8, 11), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 8, 11), "status": "resolved", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 9, 1), "status": "pending", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 9, 1), "status": "pending", "critical": false, "priority": "Medium"},
-  {"date": DateTime(2025, 9, 2), "status": "inProgress", "critical": false, "priority": "Low"},
-  {"date": DateTime(2025, 9, 2), "status": "inProgress", "critical": true, "priority": "High"},
-  {"date": DateTime(2025, 9, 2), "status": "resolved", "critical": false, "priority": "Medium"},
-];
+List<Map<String, dynamic>> _reports = [];
+
 
 // Multi-select priorities (field)
   Set<String> _selectedPriorities = {}; // 'High', 'Medium', 'Low'
@@ -123,42 +106,49 @@ final List<Map<String, dynamic>> _reports = [
 
   // --- Update dashboard counts based on filters ---
   void _updateDataForRange([DateTimeRange? range]) {
-    // Start with all reports
     var filtered = _reports;
 
-    // 1️⃣ Apply date filter if provided
     if (range != null) {
       filtered = filtered.where((r) {
-        final d = r["date"] as DateTime;
+        if (r["created_at"] == null) return false;
+        final d = DateTime.parse(r["created_at"]);
         return !d.isBefore(range.start) && !d.isAfter(range.end);
       }).toList();
     }
 
-    // 2️⃣ Apply priority filter (multi-select)
-    if (_selectedPriorities.isNotEmpty) {
-      filtered =
-          filtered.where((r) => _selectedPriorities.contains(r["priority"])).toList();
-    }
-
-    // 3️⃣ Apply hazardous filter (null = all, true = only critical, false = non-critical)
-    if (_hazardousOnly != null) {
-      filtered = filtered.where((r) => r["critical"] == _hazardousOnly).toList();
-    }
-
-    // 4️⃣ Count statuses
     final pending = filtered.where((r) => r["status"] == "pending").length;
-    final inProgress = filtered.where((r) => r["status"] == "inProgress").length;
+    final inProgress = filtered.where((r) => r["status"] == "in_progress").length;
     final resolved = filtered.where((r) => r["status"] == "resolved").length;
 
-    // 5️⃣ Update state
+    final oldPending = _pending;
+    final oldInProgress = _inProgress;
+    final oldResolved = _resolved;
+
+    final oldTotal = oldPending + oldInProgress + oldResolved;
+    final newTotal = pending + inProgress + resolved;
+
     setState(() {
       _pending = pending;
       _inProgress = inProgress;
       _resolved = resolved;
 
-      // Restart pie chart animation
-      _pieController.reset();
-      _pieController.forward();
+      // If there are reports, animate; otherwise, just set to 0
+      _pendingAnim = Tween<double>(
+        begin: oldTotal == 0 ? 0 : oldPending / oldTotal,
+        end: newTotal == 0 ? 0 : pending / newTotal,
+      ).animate(_pieController);
+
+      _inProgressAnim = Tween<double>(
+        begin: oldTotal == 0 ? 0 : oldInProgress / oldTotal,
+        end: newTotal == 0 ? 0 : inProgress / newTotal,
+      ).animate(_pieController);
+
+      _resolvedAnim = Tween<double>(
+        begin: oldTotal == 0 ? 0 : oldResolved / oldTotal,
+        end: newTotal == 0 ? 0 : resolved / newTotal,
+      ).animate(_pieController);
+
+      _pieController.forward(from: 0);
     });
   }
 
@@ -175,30 +165,47 @@ final List<Map<String, dynamic>> _reports = [
   late Animation<double> _inProgressAnim;
   late Animation<double> _resolvedAnim;
 
-@override
-void initState() {
-  super.initState();
-  _startClock();
-  _pieController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
-  _pendingAnim = CurvedAnimation(
-    parent: _pieController,
-    curve: const Interval(0.0, 0.33, curve: Curves.easeOutCubic),
-  );
-  _inProgressAnim = CurvedAnimation(
-    parent: _pieController,
-    curve: const Interval(0.33, 0.66, curve: Curves.easeOutCubic),
-  );
-  _resolvedAnim = CurvedAnimation(
-    parent: _pieController,
-    curve: const Interval(0.66, 1.0, curve: Curves.easeOutCubic),
-  );
+  @override
+  void initState() {
+    super.initState();
 
-  _updateDataForRange(); // <-- show all dates initially
-  _selectedNav = widget.initialTab;
-}
+    // Initial load
+    _loadReports();
+
+    // Pie chart animation controller
+    _pieController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+
+    _pendingAnim = Tween<double>(begin: 0, end: 1).animate(_pieController);
+    _inProgressAnim = Tween<double>(begin: 0, end: 1).animate(_pieController);
+    _resolvedAnim = Tween<double>(begin: 0, end: 1).animate(_pieController);
+
+    _pieController.forward();
+
+    // Polling every 5 seconds for real-time updates
+    Timer.periodic(const Duration(seconds: 5), (_) {
+      _loadReports(); // Fetch latest reports and update counts
+    });
+  }
+
+
+
+ Future<void> _loadReports() async {
+    try {
+      final reports = await fetchBarangay2Reports();
+      if (!mounted) return; // ✅ prevent setState after dispose
+      setState(() {
+        _reports = reports;
+      });
+      _updateDataForRange(); // update counts
+    } catch (e) {
+      print("❌ Error fetching reports: $e");
+    }
+  }
+
+
 
   void _startClock() {
     _liveTime = DateFormat('hh:mm:ss a').format(DateTime.now());
@@ -371,7 +378,7 @@ Widget _buildSidebarContent({required bool collapsed}) {
           onTap: () {
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
+              MaterialPageRoute(builder: (_) => const AdminLoginPage()),
               (route) => false,
             );
           },
@@ -663,16 +670,25 @@ Widget _dashboardContent(BuildContext context) {
 Widget _alertsCard() {
   final overdue = _reports
       .where((r) =>
-          r["status"] == "pending" &&
-          r["date"].isBefore(DateTime.now().subtract(const Duration(days: 3))))
-      .length;
+        r["status"] == "pending" &&
+        r["created_at"] != null &&
+        DateTime.parse(r["created_at"])
+            .isBefore(DateTime.now().subtract(const Duration(days: 3))))
+    .length;
 
   final pendingThreshold = 5;
   final pendingOverThreshold = _pending > pendingThreshold ? _pending : 0;
 
+  bool isHazardous(dynamic value) {
+    if (value is bool) return value;
+    if (value is String) return value.toLowerCase() == "true";
+    return false;
+  }
+
   final criticalAlerts = _reports
-      .where((r) => r["status"] == "pending" && r["critical"] == true)
+      .where((r) => r["status"] == "pending" && isHazardous(r["hazardous"]))
       .length;
+
 
   final List<Map<String, dynamic>> alerts = [
     {
@@ -690,7 +706,7 @@ Widget _alertsCard() {
       "isCritical": false
     },
     {
-      "label": "Critical",
+      "label": "Hazardous",
       "value": criticalAlerts,
       "icon": Icons.warning_amber_rounded,
       "color": Colors.deepOrange,
@@ -853,33 +869,10 @@ Widget _statCard(String label, int value, int total, Color color, IconData icon)
 Widget _pieCard() {
   final total = (_pending + _inProgress + _resolved).toDouble();
 
-  // --- Empty state ---
-  if (total == 0) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 6,
-      child: SizedBox(
-        height: 260,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_outline, size: 64, color: Colors.green.shade300),
-              const SizedBox(height: 12),
-              const Text(
-                "No reports yet. Everything looks good!",
-                style: TextStyle(fontSize: 16),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  final pPending = (_pending / total) * 100;
-  final pInProgress = (_inProgress / total) * 100;
-  final pResolved = (_resolved / total) * 100;
+  // Calculate percentages safely
+  final pPending = total == 0 ? 0.0 : (_pending / total) * 100;
+  final pInProgress = total == 0 ? 0.0 : (_inProgress / total) * 100;
+  final pResolved = total == 0 ? 0.0 : (_resolved / total) * 100;
 
   return MouseRegion(
     onEnter: (_) {
@@ -918,41 +911,41 @@ Widget _pieCard() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- Header with title + filter pills ---
+                // Header + filters
                 LayoutBuilder(
-                builder: (context, constraints) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            "Reports Overview",
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _selectedDateRange != null
-                            ? "Filtered: ${DateFormat.yMMMd().format(_selectedDateRange!.start)} - ${DateFormat.yMMMd().format(_selectedDateRange!.end)}"
-                            : "Showing All Reports",
-                        style: const TextStyle(color: Colors.black54, fontSize: 13),
-                      ),
-                      const SizedBox(height: 12),
-                      // Only this row handles both filters + priority
-                      _filterAndPriorityRow(),
-                    ],
-                  );
-                },
-              ),
+                  builder: (context, constraints) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              "Reports Overview",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          _selectedDateRange != null
+                              ? "Filtered: ${DateFormat.yMMMd().format(_selectedDateRange!.start)} - ${DateFormat.yMMMd().format(_selectedDateRange!.end)}"
+                              : "Showing All Reports",
+                          style: const TextStyle(
+                              color: Colors.black54, fontSize: 13),
+                        ),
+                        const SizedBox(height: 12),
+                        _filterAndPriorityRow(),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
 
-                // --- Animated Pie Chart with KPI inside ---
+                // Pie chart
                 SizedBox(
                   height: 260,
                   child: Stack(
@@ -964,9 +957,9 @@ Widget _pieCard() {
                           centerSpaceRadius: 80,
                           sections: [
                             PieChartSectionData(
-                              color: Colors.redAccent,
+                              color: total == 0 ? Colors.grey.shade300 : Colors.redAccent,
                               value: animatedPending,
-                              title: "${animatedPending.toStringAsFixed(0)}%",
+                              title: total == 0 ? "0%" : "${animatedPending.toStringAsFixed(0)}%",
                               radius: 60,
                               titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -974,9 +967,9 @@ Widget _pieCard() {
                                   fontSize: 14),
                             ),
                             PieChartSectionData(
-                              color: Colors.amber,
+                              color: total == 0 ? Colors.grey.shade300 : Colors.amber,
                               value: animatedInProgress,
-                              title: "${animatedInProgress.toStringAsFixed(0)}%",
+                              title: total == 0 ? "0%" : "${animatedInProgress.toStringAsFixed(0)}%",
                               radius: 60,
                               titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -984,9 +977,9 @@ Widget _pieCard() {
                                   fontSize: 14),
                             ),
                             PieChartSectionData(
-                              color: Colors.green,
+                              color: total == 0 ? Colors.grey.shade300 : Colors.green,
                               value: animatedResolved,
-                              title: "${animatedResolved.toStringAsFixed(0)}%",
+                              title: total == 0 ? "0%" : "${animatedResolved.toStringAsFixed(0)}%",
                               radius: 60,
                               titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -1018,16 +1011,15 @@ Widget _pieCard() {
                 ),
 
                 const SizedBox(height: 16),
-
-                // --- Legend at bottom ---
+                // Legend
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _legendDot("Pending", Colors.redAccent),
-                    _legendDot("In Progress", Colors.amber),
-                    _legendDot("Resolved", Colors.green),
+                    _legendDot("Pending", total == 0 ? Colors.grey.shade300 : Colors.redAccent),
+                    _legendDot("In Progress", total == 0 ? Colors.grey.shade300 : Colors.amber),
+                    _legendDot("Resolved", total == 0 ? Colors.grey.shade300 : Colors.green),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -1036,6 +1028,7 @@ Widget _pieCard() {
     ),
   );
 }
+
 
 // --- Custom Date Range Pill ---
 Widget _customDateRangePill() {
@@ -1084,8 +1077,6 @@ Widget _filterAndPriorityRow() {
     {'label': 'Yearly', 'value': 'yearly'},
   ];
 
-  final priorities = ['High', 'Medium', 'Low'];
-
   return SingleChildScrollView(
     scrollDirection: Axis.horizontal,
     child: Row(
@@ -1100,64 +1091,12 @@ Widget _filterAndPriorityRow() {
           padding: const EdgeInsets.only(right: 8),
           child: _customDateRangePill(),
         ),
-        // --- Priority pills ---
-        ...priorities.map((p) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _priorityPill(p),
-            )),
+        
       ],
     ),
   );
 }
 
-// --- Priority styled like filter pill ---
-Widget _priorityPill(String priority) {
-  final bool selected = _selectedPriorities.contains(priority);
-  Color color;
-  switch (priority) {
-    case 'High':
-      color = Colors.red.shade400;
-      break;
-    case 'Medium':
-      color = Colors.amber.shade600;
-      break;
-    case 'Low':
-      color = Colors.green.shade400;
-      break;
-    default:
-      color = Colors.grey.shade300;
-  }
-
-  return GestureDetector(
-    onTap: () {
-      setState(() {
-        if (selected) {
-          _selectedPriorities.remove(priority);
-        } else {
-          _selectedPriorities.add(priority);
-        }
-        _updateDataForRange(_selectedDateRange);
-      });
-    },
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? color : Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: selected
-            ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 6)]
-            : [],
-      ),
-      child: Text(
-        priority,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.black87,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
-  );
-}
 
 Widget _filterPill(String text, String value) {
   final bool selected = _selectedFilter == value;

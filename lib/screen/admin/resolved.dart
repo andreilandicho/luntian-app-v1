@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:flutter_application_1/screen/admin/widget reports/resolved_card.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Color _priorityColor(String priority) {
   switch (priority.toLowerCase()) {
@@ -16,12 +18,7 @@ Color _priorityColor(String priority) {
 }
 
 class ResolvedPage extends StatefulWidget {
-  final List<Map<String, dynamic>> reports;
-
-  const ResolvedPage({
-    super.key,
-    this.reports = const [],
-  });
+  const ResolvedPage({super.key});
 
   @override
   State<ResolvedPage> createState() => _ResolvedPageState();
@@ -39,67 +36,212 @@ class _ResolvedPageState extends State<ResolvedPage> {
     "Priority Low → High"
   ];
 
-  late List<Map<String, dynamic>> allReports;
-
+  List<Map<String, dynamic>> allReports = [];
   final GlobalKey _filterIconKey = GlobalKey();
   double _tallestCardHeight = 0;
 
   @override
   void initState() {
     super.initState();
-    allReports = _generateMockReports();
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    await _fetchReports();
+    await _fetchOfficialNames();
+  }
+
+  Future<void> _fetchReports() async {
+    final prefs = await SharedPreferences.getInstance();
+    final barangayId = prefs.getInt('barangay_id'); // the logged-in user's barangay
+
+      if (barangayId == null) {
+        throw Exception("No barangay_id found for logged in user");
+      }
+      try {
+        // First, try a simpler query to understand your schema
+        final List<dynamic> data = await Supabase.instance.client
+            .from('reports')
+            .select('''
+              *,
+              report_solutions(*),
+              report_ratings(*),
+              report_assignments(*),
+              users!reports_user_id_fkey(*)
+            ''')
+            .eq('status', 'resolved')
+            .eq('barangay_id', barangayId) // Adjust as needed
+            .order('created_at', ascending: false);
+
+        setState(() {
+          allReports = data.map((e) {
+            final map = Map<String, dynamic>.from(e);
+
+            // Basic report info from reports table
+            map["reportId"] = map["report_id"];
+            map["description"] = map["description"];
+            map["priority"] = map["priority"];
+            map["hazardous"] = map["hazardous"] ?? false;
+            
+            // Location - extract latitude and longitude from reports table
+            // Check for different possible field names
+            map["latitude"] = map["latitude"] ?? map["lat"] ?? map["gps_lat"] ?? map["location_lat"] ?? 0.0;
+            map["longitude"] = map["longitude"] ?? map["lon"] ?? map["lng"] ?? map["gps_lng"] ?? map["location_lng"] ?? 0.0;
+            
+
+            map["location"] = "${map["latitude"]}, ${map["longitude"]}";
+
+            // Dates from reports table
+            map["createdAt"] = map["created_at"] != null
+                ? DateTime.parse(map["created_at"])
+                : DateTime.now();
+            map["dateSolved"] =
+                (map["report_solutions"] != null && (map["report_solutions"] as List).isNotEmpty)
+                    ? DateTime.parse(map["report_solutions"][0]["updated_at"])
+                    : null;
+
+            // Before photos - from reports table (photo_urls)
+            map["beforePhotos"] = List<String>.from(map["photo_urls"] ?? []);
+            
+            // After photos - from report_solutions table (after_photo_urls)
+            map["afterPhotos"] =
+                (map["report_solutions"] != null && (map["report_solutions"] as List).isNotEmpty)
+                    ? List<String>.from(map["report_solutions"][0]["after_photo_urls"] ?? [])
+                    : [];
+
+            // Combine all images for carousel (before + after)
+            map["images"] = [...map["beforePhotos"], ...map["afterPhotos"]];
+            if (map["images"].isEmpty) {
+              map["images"] = ["assets/garbage.png"];
+            }
+
+            // Rating & feedback from report_ratings table
+            map["rating"] =
+                (map["report_ratings"] != null && (map["report_ratings"] as List).isNotEmpty)
+                    ? map["report_ratings"][0]["average_user_rate"] ?? 0
+                    : 0;
+            map["feedback"] =
+                (map["report_ratings"] != null && (map["report_ratings"] as List).isNotEmpty)
+                    ? map["report_ratings"][0]["comments"] ?? ""
+                    : "";
+
+            // Who cleaned it - simplified approach
+            map["cleanedBy"] = "Unassigned";
+            if (map["report_assignments"] != null && 
+                (map["report_assignments"] as List).isNotEmpty) {
+              
+              final assignment = map["report_assignments"][0];
+              
+              // Try to get official_id and fetch separately if needed
+              if (assignment["official_id"] != null) {
+                map["cleanedBy"] = "Official ID: ${assignment["official_id"]}";
+              }
+            }
+            
+
+            // User info (reporter) from users table
+            map["userName"] =
+                map["users"] != null ? map["users"]["name"] : "Unknown";
+            map["userProfileUrl"] =
+                map["users"] != null ? map["users"]["user_profile_url"] : null;
+            map["userId"] = map["users"] != null ? map["users"]["user_id"] : null;
+
+            return map;
+          }).toList();
+        });
+
+      } catch (e) {
+        debugPrint("Error fetching resolved reports: $e");
+        setState(() {
+          allReports = [];
+        });
+      }
+    }
+
+    Future<void> _fetchOfficialNames() async {
+    try {
+      // Get all unique official IDs from assignments
+      final officialIds = allReports
+          .expand((report) => report["report_assignments"] ?? [])
+          .where((assignment) => assignment["official_id"] != null)
+          .map((assignment) => assignment["official_id"])
+          .toSet()
+          .toList();
+
+      if (officialIds.isNotEmpty) {
+        // Create a map for quick lookup
+        final Map<dynamic, dynamic> officialsMap = {};
+
+        // Fetch each official individually and then get their user info
+        for (var officialId in officialIds) {
+          try {
+            // First get the official to get their user_id
+            final officialData = await Supabase.instance.client
+                .from('officials')
+                .select('*')
+                .eq('official_id', officialId)
+                .single();
+            
+            // Then get the user info for this official
+            if (officialData['user_id'] != null) {
+              final userData = await Supabase.instance.client
+                  .from('users')
+                  .select('*')
+                  .eq('user_id', officialData['user_id'])
+                  .single();
+              
+              // Store both official and user data
+              officialsMap[officialId] = {
+                'official': officialData,
+                'user': userData
+              };
+            } else {
+              officialsMap[officialId] = {
+                'official': officialData,
+                'user': null
+              };
+            }
+          } catch (e) {
+            debugPrint("Error fetching official $officialId: $e");
+          }
+        }
+
+        // Update reports with official names from users table
+        setState(() {
+          for (var report in allReports) {
+            if (report["report_assignments"] != null && 
+                (report["report_assignments"] as List).isNotEmpty) {
+              
+              final assignment = report["report_assignments"][0];
+              final officialId = assignment["official_id"];
+              
+              if (officialId != null && officialsMap.containsKey(officialId)) {
+                final data = officialsMap[officialId];
+                final user = data['user'];
+                final official = data['official'];
+                
+                if (user != null && user["name"] != null) {
+                  // Get name from users table
+                  report["cleanedBy"] = user["name"];
+                } else if (official["name"] != null) {
+                  // Fallback to official name if user table not available
+                  report["cleanedBy"] = official["name"];
+                } else {
+                  // Final fallback
+                  report["cleanedBy"] = "Official ID: $officialId";
+                }
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching official names: $e");
+    }
   }
 
   
 
-List<Map<String, dynamic>> _generateMockReports() {
-  final priorities = ["High", "Medium", "Low"];
-  final feedbackSamples = [
-    "Thanks a lot! 🙏 The place looks so much better now 🌿✨",
-    "Quick response by the team 👏 Really appreciate it.",
-    "Good job cleaning up, but please maintain it regularly 🙌",
-    "Super happy with the result 😍 area is very clean now!",
-    "It was solved but took a while ⏳ hope it's faster next time.",
-  ];
-
-  final personnelNames = [
-    "Juan Dela Cruz",
-    "Maria Santos",
-    "Pedro Reyes",
-    "Ana Villanueva",
-    "Jose Ramirez",
-    "Carla Mendoza",
-  ];
-
-  return List.generate(12, (index) {
-    final report = {
-      "userName": "User ${index + 1}",
-      "location": "Barangay ${index + 1}",
-      "hazardous": index % 2 == 0,
-      "priority": priorities[index % priorities.length],
-      "images": [
-        "assets/garbage.png",
-        "assets/garbage.png",
-        "assets/garbage.png",
-      ],
-      "description":
-          "Sample description for report number ${index + 1}. This is a preview of the issue the user has reported.",
-      "createdAt": DateTime.now().subtract(Duration(hours: (index + 1) * 3)),
-    };
-
-    // Randomly add rating + feedback + cleanedBy to some reports
-    if (index % 2 == 0) {
-      final rating = (3 + (index % 3)); // 3–5 stars
-      report["rating"] = rating;
-      report["feedback"] = feedbackSamples[index % feedbackSamples.length];
-      report["cleanedBy"] = personnelNames[index % personnelNames.length];
-      report["dateSolved"] =
-          DateTime.now().subtract(Duration(hours: (index + 1))); // dummy
-    }
-
-    return report;
-  });
-}
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);
@@ -111,7 +253,6 @@ List<Map<String, dynamic>> _generateMockReports() {
   bool _isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width >= 800;
 
-  /// Mobile: bottom sheet with filter & sort
   void _showFilterSortMenu() {
     showModalBottomSheet(
       context: context,
@@ -208,7 +349,6 @@ List<Map<String, dynamic>> _generateMockReports() {
     );
   }
 
-  /// Desktop: quick popup menu with filter & sort
   void _showQuickFilterMenu() async {
     final RenderBox iconBox =
         _filterIconKey.currentContext!.findRenderObject() as RenderBox;
@@ -338,8 +478,7 @@ List<Map<String, dynamic>> _generateMockReports() {
             pinned: true,
             elevation: 1,
             titleSpacing: 0,
-            automaticallyImplyLeading: false, // 🚀 disables the default back button
-            leading: null, // explicitly removes it (optional since above already works)
+            automaticallyImplyLeading: false,
             toolbarHeight: 56,
             title: Row(
               children: [

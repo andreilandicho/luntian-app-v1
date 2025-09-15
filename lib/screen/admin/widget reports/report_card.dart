@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReportCard extends StatefulWidget {
   final Map<String, dynamic> report;
@@ -17,7 +18,16 @@ class ReportCard extends StatefulWidget {
   final Function(double) onHeightMeasured;
 
   /// People list comes from parent so you can later swap with a real API.
-  final List<Map<String, String>> people;
+  final List<Map<String, dynamic>> people;
+
+  /// Whether this card is selectable for batch operations
+  final bool selectable;
+
+  /// Whether this card is currently selected
+  final bool isSelected;
+
+  /// Callback when selection state changes
+  final void Function(bool)? onSelectionChanged;
 
   const ReportCard({
     super.key,
@@ -29,6 +39,9 @@ class ReportCard extends StatefulWidget {
     this.fixedHeight,
     required this.onHeightMeasured,
     required this.people,
+    this.selectable = false,
+    this.isSelected = false,
+    this.onSelectionChanged,
   });
 
   @override
@@ -36,6 +49,7 @@ class ReportCard extends StatefulWidget {
 }
 
 class _ReportCardState extends State<ReportCard> {
+  final supabase = Supabase.instance.client;
   int _currentImageIndex = 0;
   late final PageController _pageController;
   final GlobalKey _cardKey = GlobalKey();
@@ -63,123 +77,81 @@ class _ReportCardState extends State<ReportCard> {
     }
   }
 
-  Future<Map<String, String>?> _pickAssignee() async {
-  String query = "";
-  List<Map<String, String>> filtered = List.from(widget.people);
+  Future<List<Map<String, dynamic>>?> _pickAssignees() async {
+    String query = "";
+    List<Map<String, dynamic>> filtered = List.from(widget.people);
+    Set<String> selectedIds = {};
 
-  // Group people alphabetically
-  Map<String, List<Map<String, String>>> groupAlphabetically(List<Map<String, String>> list) {
-    final Map<String, List<Map<String, String>>> grouped = {};
-    for (var p in list) {
-      final letter = p["name"]!.substring(0, 1).toUpperCase();
-      grouped.putIfAbsent(letter, () => []).add(p);
+    // Group people alphabetically
+    Map<String, List<Map<String, dynamic>>> groupAlphabetically(
+        List<Map<String, dynamic>> list) {
+      final Map<String, List<Map<String, dynamic>>> grouped = {};
+      for (var p in list) {
+        final letter = (p["name"] ?? "").toString().substring(0, 1).toUpperCase();
+        grouped.putIfAbsent(letter, () => []).add(p);
+      }
+      final sortedKeys = grouped.keys.toList()..sort();
+      final sortedMap = {for (var k in sortedKeys) k: grouped[k]!};
+      return sortedMap;
     }
-    final sortedKeys = grouped.keys.toList()..sort();
-    final sortedMap = { for (var k in sortedKeys) k : grouped[k]! };
-    return sortedMap;
-  }
 
-  // Build the grouped user list
-  Widget buildList(StateSetter setState) {
-    final grouped = groupAlphabetically(filtered);
-    return ListView(
-      shrinkWrap: true,
-      children: grouped.entries.expand((entry) {
-        return [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-            child: Text(
-              entry.key,
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+    // Build the grouped user list with checkboxes
+    Widget buildList(StateSetter setState) {
+      final grouped = groupAlphabetically(filtered);
+      return ListView(
+        shrinkWrap: true,
+        children: grouped.entries.expand((entry) {
+          return [
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
+              child: Text(
+                entry.key,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
             ),
-          ),
-          ...entry.value.map((p) {
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage(p["avatar"]!),
-              ),
-              title: Text(p["name"]!),
-              onTap: () => Navigator.pop(context, p),
-            );
-          })
-        ];
-      }).toList(),
-    );
-  }
+            ...entry.value.map((p) {
+              final userId = p['user_id'] ?? p['id'] ?? p['userId'] ?? p['official_id'];
+              final isSelected = selectedIds.contains(userId);
+              
+              return CheckboxListTile(
+                value: isSelected,
+                onChanged: (value) {
+                  setState(() {
+                    if (value == true) {
+                      selectedIds.add(userId);
+                    } else {
+                      selectedIds.remove(userId);
+                    }
+                  });
+                },
+                secondary: CircleAvatar(
+                  backgroundImage: AssetImage(
+                      (p["avatar"] ?? "assets/profilepicture.png") as String),
+                ),
+                title: Text((p["name"] ?? "").toString()),
+              );
+            })
+          ];
+        }).toList(),
+      );
+    }
 
-  if (_isDesktop) {
-    // Desktop: dialog with search
-    return await showDialog<Map<String, String>>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setState) {
-            return AlertDialog(
-              title: const Text("Assign to"),
-              content: SizedBox(
-                width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
-                        hintText: "Search...",
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      onChanged: (val) {
-                        setState(() {
-                          query = val.toLowerCase();
-                          filtered = widget.people
-                              .where((p) => p["name"]!
-                                  .toLowerCase()
-                                  .contains(query))
-                              .toList();
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 250,
-                      child: buildList(setState),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, null),
-                  child: const Text("Cancel"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  } else {
-    // Mobile: bottom sheet with search
-    return await showModalBottomSheet<Map<String, String>>(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: TextField(
+    if (_isDesktop) {
+      return await showDialog<List<Map<String, dynamic>>>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setState) {
+              return AlertDialog(
+                title: const Text("Assign"),
+                content: SizedBox(
+                  width: 400,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
                         decoration: const InputDecoration(
                           prefixIcon: Icon(Icons.search),
                           hintText: "Search...",
@@ -190,54 +162,191 @@ class _ReportCardState extends State<ReportCard> {
                           setState(() {
                             query = val.toLowerCase();
                             filtered = widget.people
-                                .where((p) => p["name"]!
+                                .where((p) => (p["name"] ?? "")
+                                    .toString()
                                     .toLowerCase()
                                     .contains(query))
                                 .toList();
                           });
                         },
                       ),
-                    ),
-                    Flexible(
-                      child: buildList(setState),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      SizedBox(height: 300, child: buildList(setState)),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      },
-    );
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, null),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final selectedPeople = widget.people
+                          .where((p) {
+                            final userId = p['user_id'] ?? p['id'] ?? p['userId'] ?? p['official_id'];
+                            return selectedIds.contains(userId);
+                          })
+                          .toList();
+                      Navigator.pop(ctx, selectedPeople);
+                    },
+                    child: const Text("Assign"),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } else {
+      return await showModalBottomSheet<List<Map<String, dynamic>>>(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setState) {
+              return SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search),
+                            hintText: "Search...",
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              query = val.toLowerCase();
+                              filtered = widget.people
+                                  .where((p) => (p["name"] ?? "")
+                                      .toString()
+                                      .toLowerCase()
+                                      .contains(query))
+                                  .toList();
+                            });
+                          },
+                        ),
+                      ),
+                      Flexible(child: buildList(setState)),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.pop(ctx, null),
+                                child: const Text("Cancel"),
+                              ),
+                            ),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  final selectedPeople = widget.people
+                                      .where((p) {
+                                        final userId = p['user_id'] ?? p['id'] ?? p['userId'] ?? p['official_id'];
+                                        return selectedIds.contains(userId);
+                                      })
+                                      .toList();
+                                  Navigator.pop(ctx, selectedPeople);
+                                },
+                                child: const Text("Assign Selected"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
   }
-}
 
   Future<void> _handleAssign() async {
-    final chosen = await _pickAssignee();
-    if (chosen == null) return;
+    final chosenPeople = await _pickAssignees();
+    if (chosenPeople == null || chosenPeople.isEmpty) return;
 
-    // Save inside report (so it's recorded for later use/history).
-    widget.report["assignedTo"] = chosen["name"];
+    // Handle different possible field names for report ID
+    final reportId = widget.report['reportId'] ?? 
+                    widget.report['report_id'] ?? 
+                    widget.report['id'];
 
-    // Show snackbar with avatar + name BEFORE removing (so context is valid).
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            CircleAvatar(
-              radius: 12,
-              backgroundImage: AssetImage(chosen["avatar"]!),
-            ),
-            const SizedBox(width: 8),
-            Text("Assigned to ${chosen["name"]}"),
-          ],
+    if (reportId == null) {
+      print('Debug: Report keys: ${widget.report.keys}');
+      print('Debug: Report ID: $reportId');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Missing report ID")),
+      );
+      return;
+    }
+
+    try {
+      // Insert into report_assignments for each selected person
+      for (final person in chosenPeople) {
+        // Handle different possible field names for user ID
+        final userId = person['user_id'] ?? 
+                      person['id'] ?? 
+                      person['userId'] ?? 
+                      person['official_id'];
+
+        if (userId == null) {
+          print('Debug: Person keys: ${person.keys}');
+          continue;
+        }
+
+        await supabase.from('report_assignments').insert({
+          'report_id': reportId,
+          'official_id': userId,
+          'assigned_at': DateTime.now().toIso8601String(),
+        });
+      }
+
+      // Optionally update report status
+      await supabase.from('reports').update({
+        'status': 'in_progress',
+      }).eq('report_id', reportId);
+
+      // Update local UI - create a comma-separated list of names
+      final names = chosenPeople
+          .map((p) => p["name"] ?? p["userName"] ?? "Unknown")
+          .join(", ");
+      
+      widget.report["assignedTo"] = names;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Assigned to ${chosenPeople.length} person(s)"),
+          duration: const Duration(seconds: 2),
         ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
 
-    // Inform parent to remove from Pending (disappear immediately).
-    widget.onAssign(widget.report);
+      // Inform parent
+      widget.onAssign(widget.report);
+    } catch (e) {
+      print("❌ Failed to assign: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to assign report"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -250,7 +359,12 @@ class _ReportCardState extends State<ReportCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(
+          color: widget.isSelected 
+            ? Theme.of(context).primaryColor 
+            : Colors.black.withOpacity(0.05),
+          width: widget.isSelected ? 2 : 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.06),
@@ -267,22 +381,67 @@ class _ReportCardState extends State<ReportCard> {
             children: [
               AspectRatio(
                 aspectRatio: 4 / 3,
-                child: images.isEmpty
-                    ? Container(
-                        color: Colors.grey[200],
-                        child: const Center(child: Icon(Icons.image, size: 40)),
-                      )
-                    : PageView.builder(
-                        controller: _pageController,
-                        itemCount: images.length,
-                        onPageChanged: (i) => setState(() => _currentImageIndex = i),
-                        itemBuilder: (_, i) => Image.asset(
-                          images[i],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
-                      ),
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: images.length,
+                  onPageChanged: (index) {
+                    setState(() => _currentImageIndex = index);
+                  },
+                  itemBuilder: (context, index) {
+                    return Image.network(
+                      images[index],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: progress.expectedTotalBytes != null
+                                ? progress.cumulativeBytesLoaded /
+                                    progress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Center(child: Icon(Icons.broken_image, size: 40)),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
+
+              // Selection checkbox (if selectable)
+              if (widget.selectable)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.onSelectionChanged != null) {
+                        widget.onSelectionChanged!(!widget.isSelected);
+                      }
+                    },
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: widget.isSelected 
+                          ? Theme.of(context).primaryColor 
+                          : Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey),
+                      ),
+                      child: widget.isSelected
+                          ? const Icon(Icons.check, size: 16, color: Colors.white)
+                          : null,
+                    ),
+                  ),
+                ),
+
               // Priority ribbon
               Positioned(
                 top: 8,

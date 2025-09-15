@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:bcrypt/bcrypt.dart';
 
 // ✅ Add these for the address suggestions
 import 'dart:async';
@@ -24,13 +27,14 @@ class _AddressFieldState extends State<AddressField> {
 
   Future<void> _fetchSuggestions(String query) async {
     if (query.isEmpty) {
+      if (!mounted) return;
       setState(() => _suggestions = []);
       return;
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // Use Uri.https so the query is properly URL-encoded.
     final url = Uri.https(
       'nominatim.openstreetmap.org',
       '/search',
@@ -46,7 +50,6 @@ class _AddressFieldState extends State<AddressField> {
       final response = await http.get(
         url,
         headers: {
-          // Nominatim requires a valid User-Agent
           'User-Agent': 'FlutterApp/1.0 (contact@example.com)',
         },
       );
@@ -54,9 +57,8 @@ class _AddressFieldState extends State<AddressField> {
       if (!mounted) return;
 
       if (response.statusCode == 200) {
-        setState(() {
-          _suggestions = json.decode(response.body) as List<dynamic>;
-        });
+        final results = json.decode(response.body) as List<dynamic>;
+        setState(() => _suggestions = results);
       } else {
         setState(() => _suggestions = []);
       }
@@ -64,9 +66,9 @@ class _AddressFieldState extends State<AddressField> {
       if (!mounted) return;
       debugPrint("Error fetching address suggestions: $e");
       setState(() => _suggestions = []);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    if (mounted) setState(() => _isLoading = false);
   }
 
   void _onSearchChanged(String query) {
@@ -136,164 +138,157 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
-    with SingleTickerProviderStateMixin {
+class _ProfilePageState extends State<ProfilePage> {
   File? _profileImage;
   final picker = ImagePicker();
 
-  String _name = "Barangay 360";
-  String _address = "Sta. Mesa, Manila";
+  String _name = "";
+  String _email = "";
+  String _barangay = "";
+  String _city = "";
+  String? _profileUrl;
 
-  final List<Map<String, dynamic>> _proposals = [
-    {
-      "title": "Clean-up Drive",
-      "date": DateTime.now().add(const Duration(days: 2)),
-      "volunteers": 15,
-      "description": "Community clean-up drive in the riverbanks.",
-      "details": "Location: Riverbanks\nWho's Needed: Youth volunteers",
-      "status": "pending",
-    },
-    {
-      "title": "Feeding Program",
-      "date": DateTime.now().add(const Duration(days: 5)),
-      "volunteers": 8,
-      "description": "Feeding program for street children.",
-      "details": "Location: Barangay Hall\nWho's Needed: Cooks, Servers",
-      "status": "pending",
-    },
-  ];
+  List<Map<String, dynamic>> _events = [];
+  List<Map<String, dynamic>> _approvedEvents = [];
 
-  final List<Map<String, dynamic>> _approvedProposals = [];
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileAndEvents();
+  }
+
+  Future<void> _fetchProfileAndEvents() async {
+    setState(() => _loading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final barangayId = prefs.getInt('barangay_id');
+
+      if (barangayId == null) {
+        throw Exception("No barangay_id found in SharedPreferences");
+      }
+
+      // 🔹 Fetch barangay profile (name + city + contact email)
+      final barangayRes = await Supabase.instance.client
+          .from('barangays')
+          .select('name, city, contact_email')
+          .eq('barangay_id', barangayId)
+          .maybeSingle();
+
+      if (barangayRes != null) {
+        setState(() {
+          _name = barangayRes['name'] ?? "Unknown Barangay";
+          _barangay = barangayRes['name'] ?? "";      // 🔹 set barangay name
+          _city = barangayRes['city'] ?? "Unknown City";
+          _email = barangayRes['contact_email'] ?? "N/A";
+          _profileUrl = (barangayRes['photo_urls'] as List?)?.first; // 🔹 first photo if exists
+        });
+      }
+
+
+      // 🔹 Fetch volunteer events for this barangay
+      final eventsRes = await Supabase.instance.client
+          .from('volunteer_events')
+          .select('*')
+          .eq('barangay_id', barangayId)
+          .order('created_at', ascending: false);
+
+      final data = eventsRes as List<dynamic>? ?? [];
+
+      final pending = <Map<String, dynamic>>[];
+      final approved = <Map<String, dynamic>>[];
+
+      for (final e in data) {
+        final map = Map<String, dynamic>.from(e);
+        if (map['approval_status'] == 'approved') {
+          approved.add(map);
+        } else {
+          pending.add(map);
+        }
+      }
+
+      setState(() {
+        _events = pending;
+        _approvedEvents = approved;
+      });
+    } catch (e) {
+      debugPrint("❌ Error fetching profile/events: $e");
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+
+
+
+  Future<void> _updateEventStatus(int index, String status,
+      {String? comment}) async {
+    try {
+      final event = _events[index];
+      final id = event['event_id'];
+
+      if (status == "rejected") {
+        // Delete the event if rejected
+        await Supabase.instance.client
+          .from('volunteer_events')
+          .delete()
+          .eq('event_id', id);
+        
+        setState(() {
+          _events.removeAt(index);
+        });
+      } else {
+        // Update status for other cases (approved, pending, etc.)
+        await Supabase.instance.client
+          .from('volunteer_events')
+          .update({
+            'approval_status': status,
+            if (comment != null) 'comment': comment,
+          })
+          .eq('event_id', id);
+
+        setState(() {
+          if (status == "approved") {
+            final approved = {...event, "approval_status": "approved"};
+            _approvedEvents.add(approved);
+            _events.removeAt(index);
+          } else {
+            _events[index]["approval_status"] = status;
+            if (comment != null) {
+              _events[index]["comment"] = comment;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Error updating event: $e");
+    }
+  }
+
+  // 📌 Example: update user profile
+  Future<void> _updateProfile(String newName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id');
+      if (userId == null) return;
+
+      await Supabase.instance.client
+          .from('users')
+          .update({'name': newName})
+          .eq('user_id', userId);
+
+      setState(() => _name = newName);
+    } catch (e) {
+      debugPrint("❌ Error updating profile: $e");
+    }
+  }
 
   Future<void> _pickImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() => _profileImage = File(picked.path));
     }
-  }
-
-  void _editProfileAndAddress() {
-    final nameController = TextEditingController(text: _name);
-    final addressController = TextEditingController(text: _address);
-
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 500),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      "Edit Profile",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: "Name",
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    AddressField(controller: addressController),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Cancel"),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _name = nameController.text.trim();
-                              _address = addressController.text.trim();
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: const Text("Save"),
-                        ),
-                      ],
-                    )
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _updateProposalStatus(int index, String status) {
-    if (status == "accepted") {
-      setState(() {
-        final approved = {..._proposals[index]};
-        approved["status"] = "accepted";
-        _approvedProposals.add(approved);
-        _proposals.removeAt(index);
-      });
-    } else {
-      _showCommentDialog(index, status: status);
-    }
-  }
-
-  void _showCommentDialog(int index, {String? status}) {
-    final controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: Text("Comment for ${status!.toUpperCase()}"),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: "Write a comment...",
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Please enter a comment before submitting."),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              setState(() {
-                _proposals[index]["status"] = status;
-                _proposals[index]["comment"] = controller.text.trim();
-              });
-
-              Navigator.pop(context);
-            },
-            child: const Text("Submit"),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -304,418 +299,529 @@ class _ProfilePageState extends State<ProfilePage>
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            "Admin Profile",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-              fontFamily: 'Marykate',
-            ),
-          ),
+          title: const Text("Admin Profile"),
           centerTitle: true,
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: _buildProfileCard(isWide),
-            ),
-            TabBar(
-              labelColor: Theme.of(context).primaryColor,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Theme.of(context).primaryColor,
-              tabs: [
-                Tab(text: "Pending (${_proposals.length})"),
-                Tab(text: "Approved (${_approvedProposals.length})"),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
                 children: [
-                  _buildPendingList(),
-                  _buildApprovedList(),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildProfileCard(isWide),
+                  ),
+                  TabBar(
+                    labelColor: Theme.of(context).primaryColor,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Theme.of(context).primaryColor,
+                    tabs: [
+                      Tab(text: "Pending (${_events.length})"),
+                      Tab(text: "Approved (${_approvedEvents.length})"),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildEventList(_events, true),
+                        _buildEventList(_approvedEvents, false),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildPendingList() {
-    return _proposals.isEmpty
-        ? const Center(
-            child: Text("No pending proposals 🎉",
-                style: TextStyle(color: Colors.grey)),
-          )
+  Widget _buildEventList(
+      List<Map<String, dynamic>> events, bool showActions) {
+    return events.isEmpty
+        ? const Center(child: Text("No events found"))
         : ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: _proposals.length,
+            itemCount: events.length,
             itemBuilder: (context, index) {
-              final proposal = _proposals[index];
-              return _buildProposalCard(proposal, index, showActions: true);
+              final event = events[index];
+              return _buildEventCard(event, index, showActions: showActions);
             },
           );
   }
 
-  Widget _buildApprovedList() {
-    return _approvedProposals.isEmpty
-        ? const Center(
-            child: Text("No approved proposals yet ✅",
-                style: TextStyle(color: Colors.grey)),
-          )
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _approvedProposals.length,
-            itemBuilder: (context, index) {
-              final proposal = _approvedProposals[index];
-              return _buildProposalCard(proposal, null, showActions: false);
-            },
-          );
-  }
+  Widget _buildEventCard(Map<String, dynamic> event, int? index,
+    {required bool showActions}) {
+    final List<dynamic> photos = event["photo_urls"] ?? [];
+    final PageController pageController = PageController();
+    int currentIndex = 0;
 
-  Widget _buildProposalCard(Map<String, dynamic> proposal, int? index,
-      {required bool showActions}) {
     return Card(
-      elevation: 4,
       margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(proposal["title"],
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold)),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: proposal["status"] == "accepted"
-                        ? Colors.green[100]
-                        : proposal["status"] == "rejected"
-                            ? Colors.red[100]
-                            : Colors.orange[100],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    proposal["status"].toUpperCase(),
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: proposal["status"] == "accepted"
-                            ? Colors.green[800]
-                            : proposal["status"] == "rejected"
-                                ? Colors.red[800]
-                                : Colors.orange[800]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text("Date: ${DateFormat.yMMMd().add_jm().format(proposal["date"])}"),
-            Text("Volunteers: ${proposal["volunteers"]}"),
-            const SizedBox(height: 6),
-            Text(proposal["description"]),
-            const SizedBox(height: 6),
-            Text(proposal["details"],
-                style: const TextStyle(color: Colors.grey)),
-            if (proposal.containsKey("comment"))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  "💬 Comment: ${proposal["comment"]}",
-                  style: const TextStyle(
-                      fontStyle: FontStyle.italic, color: Colors.black87),
-                ),
-              ),
-            if (showActions) const Divider(height: 30),
-            if (showActions)
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
+            // 🖼 Left Column: Photos
+            // Left Column: Photos with carousel arrows
+            Expanded(
+              flex: 1,
+              child: Column(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _updateProposalStatus(index!, "accepted"),
-                    icon: const Icon(Icons.check),
-                    label: const Text("Accept"),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green),
+                  Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (photos.isEmpty) return;
+                          showDialog(
+                            context: context,
+                            builder: (ctx) {
+                              return Container(
+                                color: Colors.black.withOpacity(0.95),
+                                child: Stack(
+                                  children: [
+                                    PageView.builder(
+                                      itemCount: photos.length,
+                                      controller: PageController(initialPage: currentIndex),
+                                      itemBuilder: (context, i) {
+                                        return Center(
+                                          child: InteractiveViewer(
+                                            child: Image.network(
+                                              photos[i],
+                                              fit: BoxFit.contain,
+                                              width: MediaQuery.of(context).size.width,
+                                              height: MediaQuery.of(context).size.height,
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                  Icons.broken_image, color: Colors.white),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    Positioned(
+                                      top: 40,
+                                      right: 20,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.close,
+                                            color: Colors.white, size: 28),
+                                        onPressed: () => Navigator.pop(ctx),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        child: SizedBox(
+                          height: 250,
+                          width: double.infinity,
+                          child: PageView.builder(
+                            controller: pageController,
+                            onPageChanged: (i) => currentIndex = i,
+                            itemCount: photos.length,
+                            itemBuilder: (context, i) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  photos[i],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      if (photos.length > 1) ...[
+                        Positioned(
+                          left: 5,
+                          top: 0,
+                          bottom: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                            onPressed: () {
+                              if (currentIndex > 0) {
+                                pageController.previousPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut);
+                                currentIndex--;
+                              }
+                            },
+                          ),
+                        ),
+                        Positioned(
+                          right: 5,
+                          top: 0,
+                          bottom: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                            onPressed: () {
+                              if (currentIndex < photos.length - 1) {
+                                pageController.nextPage(
+                                    duration: const Duration(milliseconds: 300),
+                                    curve: Curves.easeInOut);
+                                currentIndex++;
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => _updateProposalStatus(index!, "rejected"),
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    label: const Text("Reject",
-                        style: TextStyle(color: Colors.red)),
-                  ),
-                  TextButton.icon(
-                    onPressed: () => _updateProposalStatus(index!, "revise"),
-                    icon: const Icon(Icons.edit, color: Colors.orange),
-                    label: const Text("Revise",
-                        style: TextStyle(color: Colors.orange)),
-                  ),
+                  if (photos.length > 1)
+                    const SizedBox(height: 8),
+                  if (photos.length > 1)
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: photos.length,
+                        itemBuilder: (context, i) {
+                          return GestureDetector(
+                            onTap: () {
+                              pageController.jumpToPage(i);
+                              currentIndex = i;
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: Image.network(
+                                  photos[i],
+                                  width: 60,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 60,
+                                    height: 50,
+                                    color: Colors.grey[300],
+                                    child: const Icon(Icons.broken_image,
+                                        size: 20, color: Colors.grey),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                 ],
               ),
+            ),
+
+
+            const SizedBox(width: 16),
+
+            // 📝 Right Column: Event Info
+            Expanded(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    event["title"] ?? "Untitled",
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  if (event["event_date"] != null)
+                    Text(
+                      "📅 Date: ${DateFormat.yMMMd().format(DateTime.parse(event["event_date"]))}",
+                    ),
+                  if (event["description"] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        event["description"],
+                        style: const TextStyle(color: Colors.black87),
+                      ),
+                    ),
+                  if (event["volunteers_needed"] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        "👥 Volunteers Needed: ${event["volunteers_needed"]}",
+                        style: const TextStyle(color: Colors.blueGrey),
+                      ),
+                    ),
+                  if (showActions) const Divider(height: 20),
+                  if (showActions)
+                    Wrap(
+                      spacing: 10,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () => _updateEventStatus(index!, "approved"),
+                          child: const Text("Approve"),
+                        ),
+                        OutlinedButton(
+                          onPressed: () => _updateEventStatus(index!, "rejected"),
+                          child: const Text("Reject"),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
+
+
+
+
+
+  // ================== PROFILE CARD ==================
   Widget _buildProfileCard(bool isWide) {
     return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // profilepicture (tap to change)
+            // 👤 Profile picture
             GestureDetector(
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage: _profileImage != null
                     ? FileImage(_profileImage!)
-                    : const AssetImage("assets/profilepicture.png")
+                    : (_profileUrl != null
+                        ? NetworkImage(_profileUrl!)
+                        : const AssetImage("assets/profilepicture.png"))
                         as ImageProvider,
               ),
             ),
+            const SizedBox(height: 10),
 
-            const SizedBox(height: 12),
-
-            // Name
+            // 📛 Name
             Text(
               _name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
-            const SizedBox(height: 6),
+            // 📧 Email
+            Text(_email, style: const TextStyle(color: Colors.grey)),
 
-            // Address
-            Text(
-              _address,
-              style: const TextStyle(color: Colors.grey),
+            // 🏘️ Barangay + City
+            Text("$_city",
+                style: const TextStyle(color: Colors.grey)),
+
+            const SizedBox(height: 20),
+
+            // ✏️ Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _openEditProfile,
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text("Edit Profile"),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _openChangePassword,
+                  icon: const Icon(Icons.lock, size: 18),
+                  label: const Text("Change Password"),
+                ),
+              ],
             ),
-
-            const Divider(thickness: 1, height: 30),
-
-            // ✅ Responsive layout for buttons
-            isWide
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildDashboardButton(
-                        icon: Icons.lock_reset,
-                        label: "Change Password",
-                        color: Colors.blue,
-                        onTap: _showChangePasswordDialog,
-                      ),
-                      const SizedBox(width: 20),
-                      _buildDashboardButton(
-                        icon: Icons.settings,
-                        label: "Edit Profile",
-                        color: Colors.green,
-                        onTap: _editProfileAndAddress,
-                      ),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _buildDashboardButton(
-                        icon: Icons.lock_reset,
-                        label: "Change Password",
-                        color: Colors.blue,
-                        onTap: _showChangePasswordDialog,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildDashboardButton(
-                        icon: Icons.settings,
-                        label: "Edit Profile",
-                        color: Colors.green,
-                        onTap: _editProfileAndAddress,
-                      ),
-                    ],
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildDashboardButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
     );
   }
 
-  void _showChangePasswordDialog() {
-  final oldPassController = TextEditingController();
-  final newPassController = TextEditingController();
-  final confirmPassController = TextEditingController();
+// ================== EDIT PROFILE ==================
+  void _openEditProfile() {
+    final nameCtrl = TextEditingController(text: _name);
+    final emailCtrl = TextEditingController(text: _email);
+    final cityCtrl = TextEditingController(text: _city);
 
-  bool obscureOld = true;
-  bool obscureNew = true;
-  bool obscureConfirm = true;
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("Edit Profile"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Barangay Name")),
+              TextField(controller: cityCtrl, decoration: const InputDecoration(labelText: "City")),
+              TextField(controller: emailCtrl, decoration: const InputDecoration(labelText: "Email")),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final barangayId = prefs.getInt("barangay_id");
+                if (barangayId == null) return;
 
-  String? passwordError;
-  String? confirmError;
+                await Supabase.instance.client.from("barangays").update({
+                  "name": nameCtrl.text,
+                  "city": cityCtrl.text,
+                  "contact_email": emailCtrl.text,
+                }).eq("barangay_id", barangayId);
+
+                // Re-fetch profile so everything stays in sync
+                await _fetchProfileAndEvents();
+                Navigator.pop(ctx);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ================== CHANGE PASSWORD =================//
+  // ================== CHANGE PASSWORD ==================
+void _openChangePassword() {
+  final oldCtrl = TextEditingController();
+  final newCtrl = TextEditingController();
+  final reCtrl = TextEditingController();
 
   showDialog(
     context: context,
-    builder: (_) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
+    builder: (ctx) {
+      return AlertDialog(
         title: const Text("Change Password"),
-        content: SizedBox(
-          // ✅ Just right: not too wide, not too narrow
-          width: 380,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Current password
-              TextField(
-                controller: oldPassController,
-                obscureText: obscureOld,
-                decoration: InputDecoration(
-                  labelText: "Current Password",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscureOld ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () => setState(() => obscureOld = !obscureOld),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // New password
-              TextField(
-                controller: newPassController,
-                obscureText: obscureNew,
-                onChanged: (value) {
-                  final regex = RegExp(
-                      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$');
-                  if (value.isEmpty) {
-                    passwordError = "Please enter a password";
-                  } else if (!regex.hasMatch(value)) {
-                    passwordError =
-                        "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.";
-                  } else {
-                    passwordError = null;
-                  }
-                  setState(() {});
-                },
-                decoration: InputDecoration(
-                  labelText: "New Password",
-                  border: const OutlineInputBorder(),
-                  errorText: passwordError,
-                  errorMaxLines: 3, // ✅ wrap properly
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Confirm new password
-              TextField(
-                controller: confirmPassController,
-                obscureText: obscureConfirm,
-                onChanged: (value) {
-                  if (value != newPassController.text) {
-                    confirmError = "Passwords do not match";
-                  } else {
-                    confirmError = null;
-                  }
-                  setState(() {});
-                },
-                decoration: InputDecoration(
-                  labelText: "Confirm New Password",
-                  border: const OutlineInputBorder(),
-                  errorText: confirmError,
-                  errorMaxLines: 2,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscureConfirm ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () =>
-                        setState(() => obscureConfirm = !obscureConfirm),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: oldCtrl,
+              decoration: const InputDecoration(labelText: "Old Password"),
+              obscureText: true,
+            ),
+            TextField(
+              controller: newCtrl,
+              decoration: const InputDecoration(labelText: "New Password"),
+              obscureText: true,
+            ),
+            TextField(
+              controller: reCtrl,
+              decoration: const InputDecoration(labelText: "Re-enter New Password"),
+              obscureText: true,
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
-            onPressed: () {
-              final newPass = newPassController.text;
-              final confirmPass = confirmPassController.text;
-
-              final regex = RegExp(
-                  r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$');
-
-              if (!regex.hasMatch(newPass)) {
-                setState(() {
-                  passwordError =
-                      "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.";
-                });
+            onPressed: () async {
+              if (newCtrl.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Please enter a new password")),
+                );
                 return;
               }
-              if (newPass != confirmPass) {
-                setState(() {
-                  confirmError = "Passwords do not match";
-                });
+              
+              if (newCtrl.text != reCtrl.text) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Passwords do not match")),
+                );
                 return;
               }
 
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Password updated successfully ✅"),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              final prefs = await SharedPreferences.getInstance();
+              final barangayId = prefs.getInt("barangay_id");
+              if (barangayId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Barangay not found")),
+                );
+                return;
+              }
+
+              try {
+                // Fetch the admin user for this barangay
+                final userRes = await Supabase.instance.client
+                    .from("users")
+                    .select("user_id, password, email")
+                    .eq("barangay_id", barangayId)
+                    .eq("role", "barangay")
+                    .maybeSingle();
+
+                if (userRes == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Admin user not found")),
+                  );
+                  return;
+                }
+
+                final userId = userRes['user_id'] as int?;
+                final currentPassword = userRes['password'] as String? ?? "";
+                final userEmail = userRes['email'] as String? ?? "";
+
+                if (userId == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Invalid user data")),
+                  );
+                  return;
+                }
+
+                bool oldPasswordMatches = false;
+
+                if (currentPassword.startsWith(r"$2a$") || currentPassword.startsWith(r"$2b$")) {
+                  // Password already hashed
+                  try {
+                    oldPasswordMatches = BCrypt.checkpw(oldCtrl.text, currentPassword);
+                  } catch (e) {
+                    oldPasswordMatches = false;
+                  }
+                } else {
+                  // Plain text password (for existing users)
+                  oldPasswordMatches = oldCtrl.text == currentPassword;
+                }
+
+                if (!oldPasswordMatches) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Old password is incorrect")),
+                  );
+                  return;
+                }
+
+                // Hash new password
+                final hashed = BCrypt.hashpw(newCtrl.text, BCrypt.gensalt());
+
+                // Update password in database - use try/catch to handle success
+                try {
+                  await Supabase.instance.client
+                      .from("users")
+                      .update({"password": hashed})
+                      .eq("user_id", userId);
+
+                  // If we get here without an exception, the update was successful
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Password updated successfully")),
+                  );
+                  Navigator.pop(ctx);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Failed to update password: $e")),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Error: $e")),
+                );
+              }
             },
             child: const Text("Update"),
           ),
         ],
-      ),
-    ),
+      );
+    },
   );
 }
+
+
+
 }
+
