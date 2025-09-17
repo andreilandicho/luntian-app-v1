@@ -41,8 +41,6 @@ Future<List<Map<String, dynamic>>> fetchBarangay2Reports() async {
   return List<Map<String, dynamic>>.from(response);
 }
 
-
-
 class LuntianAdminApp extends StatelessWidget {
   const LuntianAdminApp({super.key});
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import 'dart:math' as math;
 
@@ -24,6 +27,54 @@ class ReportCard extends StatefulWidget {
   @override
   State<ReportCard> createState() => _ReportCardState();
 }
+
+pw.Widget _pdfInfoRow(String label, dynamic value) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          width: 100,
+          child: pw.Text(
+            "$label:",
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12),
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Text(value?.toString() ?? "N/A",
+              style: const pw.TextStyle(fontSize: 12)),
+        ),
+      ],
+    ),
+  );
+}
+
+String _getCleanedByText(Map<String, dynamic> report) {
+  final assignments = report["report_assignments"] as List<dynamic>?;
+  
+  if (assignments == null || assignments.isEmpty) {
+    return "Unassigned";
+  }
+  
+  // Get all cleaned by names from all assignments
+  final cleanedByNames = <String>{};
+  
+  for (final assignment in assignments) {
+    final cleanedBy = assignment["cleanedBy"] as String?;
+    if (cleanedBy != null && cleanedBy.isNotEmpty && cleanedBy != "Unassigned") {
+      cleanedByNames.add(cleanedBy);
+    }
+  }
+  
+  if (cleanedByNames.isEmpty) {
+    return "Unassigned";
+  }
+  
+  // Return comma-separated list of names
+  return cleanedByNames.join(", ");
+}
+
 
 class _ReportCardState extends State<ReportCard> {
   int _currentImageIndex = 0;
@@ -226,36 +277,38 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
 
                       // --- Report Details ---
                       _sectionHeader("Report Details", Icons.info_outline),
-                      const SizedBox(height: 10),
-                      Card(
-                        elevation: 0,
-                        color: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            children: [
-                              _buildDetailRow(
-                                "Date Reported",
-                                report["createdAt"] is DateTime
-                                    ? dateFormat.format(report["createdAt"])
-                                    : (report["createdAt"] ?? "Unknown"),
-                              ),
-                              _buildDetailRow(
-                                "Date Solved",
-                                report["dateSolved"] is DateTime
-                                    ? dateFormat.format(report["dateSolved"])
-                                    : (report["dateSolved"] ?? "Pending"),
-                              ),
-                              _buildDetailRow("Cleaned by",
-                                  report["cleanedBy"] ?? "Unassigned"),
-                              _buildDetailRow(
-                                  "Location", report["location"] ?? "N/A"),
-                            ],
+                        const SizedBox(height: 10),
+                        Card(
+                          elevation: 0,
+                          color: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Column(
+                              children: [
+                                _buildDetailRow(
+                                  "Date Reported",
+                                  report["createdAt"] is DateTime
+                                      ? dateFormat.format(report["createdAt"])
+                                      : (report["createdAt"] ?? "Unknown"),
+                                ),
+                                _buildDetailRow(
+                                  "Date Solved",
+                                  report["dateSolved"] is DateTime
+                                      ? dateFormat.format(report["dateSolved"])
+                                      : (report["dateSolved"] ?? "Pending"),
+                                ),
+                                _buildDetailRow(
+                                  "Cleaned by",
+                                  _getCleanedByText(report), // Use a helper function
+                                ),
+                                _buildDetailRow(
+                                    "Location", report["location"] ?? "N/A"),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
 
                       const SizedBox(height: 26),
 
@@ -263,12 +316,143 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text("Document generation started...")));
+                          onPressed: () async {
+                            final pdf = pw.Document();
+
+                            // ✅ Load Supabase photos if available
+                            final beforePhotos = List<String>.from(widget.report["beforePhotos"] ?? []);
+                            final afterPhotos = List<String>.from(widget.report["afterPhotos"] ?? []);
+
+                            final beforeImages = await Future.wait(
+                              beforePhotos.map((url) => networkImage(url)),
+                            );
+                            final afterImages = await Future.wait(
+                              afterPhotos.map((url) => networkImage(url)),
+                            );
+
+                            // Get all cleaned by names using the helper function
+                            final cleanedByText = _getCleanedByText(widget.report);
+
+                            pdf.addPage(
+                              pw.MultiPage(
+                                pageFormat: PdfPageFormat.a4,
+                                margin: const pw.EdgeInsets.all(24),
+                                build: (pw.Context context) {
+                                  return [
+                                    // --- Header ---
+                                    pw.Container(
+                                      padding: const pw.EdgeInsets.all(12),
+                                      decoration: pw.BoxDecoration(
+                                        color: PdfColors.blue800,
+                                        borderRadius: pw.BorderRadius.circular(6),
+                                      ),
+                                      child: pw.Row(
+                                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          pw.Text(
+                                            "Clean-up Report",
+                                            style: pw.TextStyle(
+                                              color: PdfColors.white,
+                                              fontSize: 18,
+                                              fontWeight: pw.FontWeight.bold,
+                                            ),
+                                          ),
+                                          pw.Text(
+                                            DateFormat("dd MMM yyyy").format(
+                                              widget.report["createdAt"] is DateTime
+                                                  ? widget.report["createdAt"]
+                                                  : DateTime.now(),
+                                            ),
+                                            style: pw.TextStyle(color: PdfColors.white, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    pw.SizedBox(height: 20),
+
+                                    // --- Reporter Info ---
+                                    pw.Text("Reporter Information",
+                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                    pw.Divider(),
+                                    _pdfInfoRow("Name", widget.report["userName"]),
+                                    _pdfInfoRow("Location", widget.report["location"]),
+                                    _pdfInfoRow("Priority", widget.report["priority"]),
+                                    _pdfInfoRow(
+                                        "Hazardous", widget.report["hazardous"] == true ? "Yes" : "No"),
+
+                                    pw.SizedBox(height: 16),
+
+                                    // --- Report Details ---
+                                    pw.Text("Report Details",
+                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                    pw.Divider(),
+                                    _pdfInfoRow("Description", widget.report["description"]),
+                                    _pdfInfoRow("Date Reported",
+                                        widget.report["createdAt"]?.toString() ?? "Unknown"),
+                                    _pdfInfoRow("Date Solved",
+                                        widget.report["dateSolved"]?.toString() ?? "Pending"),
+                                    _pdfInfoRow("Cleaned By", cleanedByText), // Use the helper function here
+
+                                    pw.SizedBox(height: 16),
+
+                                    // --- Feedback ---
+                                    pw.Text("Feedback",
+                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                    pw.Divider(),
+                                    pw.Text(widget.report["feedback"] ?? "No feedback provided.",
+                                        style: const pw.TextStyle(fontSize: 12)),
+
+                                    pw.SizedBox(height: 16),
+
+                                    // --- Photos Section ---
+                                    pw.Text("Photos",
+                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                    pw.Divider(),
+
+                                    if (beforeImages.isNotEmpty) ...[
+                                      pw.Text("Before:",
+                                          style: pw.TextStyle(
+                                              fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                                      pw.Wrap(
+                                        spacing: 10,
+                                        runSpacing: 10,
+                                        children: beforeImages
+                                            .map((img) => pw.Image(img,
+                                                width: 150, height: 100, fit: pw.BoxFit.cover))
+                                            .toList(),
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                    ],
+
+                                    if (afterImages.isNotEmpty) ...[
+                                      pw.Text("After:",
+                                          style: pw.TextStyle(
+                                              fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                                      pw.Wrap(
+                                        spacing: 10,
+                                        runSpacing: 10,
+                                        children: afterImages
+                                            .map((img) => pw.Image(img,
+                                                width: 150, height: 100, fit: pw.BoxFit.cover))
+                                            .toList(),
+                                      ),
+                                      pw.SizedBox(height: 12),
+                                    ],
+                                  ];
+                                },
+                              ),
+                            );
+
+                            // ✅ Export the PDF
+                            await Printing.sharePdf(
+                              bytes: await pdf.save(),
+                              filename:
+                                  "report_${widget.report['id'] ?? DateTime.now().millisecondsSinceEpoch}.pdf",
+                            );
                           },
+
+
                           icon: const Icon(Icons.picture_as_pdf, size: 20),
                           label: const Text("Generate Report PDF"),
                           style: ElevatedButton.styleFrom(
@@ -312,6 +496,7 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
     },
   );
 }
+
 
 /// Reusable Section Header with Icon
 Widget _sectionHeader(String title, IconData icon) {

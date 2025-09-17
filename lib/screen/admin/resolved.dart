@@ -159,89 +159,93 @@ class _ResolvedPageState extends State<ResolvedPage> {
     }
 
     Future<void> _fetchOfficialNames() async {
-    try {
-      // Get all unique official IDs from assignments
-      final officialIds = allReports
-          .expand((report) => report["report_assignments"] ?? [])
-          .where((assignment) => assignment["official_id"] != null)
-          .map((assignment) => assignment["official_id"])
-          .toSet()
-          .toList();
+      try {
+        // Get all unique official IDs from ALL assignments (not just first one)
+        final officialIdsFromAssignments = allReports
+            .expand((report) => report["report_assignments"] ?? [])
+            .where((assignment) => assignment?["official_id"] != null)
+            .map((assignment) => assignment?["official_id"])
+            .where((id) => id != null)
+            .cast<int>()
+            .toSet()
+            .toList();
 
-      if (officialIds.isNotEmpty) {
-        // Create a map for quick lookup
-        final Map<dynamic, dynamic> officialsMap = {};
+        if (officialIdsFromAssignments.isEmpty) return;
 
-        // Fetch each official individually and then get their user info
-        for (var officialId in officialIds) {
-          try {
-            // First get the official to get their user_id
-            final officialData = await Supabase.instance.client
-                .from('officials')
-                .select('*')
-                .eq('official_id', officialId)
-                .single();
-            
-            // Then get the user info for this official
-            if (officialData['user_id'] != null) {
-              final userData = await Supabase.instance.client
-                  .from('users')
-                  .select('*')
-                  .eq('user_id', officialData['user_id'])
-                  .single();
-              
-              // Store both official and user data
-              officialsMap[officialId] = {
-                'official': officialData,
-                'user': userData
-              };
-            } else {
-              officialsMap[officialId] = {
-                'official': officialData,
-                'user': null
-              };
-            }
-          } catch (e) {
-            debugPrint("Error fetching official $officialId: $e");
+        // Fetch officials where user_id matches the official_id from assignments
+        final officialsResponse = await Supabase.instance.client
+            .from('officials')
+            .select('official_id, user_id')
+            .inFilter('user_id', officialIdsFromAssignments);
+
+        final officialsData = officialsResponse as List<dynamic>;
+
+        // Create a map: user_id -> official data
+        final officialsByUserIdMap = <int, dynamic>{};
+        for (var official in officialsData) {
+          if (official?['user_id'] != null) {
+            officialsByUserIdMap[official!['user_id'] as int] = official;
           }
         }
 
-        // Update reports with official names from users table
+        // Fetch user names for all user IDs
+        final userIds = officialsData
+            .where((official) => official?['user_id'] != null)
+            .map((official) => official!['user_id'] as int)
+            .toSet()
+            .toList();
+
+        Map<int, dynamic> usersMap = {};
+        if (userIds.isNotEmpty) {
+          final usersResponse = await Supabase.instance.client
+              .from('users')
+              .select('user_id, name')
+              .inFilter('user_id', userIds);
+          
+          final usersData = usersResponse as List<dynamic>;
+          for (var user in usersData) {
+            if (user?['user_id'] != null) {
+              usersMap[user!['user_id'] as int] = user;
+            }
+          }
+        }
+
+        // Update ALL assignments with official names, not just the first one
         setState(() {
           for (var report in allReports) {
-            if (report["report_assignments"] != null && 
-                (report["report_assignments"] as List).isNotEmpty) {
-              
-              final assignment = report["report_assignments"][0];
-              final officialId = assignment["official_id"];
-              
-              if (officialId != null && officialsMap.containsKey(officialId)) {
-                final data = officialsMap[officialId];
-                final user = data['user'];
-                final official = data['official'];
+            final assignments = report["report_assignments"] as List<dynamic>?;
+            
+            if (assignments != null) {
+              for (var assignment in assignments) {
+                final officialIdFromAssignment = assignment?["official_id"] as int?;
                 
-                if (user != null && user["name"] != null) {
-                  // Get name from users table
-                  report["cleanedBy"] = user["name"];
-                } else if (official["name"] != null) {
-                  // Fallback to official name if user table not available
-                  report["cleanedBy"] = official["name"];
+                if (officialIdFromAssignment != null) {
+                  if (officialsByUserIdMap.containsKey(officialIdFromAssignment)) {
+                    final official = officialsByUserIdMap[officialIdFromAssignment];
+                    final userId = official?['user_id'] as int?;
+                    
+                    if (userId != null && usersMap.containsKey(userId)) {
+                      final userName = usersMap[userId]?['name'] as String?;
+                      assignment["cleanedBy"] = userName ?? "User ID: $userId";
+                    } else {
+                      final officialId = official?['official_id'] as int?;
+                      assignment["cleanedBy"] = "Official ID: ${officialId ?? 'Unknown'}";
+                    }
+                  } else {
+                    assignment["cleanedBy"] = "Official ID: $officialIdFromAssignment (Not Found)";
+                  }
                 } else {
-                  // Final fallback
-                  report["cleanedBy"] = "Official ID: $officialId";
+                  assignment["cleanedBy"] = "Unassigned";
                 }
               }
             }
           }
         });
+
+      } catch (e) {
+        debugPrint("Error fetching official names: $e");
       }
-    } catch (e) {
-      debugPrint("Error fetching official names: $e");
     }
-  }
-
-  
-
 
   String _timeAgo(DateTime dt) {
     final diff = DateTime.now().difference(dt);

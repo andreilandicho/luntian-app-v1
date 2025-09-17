@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'dart:io' show File; 
+import 'package:flutter/foundation.dart'; // for kIsWeb
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -287,9 +288,15 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() => _profileImage = File(picked.path));
+      if (kIsWeb) {
+        // On web, we can only use the `path` or `bytes`
+        setState(() => _profileUrl = picked.path); 
+      } else {
+        setState(() => _profileImage = File(picked.path));
+      }
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -587,7 +594,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 50,
-                backgroundImage: _profileImage != null
+                backgroundImage: _profileImage != null && !kIsWeb
                     ? FileImage(_profileImage!)
                     : (_profileUrl != null
                         ? NetworkImage(_profileUrl!)

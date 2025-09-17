@@ -5,9 +5,6 @@ import usersRouter from './routes/users.js';
 import barangaysRouter from './routes/barangays.js';
 import reportsRouter from './routes/reports.js';
 import reportAssignmentsRouter from './routes/getReportsAssignedToAnOfficial.js';
-
-
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 

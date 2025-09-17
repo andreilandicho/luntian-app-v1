@@ -63,13 +63,14 @@ class _ReportCardState extends State<ReportCard> {
   Future<void> _loadDeadline() async {
     try {
       final supabase = Supabase.instance.client;
-
       final result = await supabase
           .from('reports')
           .select('report_deadline')
           .eq('report_id', widget.report['reportId'])
           .maybeSingle();
-          
+
+      if (!mounted) return; // 👈 guard before touching setState
+
       if (result == null || result['report_deadline'] == null) {
         setState(() {
           _reportDeadline = null;
@@ -85,6 +86,7 @@ class _ReportCardState extends State<ReportCard> {
       });
     } catch (e) {
       print("Error fetching report_deadline: $e");
+      if (!mounted) return; // 👈 guard inside catch too
       setState(() => _loadingDeadline = false);
     }
   }
@@ -100,10 +102,13 @@ class _ReportCardState extends State<ReportCard> {
           .eq('report_id', widget.report['reportId'])
           .order('assigned_at', ascending: false);
 
+      if (!mounted) return; // 👈 guard immediately after async call
+
       if (assignments.isEmpty) {
         setState(() {
           _assignments = [];
           _loadingAssignments = false;
+          widget.report["proofImage"] = null; // clear proof if no assignments
         });
         return;
       }
@@ -111,7 +116,7 @@ class _ReportCardState extends State<ReportCard> {
       List<Map<String, dynamic>> enriched = [];
 
       for (var a in assignments) {
-        final userId = a['official_id']; // This is actually a user_id
+        final userId = a['official_id'];
 
         try {
           // Get user details directly
@@ -128,7 +133,7 @@ class _ReportCardState extends State<ReportCard> {
               'avatar': user['user_profile_url'] ?? 'assets/profilepicture.png',
             });
           } else {
-            // If user not found, try to get official name as fallback
+            // fallback: official
             final official = await supabase
                 .from('officials')
                 .select('name')
@@ -151,16 +156,41 @@ class _ReportCardState extends State<ReportCard> {
         }
       }
 
+      // 2. Fetch proof (after photos) from report_solutions
+      try {
+        final solution = await supabase
+            .from('report_solutions')
+            .select('after_photo_urls')
+            .eq('report_id', widget.report['reportId'])
+            .order('updated_at', ascending: false)
+            .maybeSingle();
+
+        if (solution != null && solution['after_photo_urls'] != null) {
+          final List<dynamic> urls = solution['after_photo_urls'];
+          if (urls.isNotEmpty) {
+            // Store first photo (or use urls.last for latest)
+            widget.report["proofImage"] = urls.first as String;
+          }
+        }
+      } catch (e) {
+        print("Error fetching proof image: $e");
+        widget.report["proofImage"] = null;
+      }
+
+      if (!mounted) return; // 👈 guard again before final setState
       setState(() {
         _assignments = enriched;
         _loadingAssignments = false;
       });
-
     } catch (e) {
       print("Error fetching assignments: $e");
+      if (!mounted) return;
       setState(() => _loadingAssignments = false);
     }
   }
+
+
+
   
 
 
@@ -191,9 +221,15 @@ class _ReportCardState extends State<ReportCard> {
         backgroundColor: Colors.transparent,
         child: Stack(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: buildProofImage(bytes, url ?? path, BoxFit.contain), // ✅ bytes/url/asset
+            Center( // 👈 ensures it's centered and takes available space
+              child: SizedBox(
+                width: double.infinity,
+                height: MediaQuery.of(context).size.height * 0.8, // take 80% of screen
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: buildProofImage(bytes, url ?? path, BoxFit.contain),
+                ),
+              ),
             ),
             Positioned(
               right: 0,
@@ -208,6 +244,7 @@ class _ReportCardState extends State<ReportCard> {
       ),
     );
   }
+
 
   void _showDecisionBar({
     required bool accepted,
@@ -349,15 +386,46 @@ class _ReportCardState extends State<ReportCard> {
                         children: [
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                setState(() => _actionAccepted = true);
-                                setModalState(() {});
-                                _showDecisionBar(
-                                  accepted: true,
-                                  setModalState: setModalState,
-                                  messengerCtx: sheetCtx,
-                                );
+                              // ✅ ACCEPT BUTTON
+                              onPressed: () async {
+                                try {
+                                  final supabase = Supabase.instance.client;
+
+                                  // 1. Update report status
+                                  await supabase
+                                      .from('reports')
+                                      .update({'status': 'resolved'})
+                                      .eq('report_id', widget.report['reportId']);
+
+                                  // 2. Update latest solution row new_status
+                                  await supabase
+                                      .from('report_solutions')
+                                      .update({'new_status': 'resolved'})
+                                      .eq('report_id', widget.report['reportId']);
+
+                                  if (!mounted) return;
+
+                                  setState(() => _actionAccepted = true);
+                                  setModalState(() {});
+                                  _showDecisionBar(
+                                    accepted: true,
+                                    setModalState: setModalState,
+                                    messengerCtx: sheetCtx,
+                                  );
+
+                                  // Call parent to remove from In-Progress page
+                                  widget.onCompleted();
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Error updating status: $e"),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
+
                               icon: const Icon(Icons.thumb_up),
                               label: const Text("Accept"),
                               style: ElevatedButton.styleFrom(
@@ -373,14 +441,35 @@ class _ReportCardState extends State<ReportCard> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () {
-                                setState(() => _actionAccepted = false);
-                                setModalState(() {});
-                                _showDecisionBar(
-                                  accepted: false,
-                                  setModalState: setModalState,
-                                  messengerCtx: sheetCtx,
-                                );
+                              // ❌ REJECT BUTTON
+                              onPressed: () async {
+                                try {
+                                  final supabase = Supabase.instance.client;
+
+                                  // Do NOT update to resolved. Keep status as inprogress
+                                  await supabase
+                                      .from('reports')
+                                      .update({'status': 'in_progress'})
+                                      .eq('report_id', widget.report['reportId']);
+
+                                  if (!mounted) return;
+
+                                  setState(() => _actionAccepted = false);
+                                  setModalState(() {});
+                                  _showDecisionBar(
+                                    accepted: false,
+                                    setModalState: setModalState,
+                                    messengerCtx: sheetCtx,
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Error updating status: $e"),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               },
                               icon: const Icon(Icons.thumb_down),
                               label: const Text("Reject"),
