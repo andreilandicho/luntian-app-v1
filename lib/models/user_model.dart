@@ -1,5 +1,6 @@
 class UserModel {
   final int id;
+  final int citizenId;
   final String email;
   final String role;
   final int? barangayId;
@@ -13,6 +14,7 @@ class UserModel {
 
   UserModel({
     required this.id,  // Make ID required
+    required this.citizenId,
     required this.email,
     required this.role,
     this.barangayId,
@@ -30,6 +32,7 @@ class UserModel {
     return UserModel(
       id: json['id'],
       email: json['email'] ?? '',
+      citizenId: json['citizen_id'] ?? 0,
       role: json['role'] ?? 'citizen',
       barangayId: json['barangay_id'],
       verified: json['verified'] ?? false,
@@ -42,6 +45,7 @@ class UserModel {
     return {
       'id': id,
       'email': email,
+      'citizen_id': citizenId,
       'role': role,
       'barangay_id': barangayId,
       'verified': verified,

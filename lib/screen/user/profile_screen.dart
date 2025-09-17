@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/user_model.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_application_1/screen/user/add_event_screen.dart';
 import 'package:flutter_application_1/screen/user/login_screen.dart';
 import 'package:flutter_application_1/services/report_service.dart';
+import 'package:flutter_application_1/services/profile_service.dart';
 import 'package:flutter_application_1/models/report_model.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'update_profile_screen.dart';
+import 'change_password_screen.dart';
+
 
 class ProfilePage extends StatefulWidget {
   final UserModel? user;
@@ -20,9 +25,13 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin {
-  String profilePic = 'assets/profile picture.png';
-  String userName = 'User';
-  String address = 'Unknown Address';
+  String profilePic = 'assets/profile picture.png';//default profile pic
+  String userName = '';
+  String address = '';
+  bool isLoadingUserInfo = true;
+  String userInfoError = '';
+  
+  // List<Map<String, dynamic>>badges = [];
 
   final List<String> badges = ['Top Reporter', 'Eco Warrior'];
 
@@ -45,12 +54,6 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-
-    // User info
-    if (widget.user != null) {
-      userName = widget.user!.name;
-      // You may set address if available in user model
-    }
 
     allBadges = [
       {
@@ -97,6 +100,26 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
     _fetchUserReports();
     _fetchUserEvents();
+    _fetchUserInfo();
+  }
+
+  // Fetch user info
+  Future<void> _fetchUserInfo() async {
+    if (widget.user == null) return;
+    try {
+      final info = await ProfileService().getUserInfo(widget.user!.id);
+      setState(() {
+        userName = info['name'] ?? '';
+        address = info['address'] ?? '';
+        profilePic = info['profile_pic_url'] ?? 'assets/profile picture.png';
+        isLoadingUserInfo = false;
+      });
+    } catch (e) {
+      setState(() {
+        userInfoError = e.toString();
+        isLoadingUserInfo = false;
+      });
+    }
   }
 
   Future<void> _fetchUserReports() async {
@@ -166,6 +189,81 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       });
     }
   }
+
+void _showSettingsSheet() {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Update Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => UpdateProfileScreen(userId: widget.user!.id)),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock),
+            title: const Text('Change Password'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ChangePasswordScreen(userId: widget.user!.id)),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Confirm Logout'),
+                  content: const Text('Are you sure you want to log out of your account?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        await AuthService().logout();
+                        Navigator.pop(context); // Close the dialog
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                        );
+                      },
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
 
   Map<String, dynamic> _eventJsonToCardMap(Map<String, dynamic> e) {
     // Transform the event API data to the card data format for UI
@@ -796,179 +894,122 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   }
 
   @override
-  Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final baseScale = screenSize.shortestSide.clamp(320.0, 480.0);
+Widget build(BuildContext context) {
+  final screenSize = MediaQuery.of(context).size;
+  final baseScale = screenSize.shortestSide.clamp(320.0, 480.0);
 
-    return DefaultTabController(
-      length: 2,
-      child: RefreshIndicator(
-        onRefresh: () async {
-          await _fetchUserReports();
-          await _fetchUserEvents();
-        },
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Confirm Logout'),
-                              content: const Text('Are you sure you want to log out of your account?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const LoginPage()),
-                                    );
-                                  },
-                                  child: const Text('Logout'),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Logout',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
+  return DefaultTabController(
+    length: 2,
+    child: RefreshIndicator(
+      onRefresh: () async {
+        await _fetchUserReports();
+        await _fetchUserEvents();
+      },
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton.icon(
+                      onPressed: _showSettingsSheet,
+                      icon: const Icon(Icons.settings, color: Colors.black),
+                      label: const Text(
+                        'Settings',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                    ],
+                    ),
+                    const SizedBox(width: 16),
+                  ],
+                ),
+                CircleAvatar(
+                  radius: baseScale * 0.13,
+                  backgroundImage: profilePic.startsWith('http')
+                      ? NetworkImage(profilePic)
+                      : AssetImage(profilePic) as ImageProvider,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  userName,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: baseScale * 0.05,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: baseScale * 0.13,
-                        backgroundImage: AssetImage(profilePic),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: _changeProfilePicture,
-                          child: const CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.white,
-                            child: Icon(Icons.edit, size: 18, color: Colors.black),
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isLoadingUserInfo ? 'Loading...' : address,
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: baseScale * 0.035,
+                    color: Colors.grey,
                   ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: _editNameOrAddress,
-                    child: Column(
-                      children: [
-                        Text(
-                          userName,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: baseScale * 0.05,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                address,
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: baseScale * 0.035,
-                                  color: Colors.grey,
-                                ),
-                                textAlign: TextAlign.center,
-                                overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: earnedBadges.map((badge) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDBB727),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.emoji_events, size: 18, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              badge['name'],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Poppins',
+                                fontSize: baseScale * 0.032,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.edit, size: 16, color: Colors.grey),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+                TextButton(
+                  onPressed: _showAllBadges,
+                  child: const Text(
+                    'View All Badges',
+                    style: TextStyle(color: Colors.blue),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: earnedBadges.map((badge) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDBB727),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.emoji_events, size: 18, color: Colors.white),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                badge['name'],
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'Poppins',
-                                  fontSize: baseScale * 0.032,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  TextButton(
-                    onPressed: _showAllBadges,
-                    child: const Text(
-                      'View All Badges',
-                      style: TextStyle(color: Colors.blue),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const TabBar(
-                    indicatorColor: Color(0xFF328E6E),
-                    labelColor: Color(0xFF328E6E),
-                    unselectedLabelColor: Colors.grey,
-                    tabs: [
-                      Tab(text: 'Reports'),
-                      Tab(text: 'Events'),
-                    ],
-                  ),
-                ],
-              ),
-            )
-          ],
+                ),
+                const SizedBox(height: 12),
+                const TabBar(
+                  indicatorColor: Color(0xFF328E6E),
+                  labelColor: Color(0xFF328E6E),
+                  unselectedLabelColor: Colors.grey,
+                  tabs: [
+                    Tab(text: 'Reports'),
+                    Tab(text: 'Events'),
+                  ],
+                ),
+              ],
+            ),
+          )
+        ],
           body: TabBarView(
             children: [
               isLoadingReports

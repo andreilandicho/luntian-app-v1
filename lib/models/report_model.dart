@@ -17,8 +17,14 @@ class ReportModel {
   final bool anonymous;
   final int barangayId;
   final String? location;   // Optional field for location
+  final DateTime? reportDeadline;
+  final double? lat;
+  final double? lon;
+  final String? category;
+  final String? priority; 
+  final String? hazardous;
 
-  bool isResolved = true;
+
   
   ReportModel({
     required this.reportId,
@@ -36,6 +42,12 @@ class ReportModel {
     required this.anonymous,
     required this.barangayId,
     this.location,
+    this.reportDeadline,
+    this.lat, 
+    this.lon,
+    this.category,
+    this.priority,
+    this.hazardous,
   });
   
   factory ReportModel.fromJson(Map<String, dynamic> json) {
@@ -55,7 +67,14 @@ class ReportModel {
       anonymous: json['anonymous'] ?? false,
       barangayId: json['barangay_id'],
       location: json['location']?.toString(), // <-- null safe
+      reportDeadline: json['report_deadline'] != null ? DateTime.parse(json['report_deadline']) : null,
+      lat: json['lat'] != null ? (json['lat'] as num).toDouble() : null,
+      lon: json['lon'] != null ? (json['lon'] as num).toDouble() : null,
+      category: json['category']?.toString(),
+      priority: json['priority']?.toString(),
+      hazardous: json['hazardous']?.toString(),
     );
+
   }
   
   Map<String, dynamic> toMap() {
@@ -72,6 +91,14 @@ class ReportModel {
       'downvotes': downvotes,
       'upvoted': hasUserUpvoted,
       'downvoted': hasUserDownvoted,
+      'status': status,
+      'location': location ?? 'Unknown Location',
+      'reportDeadline': reportDeadline?.toIso8601String(),
+      'lat': lat,
+      'lon': lon,
+      'category': category,
+      'priority': priority,
+      'hazardous': hazardous,
     };
   }
   
@@ -83,12 +110,21 @@ class ReportModel {
       default: return 'Low';
     }
   }
-  
-  static Color getPriorityColor(String status) {
+
+  static Color getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'critical': return Colors.red;
-      case 'in_progress': return Colors.orange;
       case 'resolved': return Colors.green;
+      case 'in_progress': return Colors.yellow;
+      case 'pending': return Colors.orange;
+      default: return Colors.blue;
+    }
+  }
+  
+  static Color getPriorityColor(String priority) {
+    switch (priority.toLowerCase()) {
+      case 'high': return Colors.red;
+      case 'medium': return Colors.orange;
+      case 'low': return Colors.green;
       default: return Colors.blue;
     }
   }
@@ -104,7 +140,7 @@ class ReportModel {
     } else if (difference.inMinutes > 0) {
       return '${difference.inMinutes}m ago';
     } else {
-      return 'just now';
+      return 'Just now';
     }
   }
 }

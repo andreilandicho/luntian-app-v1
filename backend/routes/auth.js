@@ -12,7 +12,7 @@ router.post('/login', async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('user_id,name,email,password,role,barangay_id,is_approved,is_active,can_post_anonymously,created_at')
+      .select('user_id,citizen:citizens(citizen_id),name,email,password,role,barangay_id,is_approved,is_active,can_post_anonymously,created_at')
       .eq('email', email)
       .single();
     
@@ -44,6 +44,7 @@ router.post('/login', async (req, res) => {
     const userResponse = {
       id: user.user_id ?? null,
       user_id: user.user_id ?? null,
+      citizen_id: user.citizen ? user.citizen.citizen_id : null,
       name: user.name ?? null,
       email: user.email ?? null,
       role: user.role ?? null,
@@ -67,5 +68,67 @@ router.post('/login', async (req, res) => {
     console.log("=== LOGIN END ===");
   }
 });
+
+
+// ===============================
+// Change password endpoint
+// POST /auth/change-password
+// ===============================
+router.post('/change-password', async (req, res) => {
+  const { userId, oldPassword, newPassword } = req.body;
+
+  if (!userId || !oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Missing userId, oldPassword, or newPassword.' });
+  }
+
+  // 1. Get user row
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('password')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+
+  // 2. Compare old password
+  const passwordMatch = await verifyPassword(oldPassword, user.password);
+  if (!passwordMatch) {
+    return res.status(401).json({ error: 'Old password is incorrect.' });
+  }
+
+  // 3. Validate new password (enforce some rules)
+  if (
+    typeof newPassword !== 'string' ||
+    newPassword.length < 8 ||
+    !/[A-Z]/i.test(newPassword) ||
+    !/\d/.test(newPassword)
+  ) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters, include letters and numbers.' });
+  }
+
+  // 4. Hash new password and update
+  const newHashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ password: newHashedPassword })
+    .eq('user_id', userId);
+
+  if (updateError) return res.status(500).json({ error: updateError.message });
+
+  res.json({ message: 'Password changed successfully.' });
+});
+
+// Real password verification function
+async function verifyPassword(plainText, hashedPassword) {
+  if (typeof plainText !== 'string' || typeof hashedPassword !== 'string') return false;
+  try {
+    return await bcrypt.compare(plainText, hashedPassword);
+  } catch (e) {
+    console.error('Error verifying password:', e);
+    return false;
+  }
+}
 
 export default router;

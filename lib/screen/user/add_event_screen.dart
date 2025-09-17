@@ -268,7 +268,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       }
 
       if (mounted) {
-        Navigator.pop(context); // Close progress dialog
+        Navigator.of(context, rootNavigator: true).pop(); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Event submitted successfully!')),
         );
@@ -276,7 +276,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context); // Close progress dialog
+        Navigator.of(context, rootNavigator: true).pop(); // Close progress dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
         );

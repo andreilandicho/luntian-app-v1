@@ -86,58 +86,142 @@ router.get('/', async (req, res) => {
 // GET: Events for a specific barangay (barangay-exclusive)
 
 //get method naman for fetching events for a specific barangay
+// router.get('/barangay/:barangayId', async (req, res) => {
+//   try {
+//     const { barangayId } = req.params;
+//     const { citizenId } = req.query;
+
+//     const { data, error } = await supabase.rpc('get_barangay_events', {
+//       p_barangay_id: parseInt(barangayId),
+//       p_citizen_id: citizenId ? parseInt(citizenId) : null
+//     });
+
+//     if (error) {
+//       console.error('Supabase error:', error);
+//       return res.status(500).json({ error: 'Failed to fetch barangay events' });
+//     }
+
+//     res.json(data || []);
+
+//   } catch (error) {
+//     console.error('Error fetching barangay events:', error);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// });
 router.get('/barangay/:barangayId', async (req, res) => {
   try {
     const { barangayId } = req.params;
+    const { citizenId } = req.query;
 
-    const { data, error } = await supabase
+    // Fetch events with creator's name
+    const { data: events, error } = await supabase
       .from('volunteer_events')
-      .select('*')
+      .select(`
+        *,
+        creator:users(name)
+      `)
       .eq('barangay_id', parseInt(barangayId))
-      .eq('isPublic', false)
       .eq('approval_status', 'approved')
+      .eq('isPublic', false)
       .order('event_date', { ascending: true });
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Failed to fetch barangay events' });
     }
 
-    const formatted = (data || []).map(ev => ({
-      ...ev,
-      dateTime: formatEventDate(ev.event_date),
-      statusLabel: ev.approval_status,
-      statusColor: getStatusColor(ev.approval_status),
-      volunteers: ev.volunteers_needed,
+    // For each event, fetch interested count and if current user is interested
+    const formatted = await Promise.all((events || []).map(async ev => {
+      // Count interested participants
+      const { count: interestedCount } = await supabase
+        .from('volunteer_events_interested')
+        .select('citizen_id', { count: 'exact', head: true })
+        .eq('event_id', ev.event_id);
+
+      // Check if current user is interested
+      let isInterested = false;
+      if (citizenId) {
+        const { data: interestData } = await supabase
+          .from('volunteer_events_interested')
+          .select('citizen_id')
+          .eq('event_id', ev.event_id)
+          .eq('citizen_id', parseInt(citizenId))
+          .limit(1);
+
+        isInterested = interestData && interestData.length > 0;
+      }
+
+      const eventObj =  {
+        ...ev,
+        creator_name: ev.creator?.name ?? null,
+        interested_count: interestedCount ?? 0,
+        is_interested: isInterested,
+      };
+      
+      delete eventObj.creator;
+
+      return eventObj;
     }));
 
     res.json(formatted);
-  } catch (err) {
-    console.error('Server error:', err);
+  } catch (error) {
+    console.error('Error fetching barangay events:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 // GET: All public events
 //get method para sa system-wide public events
 router.get('/public', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { citizenId } = req.query;
+
+    // Fetch events with creator's name
+    const { data: events, error } = await supabase
       .from('volunteer_events')
-      .select('*')
-      .eq('isPublic', true)
+      .select(`
+        *,
+        creator:users(name)
+      `)
       .eq('approval_status', 'approved')
+      .eq('isPublic', true)
       .order('event_date', { ascending: true });
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Failed to fetch barangay events' });
     }
 
-    const formatted = (data || []).map(ev => ({
-      ...ev,
-      dateTime: formatEventDate(ev.event_date),
-      statusLabel: ev.approval_status,
-      statusColor: getStatusColor(ev.approval_status),
-      volunteers: ev.volunteers_needed,
+    // For each event, fetch interested count and if current user is interested
+    const formatted = await Promise.all((events || []).map(async ev => {
+      // Count interested participants
+      const { count: interestedCount } = await supabase
+        .from('volunteer_events_interested')
+        .select('citizen_id', { count: 'exact', head: true })
+        .eq('event_id', ev.event_id);
+
+      // Check if current user is interested
+      let isInterested = false;
+      if (citizenId) {
+        const { data: interestData } = await supabase
+          .from('volunteer_events_interested')
+          .select('citizen_id')
+          .eq('event_id', ev.event_id)
+          .eq('citizen_id', parseInt(citizenId))
+          .limit(1);
+
+        isInterested = interestData && interestData.length > 0;
+      }
+
+      const eventObj =  {
+        ...ev,
+        creator_name: ev.creator?.name ?? null,
+        interested_count: interestedCount ?? 0,
+        is_interested: isInterested,
+      };
+      
+      delete eventObj.creator;
+
+      return eventObj;
     }));
 
     res.json(formatted);
@@ -146,6 +230,157 @@ router.get('/public', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+//======================Updating interested button ===========================
+
+//This is for getting the citizen_id using the user_id
+router.get('/users/:userId/citizen-id', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from('citizens')
+      .select('citizen_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ citizen_id: data.citizen_id });
+  } catch (err) {
+    console.error('Error fetching citizen ID:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /events/:eventId/interest - Toggle interest in an event
+router.post('/events/:eventId/interest', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { citizen_id } = req.body;
+
+    if (!citizen_id) {
+      return res.status(400).json({ error: 'citizen_id is required' });
+    }
+
+    // Check if user is already interested
+    const { data: existingInterest, error: selectError } = await supabase
+      .from('volunteer_events_interested')
+      .select('*')
+      .eq('citizen_id', citizen_id)
+      .eq('event_id', eventId);
+
+    let isInterested = false;
+
+    if (existingInterest && existingInterest.length > 0) {
+      // Remove interest
+      const { error: deleteError } = await supabase
+        .from('volunteer_events_interested')
+        .delete()
+        .eq('citizen_id', citizen_id)
+        .eq('event_id', eventId);
+      isInterested = false;
+    } else {
+      // Add interest
+      const { error: insertError } = await supabase
+        .from('volunteer_events_interested')
+        .insert([{ citizen_id, event_id: eventId }]);
+      isInterested = true;
+    }
+
+    res.json({ 
+      success: true, 
+      is_interested: isInterested,
+      message: isInterested ? 'Interest added successfully' : 'Interest removed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error toggling event interest:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /events/:eventId/interest/add - Add interest to an event
+router.post('/:eventId/interest/add', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { citizen_id } = req.body;
+
+    if (!citizen_id) {
+      return res.status(400).json({ error: 'citizen_id is required' });
+    }
+
+    // Check if already interested
+    const { data: existingInterest } = await supabase
+      .from('volunteer_events_interested')
+      .select('*')
+      .eq('citizen_id', citizen_id)
+      .eq('event_id', eventId);
+
+    if (existingInterest && existingInterest.length > 0) {
+      return res.status(400).json({ error: 'Already interested in this event' });
+    }
+
+    // Add interest
+    await supabase
+      .from('volunteer_events_interested')
+      .insert([{ citizen_id, event_id: eventId }]);
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Interest added successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error adding event interest:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /events/:eventId/interest/remove - Remove interest from an event
+router.delete('/:eventId/interest/remove', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const { citizen_id } = req.body;
+
+    if (!citizen_id) {
+      return res.status(400).json({ error: 'citizen_id is required' });
+    }
+
+    // Remove interest
+    const { error: deleteError } = await supabase
+      .from('volunteer_events_interested')
+      .delete()
+      .eq('citizen_id', citizen_id)
+      .eq('event_id', eventId);
+
+    if (deleteError) {
+      console.error('Error removing event interest:', deleteError);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Interest removed successfully' 
+    });
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Interest not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Interest removed successfully' 
+    });
+
+  } catch (error) {
+    console.error('Error removing event interest:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+//======================Updating interested button ===========================
+
+
 
 // GET: Interested user per event postings
 //get method for displaying the number of interested volunteers for each event
@@ -169,6 +404,10 @@ router.get('/interested/:eventId', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
+
+// ================================PROFILE SCREEN ROUTES=================================
 
 // GET: Events created by a user
 //get method for displaying events in the user's profile

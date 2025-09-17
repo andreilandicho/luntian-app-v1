@@ -7,6 +7,7 @@ import reportsRouter from './routes/reports.js';
 import eventsRouter from './routes/events.js';
 import getReportsAssignedToAnOfficialRouter from './routes/getReportsAssignedToAnOfficial.js';
 import viewOfficialRequestsRouter from './routes/viewOfficialRequests.js';
+import leaderboardsRouter from './routes/leaderboards.js';
 
 
 const app = express();
@@ -19,5 +20,6 @@ app.use('/reports', reportsRouter);
 app.use('/events', eventsRouter);
 app.use('/getReportsAssignedToAnOfficial', getReportsAssignedToAnOfficialRouter);
 app.use('/viewOfficialRequests', viewOfficialRequestsRouter);
+app.use('/leaderboards', leaderboardsRouter);
 
 app.listen(3000, () => console.log('Server running on port 3000'));

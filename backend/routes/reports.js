@@ -10,7 +10,7 @@ router.get('/barangay/:barangayId', async (req, res) => {
     const { barangayId } = req.params;
     const { userId } = req.query;
     
-    const { data, error } = await supabase.rpc('get_reports_by_barangay', {
+    const { data, error } = await supabase.rpc('get_reports_by_barangay1', {
       p_barangay_id: parseInt(barangayId),
       p_user_id: parseInt(userId || '0')
     });
@@ -157,6 +157,7 @@ router.get('/solved/:barangayId', async (req, res) => {
       .from('reports')
       .select(`
         *,
+        username:users!reports_user_id_fkey(name),
         report_solutions(*),
         report_assignments(official_id),
         report_ratings(average_user_rate)
@@ -195,6 +196,7 @@ router.get('/solved/:barangayId', async (req, res) => {
       
       return {
         ...reportData,
+        username: report.username?.name ?? null,
         cleanup_notes: solution.cleanup_notes,
         solution_updated: solution.updated_at,
         after_photo_urls: solution.after_photo_urls,

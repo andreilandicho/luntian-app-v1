@@ -1,6 +1,3 @@
-// lagyan ng textfields para sa address para if mag-fail ang geolocation, may manual input. pero kung gumana naman, auto fill na siya.
-//ang manual input ay dropdown ng location and hindi free-form ng text para ma-route pa rin ng tama ang report sa barangay.
-//currently, apat na barangays muna ang nasa dropdown for barangay na handle ng backend. 628, 630, Calan - for dev purpose, dela paz pib - for dev purposes
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -145,10 +142,11 @@ class _AddPageState extends State<AddPage> {
         SnackBar(content: Text('Error uploading images: ${e.toString()}')),
       );
       return [];
-    } finally {
-      // Close progress dialog
-      Navigator.of(context).pop();
-    }
+    } 
+    // finally {
+    //   // Close progress dialog
+    //   Navigator.of(context).pop();
+    // }
   }
 
   Widget _buildPhotoStep() {
@@ -793,7 +791,7 @@ class _AddPageState extends State<AddPage> {
       for (var img in selectedImages) {
         if (!_validateImageBeforeUpload(img)) {
           // Close loading dialog if validation fails
-          Navigator.of(context).pop();
+          if (mounted) Navigator.of(context).pop();
           return;
         }
       }
@@ -801,6 +799,7 @@ class _AddPageState extends State<AddPage> {
       // 3. Upload images
       final imageUrls = await _uploadSelectedImagesToSupabase();
       if (imageUrls.isEmpty) {
+        if (mounted) Navigator.of(context).pop();
         throw Exception("Failed to upload images");
       }
       
@@ -852,7 +851,7 @@ class _AddPageState extends State<AddPage> {
       }
     } catch (e) {
       // Close loading dialog
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
       
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(

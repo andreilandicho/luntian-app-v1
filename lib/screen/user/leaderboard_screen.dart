@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -62,276 +64,356 @@ class _AnimatedListItemState extends State<AnimatedListItem>
   }
 }
 
-class _LeaderboardPageState extends State<LeaderboardPage> {
+class _LeaderboardPageState extends State<LeaderboardPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late ConfettiController _confettiController1;
   late ConfettiController _confettiController2;
   late ConfettiController _confettiController3;
 
-  final List<Map<String, dynamic>> barangayRatings = [
-    {'barangay': 'Brgy 360', 'ratings': [5, 5, 4, 4, 5], 'activityScore': 8},
-    {'barangay': 'Brgy 310', 'ratings': [3, 3, 4, 5], 'activityScore': 12},
-    {'barangay': 'Brgy 143', 'ratings': [5, 5, 4, 4, 3], 'activityScore': 5},
-    {'barangay': 'Brgy 123', 'ratings': [4, 3, 5], 'activityScore': 6},
-    {'barangay': 'Brgy 456', 'ratings': [2, 3, 3, 3], 'activityScore': 7},
-    {'barangay': 'Brgy 789', 'ratings': [5, 4, 5], 'activityScore': 4},
-    {'barangay': 'Brgy 001', 'ratings': [4, 4, 4], 'activityScore': 9},
-    {'barangay': 'Brgy 002', 'ratings': [3, 5, 4, 4], 'activityScore': 7},
-    {'barangay': 'Brgy 003', 'ratings': [2, 2, 2], 'activityScore': 5},
-    {'barangay': 'Brgy 004', 'ratings': [5, 5], 'activityScore': 6},
-  ];
+  String _selectedFilter = 'today';
+  bool _isLoading = true;
+  double _loadingProgress = 0.0;
 
-  String _getGamifiedTitle(int rank) {
-  switch (rank) {
-    case 1:
-      return '🏆 Champion Streak!';
-    case 2:
-      return '🔥 Rising Star';
-    case 3:
-      return '🌟 Consistent Topper';
-    default:
-      return '';
-  }
-}
-
-List<String> _generateBadges(Map<String, dynamic> data) {
-  final badges = <String>[];
-
-  if (_average(data['ratings']) >= 4.5) {
-    badges.add("⭐ 5-Star Feedback");
-  }
-
-  if (data['activityScore'] > 8) {
-    badges.add("⚡ Highly Active");
-  }
-
-  if (_average(data['ratings']) < 3) {
-    badges.add("📈 Most Improved");
-  }
-
-  return badges;
-}
-
-  double _average(List<int> ratings) {
-    if (ratings.isEmpty) return 0.0;
-    return ratings.reduce((a, b) => a + b) / ratings.length;
-  }
-
-  List<Map<String, dynamic>> getSortedData(List<Map<String, dynamic>> data) {
-    const ratingWeight = 0.7;
-    const activityWeight = 0.3;
-
-    final sortedData = List<Map<String, dynamic>>.from(data)
-      ..sort((a, b) {
-        final aScore = (_average(a['ratings']) * ratingWeight) +
-            (a['activityScore'] * activityWeight);
-        final bScore = (_average(b['ratings']) * ratingWeight) +
-            (b['activityScore'] * activityWeight);
-        return bScore.compareTo(aScore);
-      });
-
-    return sortedData;
-  }
+  // Data structures
+  List<dynamic> _barangaysWithReports = [];
+  List<dynamic> _peacefulBarangays = [];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _confettiController1 = ConfettiController(duration: const Duration(seconds: 2));
     _confettiController2 = ConfettiController(duration: const Duration(seconds: 2));
     _confettiController3 = ConfettiController(duration: const Duration(seconds: 2));
+    
+    _fetchLeaderboardData();
+  }
 
-    _confettiController1.play();
-    _confettiController2.play();
-    _confettiController3.play();
+  Future<void> _fetchLeaderboardData() async {
+    setState(() {
+      _isLoading = true;
+      _loadingProgress = 0.0;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:3000/leaderboards?period=$_selectedFilter')
+      );
+      
+      // Simulate progress updates
+      setState(() => _loadingProgress = 0.5);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _barangaysWithReports = data['with_reports'];
+          _peacefulBarangays = data['no_reports'];
+          _loadingProgress = 1.0;
+          _isLoading = false;
+        });
+        
+        // Show confetti for top performers
+        if (_barangaysWithReports.isNotEmpty) {
+          _confettiController1.play();
+        }
+      }
+    } catch (error) {
+      print('Error fetching data: $error');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _handleFilterChange(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    _fetchLeaderboardData();
+  }
+
+  String _getGamifiedTitle(int rank) {
+    switch (rank) {
+      case 1:
+        return '🏆 Champion Streak!';
+      case 2:
+        return '🔥 Rising Star';
+      case 3:
+        return '🌟 Consistent Topper';
+      default:
+        return '';
+    }
+  }
+
+  List<String> _generateBadges(Map<String, dynamic> data) {
+    final badges = <String>[];
+
+    if (data['average_user_rate'] >= 4.5) {
+      badges.add("⭐ 5-Star Feedback");
+    }
+
+    if (data['resolution_rate'] >= 0.8) {
+      badges.add("⚡ Highly Efficient");
+    }
+
+    if (data['received_reports'] > 10) {
+      badges.add("📈 Most Active");
+    }
+
+    return badges;
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _confettiController1.dispose();
     _confettiController2.dispose();
     _confettiController3.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final sortedData = getSortedData(barangayRatings);
-    final isTablet = MediaQuery.of(context).size.width > 600;
-
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(100),
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFB9E4C9), Color(0xFFE0F7EC)],
-              ),
-            ),
-            child: AppBar(
-              title: const Text(
-                'LEADERBOARD',
-                style: TextStyle(
-                  fontFamily: 'MaryKate',
-                  fontSize: 28,
-                  color: Color(0xFF4D4D4D),
-                ),
-              ),
-              centerTitle: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              bottom: const TabBar(
-                indicatorColor: Color(0xFF67AE6E),
-                labelColor: Color(0xFF328E6E),
-                unselectedLabelColor: Color(0xFF4D4D4D),
-                tabs: [
-                  Tab(text: 'TODAY'),
-                  Tab(text: 'WEEK'),
-                  Tab(text: 'MONTH'),
-                ],
-              ),
-            ),
+  Widget _buildFilterRow() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FilterChip(
+            label: const Text('Today'),
+            selected: _selectedFilter == 'today',
+            onSelected: (selected) => _handleFilterChange('today'),
           ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Week'),
+            selected: _selectedFilter == 'week',
+            onSelected: (selected) => _handleFilterChange('week'),
+          ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Month'),
+            selected: _selectedFilter == 'month',
+            onSelected: (selected) => _handleFilterChange('month'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRankTab() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(value: _loadingProgress),
+            const SizedBox(height: 16),
+            Text('Loading data... ${(_loadingProgress * 100).toInt()}%'),
+          ],
         ),
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFE0F7EC), Colors.white],
-            ),
-          ),
-          child: TabBarView(
-            children: List.generate(3, (index) {
-              final top3 = sortedData.take(3).toList();
-              final others = sortedData.skip(3).toList();
+      );
+    }
 
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final isSmallScreen = constraints.maxWidth < 360;
-                  final horizontalPadding = isSmallScreen ? 12.0 : 16.0;
+    final top3 = _barangaysWithReports.take(3).toList();
+    final others = _barangaysWithReports.skip(3).toList();
 
-                  return GlowingOverscrollIndicator(
-                    axisDirection: AxisDirection.down,
-                    color: const Color(0xFFB9E4C9),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 20),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                GestureDetector(
-                                  onTap: () => _confettiController2.play(),
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(height: 24),
-                                      _podiumTile(top3.length > 1 ? top3[1] : null, 2, constraints.maxWidth),
-                                    ],
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => _confettiController1.play(),
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(height: 0),
-                                      _podiumTile(top3.isNotEmpty ? top3[0] : null, 1, constraints.maxWidth, crown: true),
-                                    ],
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => _confettiController3.play(),
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(height: 24),
-                                      _podiumTile(top3.length > 2 ? top3[2] : null, 3, constraints.maxWidth),
-                                    ],
-                                  ),
-                                ),
-                              ],
+    return Column(
+      children: [
+        _buildFilterRow(),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmallScreen = constraints.maxWidth < 360;
+              final horizontalPadding = isSmallScreen ? 12.0 : 16.0;
+
+              return GlowingOverscrollIndicator(
+                axisDirection: AxisDirection.down,
+                color: const Color(0xFFB9E4C9),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            GestureDetector(
+                              onTap: () => _confettiController2.play(),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 24),
+                                  _podiumTile(top3.length > 1 ? top3[1] : null, 2, constraints.maxWidth),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                          ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-                            itemCount: others.length,
-                            itemBuilder: (context, index) {
-                              final rank = index + 4;
-                              final item = others[index];
-                              final avg = _average(item['ratings']);
-                              return AnimatedListItem(
-                                index: index,
-                                child: Card(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  color: const Color(0xFFFBFBFA),
-                                  elevation: 2,
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      radius: isSmallScreen ? 20 : 22,
-                                      backgroundColor: const Color(0xFF90C67C),
-                                      backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=3'),
+                            GestureDetector(
+                              onTap: () => _confettiController1.play(),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 0),
+                                  _podiumTile(top3.isNotEmpty ? top3[0] : null, 1, constraints.maxWidth, crown: true),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => _confettiController3.play(),
+                              child: Column(
+                                children: [
+                                  const SizedBox(height: 24),
+                                  _podiumTile(top3.length > 2 ? top3[2] : null, 3, constraints.maxWidth),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        itemCount: others.length,
+                        itemBuilder: (context, index) {
+                          final rank = index + 4;
+                          final item = others[index];
+                          final avg = item['average_user_rate'] ?? 0.0;
+                          return AnimatedListItem(
+                            index: index,
+                            child: Card(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              color: const Color(0xFFFBFBFA),
+                              elevation: 2,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  radius: isSmallScreen ? 20 : 22,
+                                  backgroundColor: const Color(0xFF90C67C),
+                                  backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=3'),
+                                ),
+                                title: Text(
+                                  '$rank. ${item['barangay_name']}',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: isSmallScreen ? 12 : 14,
+                                  ),
+                                ),
+                                subtitle: Row(
+                                  children: List.generate(5, (i) {
+                                    return Icon(
+                                      i < avg.round() ? Icons.star : Icons.star_border,
+                                      color: Colors.amber,
+                                      size: isSmallScreen ? 14 : 16,
+                                    );
+                                  }),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      avg.toStringAsFixed(1),
+                                      style: TextStyle(fontFamily: 'Poppins', fontSize: isSmallScreen ? 12 : 14),
                                     ),
-                                    title: Text(
-                                      '$rank. ${item['barangay']}',
+                                    Text(
+                                      'Res: ${(item['resolution_rate'] * 100).toStringAsFixed(0)}%',
                                       style: TextStyle(
                                         fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: isSmallScreen ? 12 : 14,
+                                        fontSize: isSmallScreen ? 10 : 11,
+                                        color: Colors.grey,
                                       ),
                                     ),
-                                    subtitle: Row(
-                                      children: List.generate(5, (i) {
-                                        return Icon(
-                                          i < avg.round() ? Icons.star : Icons.star_border,
-                                          color: Colors.amber,
-                                          size: isSmallScreen ? 14 : 16,
-                                        );
-                                      }),
-                                    ),
-                                    trailing: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        Text(
-                                          avg.toStringAsFixed(1),
-                                          style: TextStyle(fontFamily: 'Poppins', fontSize: isSmallScreen ? 12 : 14),
-                                        ),
-                                        Text(
-                                          'Act: ${item['activityScore']}',
-                                          style: TextStyle(
-                                            fontFamily: 'Poppins',
-                                            fontSize: isSmallScreen ? 10 : 11,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  ],
                                 ),
-                              );
-                            },
-                          ),
-                        ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               );
-            }),
+            },
           ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildHonorsTab() {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(value: _loadingProgress),
+            const SizedBox(height: 16),
+            Text('Loading data... ${(_loadingProgress * 100).toInt()}%'),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _buildFilterRow(),
+        Expanded(
+          child: ListView.builder(
+            itemCount: _peacefulBarangays.length,
+            itemBuilder: (context, index) {
+              final barangay = _peacefulBarangays[index];
+              return AnimatedListItem(
+                index: index,
+                child: Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  margin: const EdgeInsets.all(10),
+                  color: const Color(0xFFFBFBFA),
+                  elevation: 2,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: const Color(0xFF90C67C),
+                      backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=5'),
+                    ),
+                    title: Text(
+                      barangay['barangay_name'],
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      barangay['city'],
+                      style: const TextStyle(
+                        fontFamily: 'Poppins',
+                        color: Colors.grey,
+                      ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF67AE6E),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        'Peaceful',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -341,9 +423,10 @@ List<String> _generateBadges(Map<String, dynamic> data) {
       2: const Color(0xFF67AE6E),
       3: const Color(0xFF90C67C),
     };
-    final barangay = data?['barangay'] ?? '---';
-    final avg = data != null ? _average(data['ratings']) : 0.0;
-    final badges = _generateBadges(data ?? {});
+    final barangay = data?['barangay_name'] ?? '---';
+    final avg = data != null ? data['average_user_rate'] ?? 0.0 : 0.0;
+    final resolutionRate = data != null ? data['resolution_rate'] ?? 0.0 : 0.0;
+    final badges = data != null ? _generateBadges(data) : [];
     final isSmall = width < 360;
     final avatarSize = rank == 1 ? (isSmall ? 44.0 : 50.0) : (isSmall ? 38.0 : 44.0);
     final profileImage = NetworkImage('https://i.pravatar.cc/150?img=${rank + 2}');
@@ -358,13 +441,13 @@ List<String> _generateBadges(Map<String, dynamic> data) {
       children: [
         Column(
           children: [
-    AnimatedScale(
-      scale: 1.0,
-      duration: Duration(milliseconds: 600 + rank * 100),
-      curve: Curves.elasticOut,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
+            AnimatedScale(
+              scale: 1.0,
+              duration: Duration(milliseconds: 600 + rank * 100),
+              curve: Curves.elasticOut,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
                   Container(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -474,42 +557,42 @@ List<String> _generateBadges(Map<String, dynamic> data) {
                 const SizedBox(width: 2),
                 Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 10)),
                 const SizedBox(width: 6),
-                const Icon(Icons.flash_on, color: Colors.orange, size: 14),
-                Text('${data?['activityScore'] ?? 0}', style: const TextStyle(fontSize: 10)),
+                const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                Text('${(resolutionRate * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10)),
               ],
             ),
             if (badges.isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.only(top: 4.0),
-    child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: width * 0.55, // Reduced further for tighter screens
-      ),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 6,
-        runSpacing: 4,
-        children: badges.map((badge) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE5F6E0),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                overflow: TextOverflow.ellipsis,
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: width * 0.55,
+                  ),
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: badges.map((badge) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5F6E0),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          badge,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          softWrap: true,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
-              softWrap: true,
-            ),
-          );
-        }).toList(),
-      ),
-    ),
-  ),
           ],
         ),
         Positioned(
@@ -526,6 +609,64 @@ List<String> _generateBadges(Map<String, dynamic> data) {
           ),
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFB9E4C9), Color(0xFFE0F7EC)],
+            ),
+          ),
+          child: AppBar(
+            title: const Text(
+              'LEADERBOARD',
+              style: TextStyle(
+                fontFamily: 'MaryKate',
+                fontSize: 28,
+                color: Color(0xFF4D4D4D),
+              ),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF67AE6E),
+              labelColor: const Color(0xFF328E6E),
+              unselectedLabelColor: const Color(0xFF4D4D4D),
+              tabs: const [
+                Tab(text: 'RANK'),
+                Tab(text: 'HONORS'),
+              ],
+            ),
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFE0F7EC), Colors.white],
+          ),
+        ),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildRankTab(),
+            _buildHonorsTab(),
+          ],
+        ),
+      ),
     );
   }
 }

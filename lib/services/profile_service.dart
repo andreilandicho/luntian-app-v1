@@ -8,7 +8,15 @@ import 'package:path/path.dart' as path;
 
 class ProfileService {
   final String baseUrl = 'http://10.0.2.2:3000'; // Same as your other services
-
+  //get user information
+  Future<Map<String, dynamic>> getUserInfo(int userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to fetch user info: ${response.statusCode}');
+    }
+  }
   // Get user badges
   Future<List<Map<String, dynamic>>> getUserBadges(int userId) async {
     try {

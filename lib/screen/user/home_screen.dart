@@ -116,7 +116,7 @@ class _UserHomePageState extends State<UserHomePage> {
           'has_user_downvoted': report.hasUserDownvoted ?? false,
           'anonymous': report.anonymous ?? false,
           'barangay_id': report.barangayId,
-          // 'priority': report.priority ?? 'Low',
+          'priority': report.priority ?? 'Low',
         };
       }).toList();
       setState(() {

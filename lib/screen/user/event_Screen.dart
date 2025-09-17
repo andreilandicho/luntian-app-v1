@@ -6,6 +6,8 @@ import 'package:flutter_application_1/services/event_service.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/models/homepage_event_model.dart';
 import 'package:flutter_application_1/models/user_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -22,7 +24,9 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
   List<HomepageEventModel> _barangayEvents = [];
   bool _isLoadingPublic = true;
   bool _isLoadingBarangay = true;
+
   UserModel? _currentUser;
+  int? _citizenId;
 
   @override
   void initState() {
@@ -33,21 +37,39 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
 
   Future<void> _loadUserAndEvents() async {
     try {
+      // Fetch the current user
       final user = await _authService.getCurrentUser();
+
+      // Check if the user is null
+      if (user == null) {
+        print('User is null');
+        return;
+      }
+
+      // Set the current user
       setState(() {
         _currentUser = user;
       });
+
+      // Fetch the citizen ID using the user ID (if user is non-null)
+      final citizenId = await _eventService.getCitizenIdOfUser(user.id);
+
+      setState(() {
+        _citizenId = citizenId;
+      });
+
+      // Fetch events
       await _fetchPublicEvents();
       await _fetchBarangayEvents();
     } catch (e) {
-      print('Error loading user data: $e');
+      print('Error loading user and citizen ID: $e');
     }
   }
 
   Future<void> _fetchPublicEvents() async {
     setState(() => _isLoadingPublic = true);
     try {
-      final events = await _eventService.getPublicEvents();
+      final events = await _eventService.getPublicEvents(_citizenId);
       setState(() => _publicEvents = events);
     } catch (e) {
       print('Error fetching public events: $e');
@@ -67,7 +89,10 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     
     setState(() => _isLoadingBarangay = true);
     try {
-      final events = await _eventService.getBarangayEvents(_currentUser!.barangayId!);
+      final events = await _eventService.getBarangayEvents(
+        _currentUser!.barangayId!, 
+        citizenId: _citizenId
+      );
       setState(() => _barangayEvents = events);
     } catch (e) {
       print('Error fetching barangay events: $e');
@@ -78,6 +103,74 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
       setState(() => _isLoadingBarangay = false);
     }
   }
+  
+  Future<void> _handleInterestToggle(HomepageEventModel event, int eventIndex, bool isPublic) async {
+  if (_citizenId == null) return;
+
+  // Optimistically update UI
+  final wasInterested = event.isInterested ?? false;
+  final newInterested = !wasInterested;
+  final newCount = newInterested
+      ? ((event.interestedCount ?? 0) + 1)
+      : ((event.interestedCount ?? 1) > 0 ? (event.interestedCount ?? 1) - 1 : 0);
+
+  setState(() {
+    final updatedEvent = event.copyWith(
+      isInterested: newInterested,
+      interestedCount: newCount,
+    );
+    if (isPublic) {
+    _publicEvents = List.from(_publicEvents)..[eventIndex] = updatedEvent;
+    print('List event isInterested: ${_publicEvents[eventIndex].isInterested}');
+  } else {
+    _barangayEvents = List.from(_barangayEvents)..[eventIndex] = updatedEvent;
+    print('List event isInterested: ${_barangayEvents[eventIndex].isInterested}');
+  }
+  });
+
+  // Call backend in background
+  try {
+    final backendStatus = await _eventService.toggleEventInterest(event.eventId, _citizenId!);
+
+    // If backend disagrees, revert UI
+    if (backendStatus != newInterested) {
+      setState(() {
+        final revertedEvent = event.copyWith(
+          isInterested: backendStatus,
+          interestedCount: backendStatus
+              ? ((event.interestedCount ?? 0) + 1)
+              : ((event.interestedCount ?? 1) > 0 ? (event.interestedCount ?? 1) - 1 : 0),
+        );
+        if (isPublic) {
+          _publicEvents[eventIndex] = revertedEvent;
+        } else {
+          _barangayEvents[eventIndex] = revertedEvent;
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update interest. Please try again.')),
+      );
+    }
+  } catch (e) {
+    // On error, revert UI
+    setState(() {
+      final revertedEvent = event.copyWith(
+        isInterested: wasInterested,
+        interestedCount: wasInterested
+            ? ((event.interestedCount ?? 0) + 1)
+            : ((event.interestedCount ?? 1) > 0 ? (event.interestedCount ?? 1) - 1 : 0),
+      );
+      if (isPublic) {
+        _publicEvents[eventIndex] = revertedEvent;
+      } else {
+        _barangayEvents[eventIndex] = revertedEvent;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error toggling interest: $e')),
+    );
+  }
+}
 
   Future<void> _handleRefresh() async {
     await _fetchPublicEvents();
@@ -97,74 +190,73 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     final isPortrait = screenHeight > screenWidth;
     final isSmall = screenWidth < 400;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          toolbarHeight: 0,
-          bottom: TabBar(
-            controller: _tabController,
-            indicatorColor: const Color(0xFF328E6E),
-            labelColor: const Color(0xFF328E6E),
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: 'Public Events'),
-              Tab(text: 'Barangay Events'),
-            ],
-          ),
-        ),
-        body: TabBarView(
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        toolbarHeight: 0,
+        bottom: TabBar(
           controller: _tabController,
-          children: [
-            // Public Events Tab
-            _buildEventsTab(
-              events: _publicEvents,
-              isLoading: _isLoadingPublic,
-              onRefresh: _fetchPublicEvents,
-              screenWidth: screenWidth,
-              screenHeight: screenHeight,
-              isPortrait: isPortrait,
-              isSmall: isSmall,
-            ),
-            
-            // Barangay Events Tab
-            _currentUser?.barangayId != null
-                ? _buildEventsTab(
-                    events: _barangayEvents,
-                    isLoading: _isLoadingBarangay,
-                    onRefresh: _fetchBarangayEvents,
-                    screenWidth: screenWidth,
-                    screenHeight: screenHeight,
-                    isPortrait: isPortrait,
-                    isSmall: isSmall,
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.person_outline, size: 48, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        const Text(
-                          "Please log in to view barangay events",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: _loadUserAndEvents,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
+          indicatorColor: const Color(0xFF328E6E),
+          labelColor: const Color(0xFF328E6E),
+          unselectedLabelColor: Colors.grey,
+          tabs: const [
+            Tab(text: 'Public Events'),
+            Tab(text: 'Barangay Events'),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Public Events Tab
+          _buildEventsTab(
+            events: _publicEvents,
+            isLoading: _isLoadingPublic,
+            onRefresh: _fetchPublicEvents,
+            screenWidth: screenWidth,
+            screenHeight: screenHeight,
+            isPortrait: isPortrait,
+            isSmall: isSmall,
+            isPublic: true,
+          ),
+          
+          // Barangay Events Tab
+          _currentUser?.barangayId != null
+              ? _buildEventsTab(
+                  events: _barangayEvents,
+                  isLoading: _isLoadingBarangay,
+                  onRefresh: _fetchBarangayEvents,
+                  screenWidth: screenWidth,
+                  screenHeight: screenHeight,
+                  isPortrait: isPortrait,
+                  isSmall: isSmall,
+                  isPublic: false,
+                )
+              : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.person_outline, size: 48, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "Please log in to view barangay events",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: _loadUserAndEvents,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+        ],
       ),
     );
   }
@@ -177,6 +269,7 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     required double screenHeight,
     required bool isPortrait,
     required bool isSmall,
+    required bool isPublic,
   }) {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -237,10 +330,18 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
               ),
             )
           else
-            ...events.map((event) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: EventCard(event: event),
-                )),
+            ...events.asMap().entries.map((entry) {
+              final index = entry.key;
+              final event = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: EventCard(
+                  event: event,
+                  index: index,
+                  onInterestToggle: () => _handleInterestToggle(event, index, isPublic),
+                ),
+              );
+            }),
           const SizedBox(height: 16),
           if (isPortrait)
             Center(
@@ -264,17 +365,22 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
 
 class EventCard extends StatefulWidget {
   final HomepageEventModel event;
+  final int index;
+  final VoidCallback onInterestToggle;
 
-  const EventCard({super.key, required this.event});
+  const EventCard({
+    super.key,
+    required this.event,
+    required this.index,
+    required this.onInterestToggle,
+  });
 
   @override
   State<EventCard> createState() => _EventCardState();
 }
 
 class _EventCardState extends State<EventCard> {
-  bool interested = false;
   int currentImage = 0;
-
   final PageController _pageController = PageController();
 
   @override
@@ -285,6 +391,7 @@ class _EventCardState extends State<EventCard> {
 
   @override
   Widget build(BuildContext context) {
+    print('Event ${widget.event.eventId} isInterested: ${widget.event.isInterested}');
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmall = screenWidth < 400;
@@ -307,12 +414,12 @@ class _EventCardState extends State<EventCard> {
               contentPadding: EdgeInsets.zero,
               leading: CircleAvatar(
                 radius: isSmall ? 16 : 20,
-                backgroundImage: const AssetImage('assets/profile picture.png'),
+                backgroundImage: const AssetImage('assets/profile picture.png'), 
               ),
               title: Row(
                 children: [
                   Text(
-                    "Kristel Cruz",
+                    widget.event.creatorName ?? 'Unknown',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: isSmall ? 14 : 16,
@@ -320,24 +427,12 @@ class _EventCardState extends State<EventCard> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green[100],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      "Top Volunteer",
-                      style: TextStyle(
-                        fontSize: isSmall ? 9 : 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 ],
               ),
               subtitle: Text(
-                DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now()),
+                widget.event.createdAt != null 
+                    ? HomepageEventModel.getTimeAgo(widget.event.createdAt!)
+                    : DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now()),
                 style: TextStyle(fontSize: isSmall ? 11 : 13),
               ),
             ),
@@ -349,18 +444,26 @@ class _EventCardState extends State<EventCard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${widget.event.title} — ${widget.event.date != null ? DateFormat('MMM dd, yyyy • h:mm a').format(widget.event.date!) : 'No date'}",
+                    "${widget.event.eventTitle ?? 'Untitled'} — ${widget.event.eventDate != null ? DateFormat('MMM dd, yyyy • h:mm a').format(widget.event.eventDate!) : 'No date'}",
                     style: TextStyle(
                       fontSize: isSmall ? 14 : 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text("Location: ${widget.event.location}"),
+                  Text("Location: ${widget.event.eventLocation ?? 'Unknown location'}"),
                   const SizedBox(height: 6),
                   const Text("Description:", style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text(widget.event.description ?? ''),
+                  Text(widget.event.eventDescription ?? 'No description'),
                   const SizedBox(height: 6),
+                  if (widget.event.volunteersNeeded != null)
+                    Text(
+                      "Volunteers needed: ${widget.event.volunteersNeeded}",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF328E6E),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -413,17 +516,29 @@ class _EventCardState extends State<EventCard> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () => setState(() => interested = !interested),
+                  onPressed: widget.onInterestToggle,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: interested ? Colors.green : Colors.grey[300],
-                    foregroundColor: interested ? Colors.white : Colors.black,
+                    backgroundColor: (widget.event.isInterested ?? false) ? Colors.green : Colors.grey[300],
+                    foregroundColor: (widget.event.isInterested ?? false) ? Colors.white : Colors.black,
                     padding: EdgeInsets.symmetric(horizontal: isSmall ? 10 : 16, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  icon: Icon(interested ? Icons.favorite : Icons.favorite_border),
-                  label: Text(
-                    interested ? "Interested" : "Interested",
-                    style: TextStyle(fontSize: isSmall ? 12 : 14),
+                  icon: Icon((widget.event.isInterested ?? false) ? Icons.favorite : Icons.favorite_border),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "Interested",
+                        style: TextStyle(fontSize: isSmall ? 12 : 14),
+                      ),
+                      if ((widget.event.interestedCount ?? 0) > 0) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          "(${widget.event.interestedCount})",
+                          style: TextStyle(fontSize: isSmall ? 10 : 12),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 IconButton(
@@ -478,7 +593,7 @@ class _EventCardState extends State<EventCard> {
               child: CircularProgressIndicator(
                 value: event == null
                     ? 0
-                    : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+                    : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
               ),
             ),
             errorBuilder: (context, error, stackTrace) => const Center(

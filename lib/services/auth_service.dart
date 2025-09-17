@@ -64,6 +64,30 @@ class AuthService {
     return null;
   }
   
+  /// Performs password change and verification in one call.
+  /// Returns true if successful, or error string if failed.
+  Future<dynamic> changePassword(int userId, String oldPassword, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'userId': userId,
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        return data['error'] ?? 'Unknown error';
+      }
+    } catch (e) {
+      return e.toString();
+    }
+  }
+  
   // Log out
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
