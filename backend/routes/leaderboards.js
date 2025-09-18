@@ -1,6 +1,10 @@
 import express from 'express';
 import supabase from '../supabaseClient.js';
+//for web use
+import cors from 'cors';
+
 const router = express.Router();
+router.use(cors()); // Enable CORS for all routes
 
 // Helper function to get date filters for "today", "week", "month"
 function getDateFilter(period) {
@@ -81,18 +85,18 @@ router.get('/', async (req, res) => {
     reports.forEach(r => {
       if (!barangayReportStats[r.barangay_id]) {
         barangayReportStats[r.barangay_id] = {
-            active: 0,    // pending + in_progress
-            resolved: 0,
-            received: 0
+          active: 0,    // pending + in_progress
+          resolved: 0,
+          received: 0
         };
-        }
-        barangayReportStats[r.barangay_id].received += 1;
-        if (['pending', 'in_progress'].includes(r.status)) {
+      }
+      barangayReportStats[r.barangay_id].received += 1;
+      if (['pending', 'in_progress'].includes(r.status)) {
         barangayReportStats[r.barangay_id].active += 1;
-        }
-        if (r.status === 'resolved') {
+      }
+      if (r.status === 'resolved') {
         barangayReportStats[r.barangay_id].resolved += 1;
-        }
+      }
     });
 
     // 7. Compute leaderboard data for barangays with reports
@@ -103,17 +107,24 @@ router.get('/', async (req, res) => {
       if (stats && stats.received > 0) {
         // Compute average user rate
         const ratingsArr = barangayRatings[barangay.barangay_id] || [];
-        const average_user_rate = ratingsArr.length > 0 ? ratingsArr.reduce((a, b) => a + b, 0) / ratingsArr.length : 0.0;
+        const average_user_rate = ratingsArr.length > 0
+          ? ratingsArr.reduce((a, b) => a + b, 0) / ratingsArr.length
+          : 0.0;
 
-        // Compute resolution rate (see fairness logic)
+        // Change mechanism: Use percentage scale from 1 to 5 (0–100%)
+        const average_user_rate_percentage = (average_user_rate / 5) * 100;
+
+        // Compute resolution rate: resolved / received (0–1)
         let resolution_rate = 0.0;
-        if (stats.active > 0) {
-          resolution_rate = stats.resolved / stats.active;
-        } else if (stats.received > 0) {
-          resolution_rate = 1.0;
+        if (stats.received > 0) {
+          resolution_rate = stats.resolved / stats.received;
         }
-        // Compute leaderboard score
-        const leaderboard_score = (average_user_rate * 0.7) + (resolution_rate * 0.3);
+
+        // For percent consistency, also scale resolution_rate to percent (0–100)
+        const resolution_rate_percentage = resolution_rate * 100;
+
+        // Compute leaderboard score using percent scale for both metrics
+        const leaderboard_score = (resolution_rate_percentage * 0.7) + (average_user_rate_percentage * 0.3);
 
         barangaysWithReports.push({
           barangay_id: barangay.barangay_id,
@@ -123,9 +134,9 @@ router.get('/', async (req, res) => {
           received_reports: stats.received,
           active_reports: stats.active,
           resolved_reports: stats.resolved,
-          average_user_rate,
-          resolution_rate,
-          leaderboard_score
+          average_user_rate: average_user_rate_percentage, // Now percent
+          resolution_rate: resolution_rate_percentage,     // Now percent
+          leaderboard_score                              // Now percent (0–100)
         });
       } else {
         // Peaceful barangay (no reports in period)

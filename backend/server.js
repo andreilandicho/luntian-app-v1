@@ -9,11 +9,15 @@ import getReportsAssignedToAnOfficialRouter from './routes/getReportsAssignedToA
 import viewOfficialRequestsRouter from './routes/viewOfficialRequests.js';
 import leaderboardsRouter from './routes/leaderboards.js';
 
+//for web use
+import cors from 'cors';
+
 //for maintenance officials
 import maintenanceOfficialRouter from './routes/maintenance/user_official.js'
 
 
 const app = express();
+app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 
 app.use('/auth', authRouter);
