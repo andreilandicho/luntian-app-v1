@@ -3,6 +3,10 @@ import 'package:flutter_application_1/screen/user/signup_screen.dart';
 import 'package:flutter_application_1/screen/user/forgot_screen.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/main.dart';  // Add this import for MyApp
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -203,9 +207,28 @@ class _LoginPageState extends State<LoginPage> {
         
         print('Successfully logged in as ${user.email} with role ${user.role}');
         
+        if (user.role == 'official') {
+          // Fetch official data and store it
+          try {
+            final response = await http.get(
+              Uri.parse('http://10.0.2.2:3000/official/${user.id}'),
+              headers: {'Content-Type': 'application/json'},
+            );
+            if (response.statusCode == 200) {
+              final officialData = jsonDecode(response.body);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('official_data', jsonEncode(officialData));
+              print('Official data saved: $officialData');
+            } else {
+              print('Failed to fetch official data: ${response.body}');
+            }
+          } catch (e) {
+            print('Error fetching official data: $e');
+          }
+        }
+        // If login successful, reset the app to apply role-based routing
         // If login successful, reset the app to apply role-based routing
         if (mounted) {
-          // Push a replacement instead of a new route to avoid navigation stack issues
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MyApp()),
             (route) => false,

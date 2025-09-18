@@ -43,4 +43,26 @@ router.get('/match/:latitude/:longitude', async (req, res) => {
   }
 });
 
+
+//==================for user_official_profile
+router.get('/:barangayId', async (req, res) => {
+  const { barangayId } = req.params;
+  const { data, error } = await supabase
+    .from('barangays')
+    .select('barangay_id, name, masterlist:masterlist_id (ADM4_EN, ADM3_EN, ADM2_EN, ADM1_EN)')
+    .eq('barangay_id', barangayId);
+  if (error) return res.status(500).json({ error: error.message });
+  
+  // Flatten the masterlist object so Flutter can easily use it
+  const flattened = data.map(b => ({
+    barangay_id: b.barangay_id,
+    barangay_name: b.masterlist.ADM4_EN,
+    barangay_municipality: b.masterlist.ADM3_EN,
+    barangay_province: b.masterlist.ADM2_EN,
+    barangay_region: b.masterlist.ADM1_EN,
+  }));
+
+  res.json(flattened);
+});
+
 export default router;
