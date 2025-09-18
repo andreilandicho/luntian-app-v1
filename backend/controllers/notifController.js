@@ -129,3 +129,12 @@ async function handleNotification(req, res, schema) {
 
 export const createNotifSubmission = (req, res) =>
   handleNotification(req, res, notifSchema);
+
+//role hierarchy so that i can keep using one controller design
+// citizen report with the designated barangay this is for report sent to (barangay official)
+// report tagged for designated official assignment task assigned via barangay itself
+// citizen status change
+// due date
+
+//the following should have a unique json body or columns that would let the controller hit
+// whether which is which
