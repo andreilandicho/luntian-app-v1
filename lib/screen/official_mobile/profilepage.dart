@@ -145,7 +145,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           radius: 50,
                           backgroundImage: profilePicUrl != null && profilePicUrl!.isNotEmpty
                               ? NetworkImage(profilePicUrl!)
-                              : const AssetImage('assets/profilepicture.png') as ImageProvider,
+                              : const AssetImage('assets/profile picture.png') as ImageProvider,
                         ),
                         Positioned(
                           bottom: 0,

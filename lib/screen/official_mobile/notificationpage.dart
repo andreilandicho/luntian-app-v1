@@ -25,7 +25,7 @@ class _NotificationPageState extends State<NotificationPage> {
       'isRead': false,
       'report': {
         'reporterName': 'Juan Dela Cruz',
-        'profileImage': 'assets/profilepicture.png',
+        'profileImage': 'assets/profile picture.png',
         'reportTime': '7:30 PM',
         'reportDate': 'Aug 15, 2025',
         'priority': 'Medium',
@@ -43,7 +43,7 @@ class _NotificationPageState extends State<NotificationPage> {
       'isRead': false,
       'report': {
         'reporterName': 'Maria Santos',
-        'profileImage': 'assets/profilepicture.png',
+        'profileImage': 'assets/profile picture.png',
         'reportTime': '2:00 PM',
         'reportDate': 'Aug 14, 2025',
         'postImage': 'assets/garbage.png',
@@ -58,7 +58,7 @@ class _NotificationPageState extends State<NotificationPage> {
       'isRead': false,
       'report': {
         'reporterName': 'Pedro Cruz',
-        'profileImage': 'assets/profilepicture.png',
+        'profileImage': 'assets/profile picture.png',
         'reportTime': '9:00 AM',
         'reportDate': 'Aug 13, 2025',
         'postImage': 'assets/garbage.png',

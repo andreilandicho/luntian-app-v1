@@ -13,7 +13,7 @@ class CompletedReportsPage extends StatelessWidget {
         children: [
           CompletedPostCard(
             reporterName: 'Pedro Penduko',
-            profileImage: 'assets/profilepicture.png',
+            profileImage: 'assets/profile picture.png',
             reportTime: '9:00 AM',
             reportDate: 'Aug 10, 2025',
             priority: 'Low',

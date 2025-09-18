@@ -193,7 +193,7 @@ class _CompletedPostCardState extends State<CompletedPostCard> {
                       builder: (context) => ViewReport(
                         report: {
                           "reporterName": "Juan Dela Cruz",
-                          "profileImage": "assets/profilepicture.png",
+                          "profileImage": "assets/profile picture.png",
                           "description": "There are uncollected garbage bags near the park entrance.",
                           "postImage": "assets/garbage.png",
                           "reportDate": "Aug 10, 2025",

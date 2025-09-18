@@ -55,7 +55,7 @@ class _ViewReportState extends State<ViewReport> {
 
               ViewReportPage(
                 reporterName: widget.report['reporterName'] ?? "Unknown",
-                profileImage: widget.report['profileImage'] ?? "assets/profilepicture.png",
+                profileImage: widget.report['profileImage'] ?? "assets/profile picture.png",
                 description: widget.report['description'] ?? "No description",
                 postImage: widget.report['postImage'] ?? "assets/placeholder.png",
                 status: widget.status, // ✅ Dynamic
