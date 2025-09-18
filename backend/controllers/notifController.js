@@ -138,3 +138,10 @@ export const createNotifSubmission = (req, res) =>
 
 //the following should have a unique json body or columns that would let the controller hit
 // whether which is which
+
+//3 controllers:
+
+//1. citizen report submission with barangay emailer
+//2. official assignment to barangay emailer
+//3. citizen status change emailer also with 1 once the status is met
+//4. due date emailer to barangay and official
