@@ -594,6 +594,9 @@ Widget _dashboardContent(BuildContext context) {
 
                 const SizedBox(height: 18),
 
+                // 🔹 PIE CHART
+                _pieCard(),
+
                 _alertsCard(),
                 const SizedBox(height: 18),
 
@@ -653,9 +656,6 @@ Widget _dashboardContent(BuildContext context) {
                 ),
 
                 const SizedBox(height: 24),
-
-                // 🔹 PIE CHART
-                _pieCard(),
               ],
             )
           ),
