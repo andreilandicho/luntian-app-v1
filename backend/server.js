@@ -9,6 +9,9 @@ import getReportsAssignedToAnOfficialRouter from './routes/getReportsAssignedToA
 import viewOfficialRequestsRouter from './routes/viewOfficialRequests.js';
 import leaderboardsRouter from './routes/leaderboards.js';
 
+//for maintenance officials
+import maintenanceOfficialRouter from './routes/maintenance/user_official.js'
+
 
 const app = express();
 app.use(express.json());
@@ -21,5 +24,9 @@ app.use('/events', eventsRouter);
 app.use('/getReportsAssignedToAnOfficial', getReportsAssignedToAnOfficialRouter);
 app.use('/viewOfficialRequests', viewOfficialRequestsRouter);
 app.use('/leaderboards', leaderboardsRouter);
+
+//for maintenance officials
+app.use('/official', maintenanceOfficialRouter);
+
 
 app.listen(3000, () => console.log('Server running on port 3000'));

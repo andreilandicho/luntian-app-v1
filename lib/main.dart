@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import 'screen/user/loading_screen.dart';
-import 'screen/official (mobile)/official.dart';
+import 'screen/official_mobile/official.dart';
 import 'screen/admin/admin_dashboard.dart';
 import 'models/user_model.dart';
 import 'screen/user/login_screen.dart';

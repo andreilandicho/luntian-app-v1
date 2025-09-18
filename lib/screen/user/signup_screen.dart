@@ -94,7 +94,7 @@ class _SignUpPageState extends State<SignUpPage> {
         'firstName': firstNameController.text,
         'lastName': lastNameController.text,
         'barangay_id': selectedBarangayId,
-        'role': isOfficial ? 'official' : 'citizen',
+        'role': isOfficial ? 'official' : 'citizen', 
       }),
     );
 
