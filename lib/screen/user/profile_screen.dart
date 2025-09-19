@@ -570,10 +570,14 @@ void _showSettingsSheet() {
                               onTap: () => _showImage(post['images'][imgIndex]),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
-                                child: Image.asset(
+                                child: Image.network(
                                   post['images'][imgIndex],
                                   fit: BoxFit.cover,
                                   width: double.infinity,
+                                  errorBuilder: (context, error, stackTrace) => Container(
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.error_outline, color: Colors.grey),
+                                  ),
                                 ),
                               ),
                             );
@@ -800,10 +804,15 @@ void _showSettingsSheet() {
                                       onTap: () => _showImage(post['images'][imgIndex]),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
-                                        child: Image.asset(
+                                        // fix fetch image error
+                                        child: Image.network(
                                           post['images'][imgIndex],
                                           fit: BoxFit.cover,
                                           width: double.infinity,
+                                          errorBuilder: (context, error, stackTrace) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.error_outline, color: Colors.grey),
+                                          ),
                                         ),
                                       ),
                                     );

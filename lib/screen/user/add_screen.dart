@@ -576,13 +576,13 @@ class _AddPageState extends State<AddPage> {
                         border: InputBorder.none,
                         labelText: 'Category',
                       ),
-                      items: ['General', //1 - value in database
+                      // fix this part based on SLA
+                      items: ['General Littering', //1 - value in database
                               'Baradong Kanal', //2
                               'Masangsang na Estero', //3
-                              'Tagas ng Langis/Oil Spills', //4
-                              'Tambak ng Basura' //5
-                              'Patay na Hayop', //6
-                              'Basag na Bote', //7
+                              'Tambak ng Basura', //5
+                              'Patay na Hayop (Dead Animals)', //6
+                              'Nabasag na Bote / Debris', //7
                               'Illegal Dumping', //8
                               'Oil/Chemical Spills' //9
                               ]
@@ -802,6 +802,66 @@ class _AddPageState extends State<AddPage> {
         if (mounted) Navigator.of(context).pop();
         throw Exception("Failed to upload images");
       }
+
+      // Function to calculate deadline based on rules
+      DateTime _calculateDeadline({
+        required String category,
+        required bool hazardous,
+        required String priority,
+      }) {
+        final now = DateTime.now();
+        final cat = category.toLowerCase();
+        final pri = priority.toLowerCase();
+
+        if (cat.contains("baradong kanal")) {
+          if (!hazardous && pri == "low") return now.add(const Duration(hours: 72));
+          if (!hazardous && pri == "medium") return now.add(const Duration(hours: 48));
+          if (hazardous && pri == "high") return now.add(const Duration(hours: 24));
+        }
+
+        if (cat.contains("tambak ng basura")) {
+          if (!hazardous && pri == "low") return now.add(const Duration(hours: 168));
+          if (hazardous && pri == "medium") return now.add(const Duration(hours: 48));
+          if (hazardous && pri == "high") return now.add(const Duration(hours: 24));
+        }
+
+        if (cat.contains("masangsang na estero")) {
+          if (!hazardous && pri == "low") return now.add(const Duration(hours: 72));
+          if (!hazardous && pri == "medium") return now.add(const Duration(hours: 48));
+          if (hazardous && pri == "high") return now.add(const Duration(hours: 24));
+        }
+
+        if (cat.contains("oil") || cat.contains("chemical")) {
+          if (hazardous && pri == "high") return now.add(const Duration(hours: 4));
+        }
+
+        if (cat.contains("general littering")) {
+          if (!hazardous && pri == "low") return now.add(const Duration(hours: 168));
+        }
+
+        if (cat.contains("nabasag") || cat.contains("debris")) {
+          if (hazardous && pri == "medium") return now.add(const Duration(hours: 48));
+        }
+
+        if (cat.contains("patay") || cat.contains("hayop")) {
+          if (hazardous && pri == "medium") return now.add(const Duration(hours: 48));
+        }
+
+        if (cat.contains("illegal dumping")) {
+          if (hazardous && pri == "high") return now.add(const Duration(hours: 48));
+        }
+
+        // Default fallback
+        return now.add(const Duration(days: 7));
+      }
+
+      // Calculate deadline based on category, hazardous, and priority
+      final deadline = _calculateDeadline(
+        category: _selectedCategory!,
+        hazardous: _isHazardous ?? false,
+        priority: _selectedPriority!,
+      );
+
       
       // 4. Prepare report data
       final reportData = {
@@ -815,6 +875,7 @@ class _AddPageState extends State<AddPage> {
         'hazardous': _isHazardous,
         'status': 'pending', // Default status
         'created_at': DateTime.now().toIso8601String(),
+        'report_deadline': deadline.toIso8601String(), // ✅ new field
       };
       
       // Add location if available
@@ -959,4 +1020,5 @@ class _AddPageState extends State<AddPage> {
       ),
     );
   }
+  
 }
