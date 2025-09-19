@@ -573,8 +573,16 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
     return Row(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
+          const Text(
+          'Sort by:',
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(width: 8),
         FilterChip(
-          label: const Text('Relevant'),
+          label: const Text('Relevance'),
           selected: _sortType == ReportSortType.relevant,
           onSelected: (_) {
             setState(() => _sortType = ReportSortType.relevant);
@@ -582,7 +590,7 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
         ),
         const SizedBox(width: 8),
         FilterChip(
-          label: const Text('Latest'),
+          label: const Text('Latest Posts'),
           selected: _sortType == ReportSortType.latest,
           onSelected: (_) {
             setState(() => _sortType = ReportSortType.latest);

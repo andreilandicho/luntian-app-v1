@@ -287,6 +287,7 @@ class _AddPageState extends State<AddPage> {
         setState(() {
           barangays = jsonDecode(res.body);
         });
+        print('Fetched barangays: $barangays');
       }
     } catch (e) {
       print('Error fetching barangays: $e');
@@ -395,6 +396,7 @@ class _AddPageState extends State<AddPage> {
     if (barangayId == null) return;
     setState(() {
       selectedBarangayId = barangayId;
+      print('Current selectedBarangayId: $selectedBarangayId');
       // Find the selected barangay
       final found = barangays.firstWhere(
         (b) => b['barangay_id'] == barangayId,
@@ -444,7 +446,7 @@ class _AddPageState extends State<AddPage> {
                               ),
                               items: barangays
                                   .map<DropdownMenuItem<int>>((b) => DropdownMenuItem<int>(
-                                        value: b['barangay_id'],
+                                        value: int.tryParse(b['barangay_id'].toString()),
                                         child: Text(b['barangay_name']),
                                       ))
                                   .toList(),
@@ -802,7 +804,9 @@ class _AddPageState extends State<AddPage> {
         if (mounted) Navigator.of(context).pop();
         throw Exception("Failed to upload images");
       }
-      
+      //debug print
+      print('Selected Barangay ID: $selectedBarangayId');
+      print('barangay_id value: $selectedBarangayId, type: ${selectedBarangayId.runtimeType}');
       // 4. Prepare report data
       final reportData = {
         'user_id': _currentUser?.id, // Assuming user is logged in
@@ -822,12 +826,17 @@ class _AddPageState extends State<AddPage> {
         reportData['lat'] = _currentLocation!.latitude;
         reportData['lon'] = _currentLocation!.longitude; // Use lon for longitude in Supabase
       }
+      print('About to submit: $reportData');
+      print('selectedBarangayId: $selectedBarangayId, type: ${selectedBarangayId.runtimeType}');
       
       // 5. Submit report to Supabase database
       final response = await supabase
           .from('reports')
           .insert(reportData)
           .select();
+
+      //debugging print
+      print('Supabase insert response: $response');
 
       //emailer insert
 
