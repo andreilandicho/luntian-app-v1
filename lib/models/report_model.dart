@@ -81,7 +81,7 @@ class ReportModel {
     return {
       'id': reportId,
       'username': anonymous ? 'Anonymous Citizen' : username,
-      'userProfile': userProfileUrl ?? 'assets/profile picture.png',
+      'userProfile': userProfileUrl,
       'images': photoUrls.isEmpty ? ['assets/garbage.png'] : photoUrls,
       'postContent': description,
       'priorityLabel': getPriorityFromStatus(status),

@@ -59,11 +59,13 @@ Widget build(BuildContext context) {
         children: [
           ListTile(
             leading: CircleAvatar(
-              backgroundImage: post['anonymous'] 
-                ? const AssetImage('assets/default_profile.png') 
-                : (post['user_profile_url'] != null 
-                    ? NetworkImage(post['user_profile_url']) 
-                    : const AssetImage('assets/default_profile.png')) as ImageProvider,
+              //fix fetch profile picture in home screen
+              backgroundImage: post['anonymous']
+                  ? const AssetImage('assets/profile picture.png')
+                  : (post['user_profile_url'] != null &&
+                    post['user_profile_url'].toString().startsWith('http'))
+                      ? NetworkImage(post['user_profile_url'])
+                      : const AssetImage('assets/profile picture.png'),
             ),
             title: Text(
               post['anonymous'] ? 'Anonymous Citizen' : post['username'] ?? 'Unknown User',
