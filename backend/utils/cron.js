@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import supabase from "../supabaseClient.js";
 import { transporter } from "./mailer.js";
-
+import { DateTime } from "luxon";
 // Runs every 5 minutes in Philippine Time
 cron.schedule(
   "*/5 * * * *",
@@ -13,15 +13,14 @@ cron.schedule(
     try {
       const now = new Date();
       // Convert to Philippine Time (UTC+8)
-      const phTime = new Date(
-        now.toLocaleString("en-US", { timeZone: "Asia/Manila" })
-      );
-      const todayStr = phTime.toISOString().split("T")[0]; // YYYY-MM-DD
+      const todayStr = DateTime.now()
+        .setZone("Asia/Manila") // PH timezone
+        .toFormat("yyyy-MM-dd"); // YYYY-MM-DD
 
       // Fetch all reports that are due today
       const { data: reports, error } = await supabase
         .from("reports")
-        .select("report_id, title, description, report_deadline, barangay_id")
+        .select("report_id, description, barangay_id")
         .eq("report_deadline", todayStr); // only reports due today
 
       if (error) throw error;
@@ -50,9 +49,7 @@ cron.schedule(
           html: `
             <h3>Reminder: Report Due Today</h3>
             <p><strong>Report ID:</strong> ${report.report_id}</p>
-            <p><strong>Title:</strong> ${report.title}</p>
             <p><strong>Description:</strong> ${report.description}</p>
-            <p><strong>Deadline:</strong> ${report.report_deadline}</p>
           `,
         });
 
