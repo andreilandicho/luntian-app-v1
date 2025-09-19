@@ -508,9 +508,13 @@ class ReportPage extends StatefulWidget {
   State<ReportPage> createState() => ReportPageState();
 }
 
+enum ReportSortType { relevant, latest }
+
 class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
   Map<int, int> currentPages = {};
   bool showFab = false;
+
+  ReportSortType _sortType = ReportSortType.latest;
 
   @override
   void initState() {
@@ -548,6 +552,45 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
     );
   }
 
+  List<Map<String, dynamic>> get _sortedPosts {
+    final posts = List<Map<String, dynamic>>.from(widget.posts);
+    if (_sortType == ReportSortType.relevant) {
+      posts.sort((a, b) {
+        final netA = (a['upvotes'] ?? 0) - (a['downvotes'] ?? 0);
+        final netB = (b['upvotes'] ?? 0) - (b['downvotes'] ?? 0);
+        return netB.compareTo(netA);
+      });
+    } else {
+      posts.sort((a, b) {
+        final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(2000);
+        final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(2000);
+        return dateB.compareTo(dateA);
+      });
+    }
+    return posts;
+  }
+    Widget _buildFilterButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        FilterChip(
+          label: const Text('Relevant'),
+          selected: _sortType == ReportSortType.relevant,
+          onSelected: (_) {
+            setState(() => _sortType = ReportSortType.relevant);
+          },
+        ),
+        const SizedBox(width: 8),
+        FilterChip(
+          label: const Text('Latest'),
+          selected: _sortType == ReportSortType.latest,
+          onSelected: (_) {
+            setState(() => _sortType = ReportSortType.latest);
+          },
+        ),
+      ],
+    );
+  }
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -626,10 +669,11 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
                           : ListView.builder(
                               controller: widget.scrollController,
                               padding: EdgeInsets.all(screenWidth * 0.04),
-                              itemCount: widget.posts.length + 1,
+                              itemCount: _sortedPosts.length + 1,
                               itemBuilder: (context, index) {
                                 if (index == 0) {
                                   return Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       GestureDetector(
                                         onTap: () {
@@ -657,10 +701,14 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
                                         ),
                                       ),
                                       SizedBox(height: screenHeight * 0.015),
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 4.0, bottom: 8.0),
+                                        child: _buildFilterButtons(),
+                                      ),
                                     ],
                                   );
                                 }
-                                final post = widget.posts[index - 1];
+                                final post = _sortedPosts[index - 1];
                                 final pageController = PageController(initialPage: currentPages[index - 1] ?? 0);
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 16),

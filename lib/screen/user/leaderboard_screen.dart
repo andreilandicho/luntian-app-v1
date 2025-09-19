@@ -151,7 +151,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
       badges.add("⭐ 5-Star Feedback");
     }
 
-    if (data['resolution_rate'] >= 0.8) {
+    if (data['resolution_rate'] >= 80.0) {
       badges.add("⚡ Highly Efficient");
     }
 
@@ -161,6 +161,15 @@ class _LeaderboardPageState extends State<LeaderboardPage>
 
     return badges;
   }
+
+  ImageProvider getProfileImage(Map<String, dynamic> data, {int fallbackIndex = 0}) {
+  final url = data['user_profile_url'];
+  if (url != null && url.toString().isNotEmpty) {
+    return NetworkImage(url);
+  } else {
+    return const AssetImage('assets/profile picture.png');
+  }
+}
 
   @override
   void dispose() {
@@ -240,31 +249,37 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            GestureDetector(
-                              onTap: () => _confettiController2.play(),
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 24),
-                                  _podiumTile(top3.length > 1 ? top3[1] : null, 2, constraints.maxWidth),
-                                ],
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: () => _confettiController2.play(),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 24),
+                                    _podiumTile(top3.length > 1 ? top3[1] : null, 2, constraints.maxWidth),
+                                  ],
+                                ),
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () => _confettiController1.play(),
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 0),
-                                  _podiumTile(top3.isNotEmpty ? top3[0] : null, 1, constraints.maxWidth, crown: true),
-                                ],
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: () => _confettiController1.play(),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 0),
+                                    _podiumTile(top3.isNotEmpty ? top3[0] : null, 1, constraints.maxWidth, crown: true),
+                                  ],
+                                ),
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () => _confettiController3.play(),
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 24),
-                                  _podiumTile(top3.length > 2 ? top3[2] : null, 3, constraints.maxWidth),
-                                ],
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: () => _confettiController3.play(),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 24),
+                                    _podiumTile(top3.length > 2 ? top3[2] : null, 3, constraints.maxWidth),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -291,7 +306,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                                 leading: CircleAvatar(
                                   radius: isSmallScreen ? 20 : 22,
                                   backgroundColor: const Color(0xFF90C67C),
-                                  backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=3'),
+                                  backgroundImage: getProfileImage(item),
                                 ),
                                 title: Text(
                                   '$rank. ${item['barangay_name']}',
@@ -319,7 +334,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                                       style: TextStyle(fontFamily: 'Poppins', fontSize: isSmallScreen ? 12 : 14),
                                     ),
                                     Text(
-                                      'Res: ${(item['resolution_rate'] * 100).toStringAsFixed(0)}%',
+                                      'Res: ${(item['resolution_rate']).toStringAsFixed(0)}%',
                                       style: TextStyle(
                                         fontFamily: 'Poppins',
                                         fontSize: isSmallScreen ? 10 : 11,
@@ -376,7 +391,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFF90C67C),
-                      backgroundImage: const NetworkImage('https://i.pravatar.cc/150?img=5'),
+                      backgroundImage: getProfileImage(barangay),
                     ),
                     title: Text(
                       barangay['barangay_name'],
@@ -399,7 +414,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
-                        'Peaceful',
+                        'No reports received',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -429,7 +444,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     final badges = data != null ? _generateBadges(data) : [];
     final isSmall = width < 360;
     final avatarSize = rank == 1 ? (isSmall ? 44.0 : 50.0) : (isSmall ? 38.0 : 44.0);
-    final profileImage = NetworkImage('https://i.pravatar.cc/150?img=${rank + 2}');
+    final profileImage = getProfileImage(data ?? {}, fallbackIndex: rank + 2);
     final confettiController = {
       1: _confettiController1,
       2: _confettiController2,
@@ -558,39 +573,34 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                 Text(avg.toStringAsFixed(1), style: const TextStyle(fontSize: 10)),
                 const SizedBox(width: 6),
                 const Icon(Icons.check_circle, color: Colors.green, size: 14),
-                Text('${(resolutionRate * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10)),
+                Text('${resolutionRate.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10)),
               ],
             ),
             if (badges.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4.0),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: width * 0.55,
-                  ),
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: badges.map((badge) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE5F6E0),
-                          borderRadius: BorderRadius.circular(10),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: badges.map((badge) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE5F6E0),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        badge,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Text(
-                          badge,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          softWrap: true,
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                        softWrap: true,
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
           ],
@@ -644,8 +654,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
               labelColor: const Color(0xFF328E6E),
               unselectedLabelColor: const Color(0xFF4D4D4D),
               tabs: const [
-                Tab(text: 'RANK'),
-                Tab(text: 'HONORS'),
+                Tab(text: 'RANKINGS'),
+                Tab(text: 'NO REPORTS'),
               ],
             ),
           ),
