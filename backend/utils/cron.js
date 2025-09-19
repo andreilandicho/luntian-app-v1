@@ -11,17 +11,28 @@ cron.schedule(
     );
 
     try {
-      const now = new Date();
-      // Convert to Philippine Time (UTC+8)
+      // code below is to convert to PH time and format to YYYY-MM-DD
       const todayStr = DateTime.now()
-        .setZone("Asia/Manila") // PH timezone
-        .toFormat("yyyy-MM-dd"); // YYYY-MM-DD
+        .setZone("Asia/Manila")
+        .toFormat("yyyy-MM-dd");
+
+      /*   const tomorrowStr = DateTime.now()
+        .setZone("Asia/Manila") 
+        .plus({ days: 1 }) 
+        .toFormat("yyyy-MM-dd"); 
+ */ //use to send reminders a day before the deadline for final code current code is for test
 
       // Fetch all reports that are due today
       const { data: reports, error } = await supabase
         .from("reports")
         .select("report_id, description, barangay_id")
         .eq("report_deadline", todayStr); // only reports due today
+
+      /*   const { data: reports, error } = await supabase
+        .from("reports")
+        .select("report_id, description, barangay_id")
+        .eq("report_deadline", tomorrowStr); // only reports due today
+ */ //for tomorrow reminders final code
 
       if (error) throw error;
 
@@ -51,7 +62,7 @@ cron.schedule(
             <p><strong>Report ID:</strong> ${report.report_id}</p>
             <p><strong>Description:</strong> ${report.description}</p>
           `,
-        });
+        }); //improve this in meeting
 
         console.log(`✅ Reminder sent for report ${report.report_id}`);
       }
