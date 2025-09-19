@@ -9,7 +9,8 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final bool showLogoutMessage;
+  const LoginPage({super.key, this.showLogoutMessage = false});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -26,6 +27,17 @@ class _LoginPageState extends State<LoginPage> {
   String? _errorMessage;
 
   final _formKey = GlobalKey<FormState>();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.showLogoutMessage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged out')),
+        );
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

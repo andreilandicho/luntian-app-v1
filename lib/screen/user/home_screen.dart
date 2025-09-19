@@ -514,7 +514,7 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
   Map<int, int> currentPages = {};
   bool showFab = false;
 
-  ReportSortType _sortType = ReportSortType.latest;
+  ReportSortType _sortType = ReportSortType.relevant;
 
   @override
   void initState() {

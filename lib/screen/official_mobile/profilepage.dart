@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 import 'package:flutter_application_1/screen/user/login_screen.dart';
@@ -87,35 +88,40 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-  void _logout() {
-    showDialog(
+  void _logout() async {
+    final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirm Logout'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.remove('official_data');
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out')),
-              );
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+
+    if (shouldLogout == true) {
+      // 1. Use AuthService to log out and clear SharedPreferences
+      await AuthService().logout(); // This should clear both user_data and official_data
+
+      // 2. Navigate to LoginPage and show a SnackBar there
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginPage(
+            showLogoutMessage: true, // Pass a flag to show the snackbar
+          ),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   @override

@@ -92,6 +92,7 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(userKey);
+    await prefs.remove('official_data');
   }
   
   // Save user data to shared preferences
