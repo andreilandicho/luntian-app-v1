@@ -446,15 +446,21 @@ void _showSettingsSheet() {
     );
   }
 
+  //fix image viewer
   void _showImage(String path) {
     showDialog(
       context: context,
       builder: (_) => Dialog(
         backgroundColor: Colors.black,
-        child: PhotoView(imageProvider: AssetImage(path)),
+        child: PhotoView(
+          imageProvider: path.startsWith('http')
+              ? NetworkImage(path)
+              : AssetImage(path) as ImageProvider,
+        ),
       ),
     );
   }
+
 
   void _showAllBadges() {
     showDialog(
