@@ -8,7 +8,7 @@ import eventsRouter from "./routes/events.js";
 import notif from "./routes/notif.js";
 import getReportsAssignedToAnOfficialRouter from "./routes/getReportsAssignedToAnOfficial.js";
 import viewOfficialRequestsRouter from "./routes/viewOfficialRequests.js";
-
+import "./utils/cron.js"; // Import cron jobs to run them
 const app = express();
 app.use(express.json());
 
