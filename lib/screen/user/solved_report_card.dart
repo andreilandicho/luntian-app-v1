@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart'; // For image gallery view of solution images
 
 class SolvedReportCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -25,41 +26,52 @@ class SolvedReportCard extends StatelessWidget {
     required this.currentPages,
   });
 
+  //fix view solution images
   void _showSolutionImages(BuildContext context, List<dynamic> images) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.black,
-        child: Container(
+        insetPadding: const EdgeInsets.all(8), // optional margin around the dialog
+        child: SizedBox(
+          width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              const Text(
-                "Solution Images",
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: images.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: PhotoView(
-                        imageProvider: NetworkImage(images[index]),
-                        minScale: PhotoViewComputedScale.contained,
-                        maxScale: PhotoViewComputedScale.covered * 2,
-                      ),
-                    );
-                  },
+              // Header
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Solution Images",
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  "Close",
-                  style: TextStyle(color: Colors.white),
+              const Divider(color: Colors.white54, height: 1),
+              // Gallery
+              Expanded(
+                child: PhotoViewGallery.builder(
+                  itemCount: images.length,
+                  builder: (context, index) {
+                    return PhotoViewGalleryPageOptions(
+                      imageProvider: NetworkImage(images[index]),
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 2,
+                    );
+                  },
+                  scrollPhysics: const BouncingScrollPhysics(),
+                  backgroundDecoration: const BoxDecoration(color: Colors.black),
+                  loadingBuilder: (context, event) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
                 ),
               ),
             ],
@@ -186,12 +198,14 @@ class SolvedReportCard extends StatelessWidget {
           children: [
             ListTile(
               leading: CircleAvatar(
-                backgroundImage: post['anonymous']
-                  ? const AssetImage('assets/default_profile.png')
-                  : (post['user_profile_url'] != null && post['user_profile_url'] != ""
+              //fix fetch profile picture in home screen
+              backgroundImage: post['anonymous']
+                  ? const AssetImage('assets/profile picture.png')
+                  : (post['user_profile_url'] != null &&
+                    post['user_profile_url'].toString().startsWith('http'))
                       ? NetworkImage(post['user_profile_url'])
-                      : const AssetImage('assets/default_profile.png')) as ImageProvider,
-              ),
+                      : const AssetImage('assets/profile picture.png'),
+            ),
               title: Text(
                 post['anonymous'] ? 'Anonymous Citizen' : post['username'] ?? 'Unknown User',
                 style: TextStyle(
