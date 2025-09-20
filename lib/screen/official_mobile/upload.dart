@@ -15,7 +15,6 @@ class ProofReviewPage extends StatefulWidget {
 class _ProofReviewPageState extends State<ProofReviewPage> {
   int selectedIndex = 0;
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
 
   final TextEditingController _descriptionController = TextEditingController();
 
@@ -27,7 +26,6 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: Padding(

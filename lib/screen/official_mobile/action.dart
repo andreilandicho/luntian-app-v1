@@ -15,7 +15,6 @@ class ProofAction extends StatefulWidget {
 class _ProofActionState extends State<ProofAction> {
   int selectedIndex = 0;
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
 
   CameraController? _controller;
   Future<void>? _initializeControllerFuture;
@@ -80,7 +79,6 @@ class _ProofActionState extends State<ProofAction> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: Stack(

@@ -21,7 +21,6 @@ class ViewReport extends StatefulWidget {
 class _ViewReportState extends State<ViewReport> {
   int selectedIndex = 0;
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +30,6 @@ class _ViewReportState extends State<ViewReport> {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: Padding(

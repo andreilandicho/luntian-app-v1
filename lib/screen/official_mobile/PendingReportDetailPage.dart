@@ -15,7 +15,6 @@ class PendingReportDetailPage extends StatefulWidget {
 class _PendingReportDetailPageState extends State<PendingReportDetailPage> {
   int selectedIndex = 0;
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +26,6 @@ class _PendingReportDetailPageState extends State<PendingReportDetailPage> {
 
       /// ✅ Header
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
 

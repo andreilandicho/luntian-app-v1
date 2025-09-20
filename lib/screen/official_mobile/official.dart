@@ -15,7 +15,6 @@ class _OfficialDashboardState extends State<OfficialDashboard> {
   int selectedIndex = 0; // bottom nav
   int tabIndex = 0; // 0 = Pending, 1 = Completed
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +24,6 @@ class _OfficialDashboardState extends State<OfficialDashboard> {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: Column(

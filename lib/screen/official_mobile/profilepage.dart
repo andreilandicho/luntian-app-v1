@@ -19,7 +19,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   int selectedIndex = 3; // Profile tab index
   bool isNavVisible = true;
-  String _currentAddress = 'Your Address';
+
 
   UserOfficialModel? official;
   String barangayName = '';
@@ -87,29 +87,35 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
+  
   void _logout() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Confirm Logout'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogContext).pop(), // Close dialog
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('official_data');
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logged out')),
-              );
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-              );
+
+              // Close the dialog first
+              Navigator.of(dialogContext).pop();
+
+              if (!mounted) return;
+
+              // Now navigate and clear stack
+              Future.microtask(() {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
+              });
             },
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
@@ -117,6 +123,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +133,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: isLoading || official == null

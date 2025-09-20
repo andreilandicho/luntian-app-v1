@@ -154,12 +154,13 @@ class _CompletedPostCardState extends State<CompletedPostCard> {
               },
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Hero(
-                  tag: widget.postImage,
-                  child: Image.asset(widget.postImage, fit: BoxFit.cover),
+                child: Image.asset(
+                  widget.postImage,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
+
 
             const SizedBox(height: 12),
 
@@ -239,14 +240,15 @@ class FullScreenImageView extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
-        onTap: () => Navigator.pop(context),
+        onTap: () => Navigator.pop(context), // tap anywhere to close
         child: Center(
-          child: Hero(
-            tag: imagePath,
-            child: Image.asset(imagePath),
+          child: Image.asset(
+            imagePath,
+            fit: BoxFit.contain, // ensures image fits nicely
           ),
         ),
       ),
     );
   }
 }
+

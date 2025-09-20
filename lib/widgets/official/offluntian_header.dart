@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
 class LuntianHeader extends StatelessWidget implements PreferredSizeWidget {
-  final String currentAddress;
   final bool isSmallScreen;
 
   const LuntianHeader({
     super.key,
-    required this.currentAddress,
     required this.isSmallScreen,
   });
 
@@ -33,28 +31,6 @@ class LuntianHeader extends StatelessWidget implements PreferredSizeWidget {
                   fontFamily: 'MaryKate',
                   fontSize: isSmallScreen ? 20 : 24,
                   color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          // Location Icon and Text
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Icon(Icons.location_on, color: Colors.red, size: 18),
-              const SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  currentAddress,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.left,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: isSmallScreen ? 12 : 14,
-                    color: Colors.white,
-                  ),
                 ),
               ),
             ],

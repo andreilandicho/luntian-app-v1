@@ -15,7 +15,6 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   int selectedIndex = 2;
   bool isNavVisible = true;
-  String _currentAddress = "Your Address";
 
   final List<Map<String, dynamic>> notifications = [
     {
@@ -99,7 +98,6 @@ class _NotificationPageState extends State<NotificationPage> {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: LuntianHeader(
-        currentAddress: _currentAddress,
         isSmallScreen: isSmallScreen,
       ),
       body: Padding(
