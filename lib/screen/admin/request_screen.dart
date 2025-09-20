@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bcrypt/bcrypt.dart';
 
 class OfficialsDashboardPage extends StatefulWidget {
   const OfficialsDashboardPage({Key? key}) : super(key: key);
@@ -332,6 +333,9 @@ class _OfficialsDashboardPageState extends State<OfficialsDashboardPage> {
                         if (barangayId == null) {
                           throw Exception("❌ No barangay_id found for logged in user");
                         }
+                        
+                        // Hash the password before storing
+                        final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
 
                         // 1️⃣ Check if email exists
                         final existing = await Supabase.instance.client
@@ -356,9 +360,10 @@ class _OfficialsDashboardPageState extends State<OfficialsDashboardPage> {
                             .insert({
                               "name": name,
                               "email": email,
-                              "password": password,
+                              "password": hashedPassword,
                               "role": "official",
                               "barangay_id": barangayId,
+                              "is_approved": true, // auto-approved since added by admin
                             })
                             .select()
                             .single();
