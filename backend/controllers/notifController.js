@@ -85,7 +85,6 @@ export async function reportNotifBarangay(req, res) {
 
     const phTime = DateTime.now().setZone("Asia/Manila").toISO();
 
-    //  Optional: store in email log
     const { error: emailError } = await supabase.from("email").insert({
       report_id,
       user_id: report.user_id,
@@ -114,75 +113,94 @@ export async function reportNotifBarangay(req, res) {
   }
 }
 export async function officialAssignment(req, res) {
-  const data = req.body;
+  const { report_id } = req.body;
 
   try {
-    // Fetch the official by email
-    const { data: official, error: userError } = await supabase
-      .from("users")
-      .select("user_id, email")
-      .eq("email", data.officialEmail)
-      .single();
+    const { data: assignments, error: assignError } = await supabase
+      .from("report_assignments")
+      .select("official_id")
+      .eq("report_id", report_id);
 
-    if (userError || !official) {
-      console.error(" Official not found:", userError);
-      return;
+    if (assignError || !assignments || assignments.length === 0) {
+      console.error("❌ No officials assigned:", assignError);
+      return res
+        .status(404)
+        .json({ error: "No officials assigned to this report" });
     }
 
-    // Fetch the report details
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .select("*")
-      .eq("report_id", data.reportID)
+      .eq("report_id", report_id)
       .single();
 
     if (reportError || !report) {
-      console.error(" Report not found:", reportError);
-      return;
+      console.error("❌ Report not found:", reportError);
+      return res.status(404).json({ error: "Report not found" });
     }
 
-    // Insert into email log table
-    const { error: emailError } = await supabase.from("email").insert([
-      {
-        report_id: report.report_id,
-        title: "Report Assignment",
-        content: `You've been assigned to report: ${report.description}`,
-        email: official.email,
-        role: "official",
-        status: "sent",
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    for (const assignment of assignments) {
+      const { data: official, error: userError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("user_id", assignment.official_id)
+        .single();
 
-    if (emailError) {
-      console.error(" Error inserting into email log:", emailError);
+      if (userError || !official) {
+        console.error(
+          `❌ Official not found for ID ${assignment.official_id}:`,
+          userError
+        );
+        continue;
+      }
+
+      const { error: emailError } = await supabase.from("email").insert([
+        {
+          report_id: report.report_id,
+          user_id: assignment.official_id,
+          title: "Report Assignment",
+          content: `You've been assigned to report: ${report.description}`,
+          email: official.email,
+          role: "official",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (emailError) {
+        console.error("❌ Error inserting into email log:", emailError);
+      }
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: official.email,
+        subject: `Official Notification: ${report.title}`,
+        html: `
+          <h3>You've been assigned a new report</h3>
+          <p><strong>Report ID:</strong> ${report.report_id}</p>
+          <p><strong>Title:</strong> ${report.title}</p>
+          <p><strong>Description:</strong> ${report.description}</p>
+          <p><strong>Category:</strong> ${report.category}</p>
+          <p><strong>Priority:</strong> ${report.priority}</p>
+          <p><strong>Hazardous:</strong> ${report.hazardous}</p>
+          <p><strong>Deadline:</strong> ${report.deadline}</p>
+          <p><strong>Location:</strong> 
+            <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
+              View on Google Maps
+            </a>
+          </p>
+        `,
+      });
+
+      console.log(`📧 Email sent successfully to ${official.email}`);
     }
 
-    // Send the email notification
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: official.email,
-      subject: `Official Notification: ${report.title}`,
-      html: `
-        <h3>You've been assigned a new report</h3>
-        <p><strong>Report ID:</strong> ${report.report_id}</p>
-        <p><strong>Title:</strong> ${report.title}</p>
-        <p><strong>Description:</strong> ${report.description}</p>
-        <p><strong>Category:</strong> ${report.category}</p>
-        <p><strong>Priority:</strong> ${report.priority}</p>
-        <p><strong>Hazardous:</strong> ${report.hazardous}</p>
-        <p><strong>Deadline:</strong> ${report.deadline}</p>
-        <p><strong>Location:</strong> 
-          <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
-            View on Google Maps
-          </a>
-        </p>
-      `,
+    return res.status(200).json({
+      message: "Emails sent to all assigned officials",
+      report_id,
     });
-
-    console.log(` Email sent successfully to ${official.email}`);
   } catch (error) {
-    console.error(" Error in officialAssignment:", error.message);
+    console.error("❌ Error in officialAssignment:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -194,7 +212,7 @@ export async function reportStatusChange(req, res) {
     const { data: report, error: reportError } = await supabase
       .from("reports")
       .select("status")
-      .eq("report_id", data.reportID)
+      .eq("report_id", data.report_id)
       .single();
 
     if (reportError || !report) {
@@ -207,7 +225,7 @@ export async function reportStatusChange(req, res) {
       // Log to email table
       const { error: emailError } = await supabase.from("email").insert([
         {
-          report_id: data.reportID,
+          report_id: data.report_id,
           title: data.title,
           content: data.content,
           email: data.email,
@@ -225,7 +243,7 @@ export async function reportStatusChange(req, res) {
         from: process.env.EMAIL_USER,
         to: data.barangayEmail,
         subject: `Report Status Update: ${data.title}`,
-        text: `Dear ${data.barangay},\n\nThe status of Report ID ${data.reportID}
+        text: `Dear ${data.barangay},\n\nThe status of Report ID ${data.report_id}
          has changed from PENDING to IN-PROGRESS.\n\nTitle: ${data.title}\nContent: ${data.content}`,
       });
 
