@@ -94,6 +94,7 @@ export async function reportNotifBarangay(req, res) {
       email: barangay.contact_email,
       status: ["sent"],
       created_at: phTime,
+      context: "barangay notification",
     });
 
     if (emailError) {
@@ -163,6 +164,7 @@ export async function officialAssignment(req, res) {
           email: official.email,
           role: "official",
           created_at: new Date().toISOString(),
+          context: "official assignment",
         },
       ]);
 
@@ -205,57 +207,76 @@ export async function officialAssignment(req, res) {
 }
 
 export async function reportStatusChange(req, res) {
-  const data = req.body;
+  const { report_id, newStatus } = req.body;
 
   try {
-    //  Fetch the report first to get its current status
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("status")
-      .eq("report_id", data.report_id)
+      .select("status, user_id, title, description")
+      .eq("report_id", report_id)
       .single();
 
     if (reportError || !report) {
       console.error("❌ Report not found:", reportError);
-      return;
+      return res.status(404).json({ error: "Report not found" });
     }
 
-    //  Check transition: pending → in-progress
-    if (report.status === "pending" && data.status === "in-progress") {
-      // Log to email table
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("email")
+      .eq("user_id", report.user_id)
+      .single();
+
+    if (userError || !user) {
+      console.error("❌ User not found for report:", userError);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (newStatus === "approved" && report.status !== "approved") {
+      // Insert into email log
       const { error: emailError } = await supabase.from("email").insert([
         {
-          report_id: data.report_id,
-          title: data.title,
-          content: data.content,
-          email: data.email,
-          status: data.status,
+          report_id,
+          user_id: report.user_id,
+          title: "Report Approved",
+          content: `Your report "${report.title}" has been approved.`,
+          email: user.email,
+          role: "user",
+          status: ["sent"], // assuming this is text[]
           created_at: new Date().toISOString(),
+          context: "report status change",
         },
       ]);
 
       if (emailError) {
-        console.error(" Error inserting email log:", emailError);
+        console.error("❌ Error inserting email log:", emailError);
       }
 
       // Send notification email
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: data.barangayEmail,
-        subject: `Report Status Update: ${data.title}`,
-        text: `Dear ${data.barangay},\n\nThe status of Report ID ${data.report_id}
-         has changed from PENDING to IN-PROGRESS.\n\nTitle: ${data.title}\nContent: ${data.content}`,
+        to: user.email,
+        subject: `Your Report Has Been Approved`,
+        html: `
+          <h3>Good news!</h3>
+          <p>Your report has been approved.</p>
+          <p><strong>Report ID:</strong> ${report_id}</p>
+          <p><strong>Title:</strong> ${report.title}</p>
+          <p><strong>Description:</strong> ${report.description}</p>
+        `,
       });
 
-      console.log("📨 Status change email sent to:", data.barangayEmail);
+      console.log(`📨 Approval email sent to: ${user.email}`);
     } else {
       console.log(
-        `ℹ️ No email sent. Status changed from ${report.status} to ${data.status}`
+        `ℹ️ No email sent. Status changed from ${report.status} to ${newStatus}`
       );
     }
+
+    return res.status(200).json({ message: "Report status processed" });
   } catch (error) {
-    console.error("Error in reportStatusChange:", error.message);
-    return;
+    console.error("🔥 Error in reportStatusChange:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
   }
 }
 
