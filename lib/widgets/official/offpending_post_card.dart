@@ -200,6 +200,7 @@ class _PendingPostCardState extends State<PendingPostCard> {
 
             /// Upvote / Downvote Row + Action Button
             Row(
+              mainAxisAlignment: MainAxisAlignment.center, // 👈 centers the button
               children: [
                 /// Action Button
                 ElevatedButton(
@@ -213,7 +214,7 @@ class _PendingPostCardState extends State<PendingPostCard> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 5, 102, 181),
-                    padding: const EdgeInsets.symmetric(horizontal: 115, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 6),
                     minimumSize: const Size(0, 30),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -221,11 +222,16 @@ class _PendingPostCardState extends State<PendingPostCard> {
                   ),
                   child: const Text(
                     "Take a Photo",
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
-            ),
+            )
+
           ],
         ),
       ),

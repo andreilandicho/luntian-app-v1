@@ -26,4 +26,23 @@ class OfficialProfileService {
     }
     return null;
   }
+
+  //change password
+  Future<bool> changePassword(int userId, String oldPassword, String newPassword) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/change-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        'oldPassword': oldPassword,
+        'newPassword': newPassword,
+      }),
+    );
+
+    if (response.statusCode == 200) return true;
+
+    final data = jsonDecode(response.body);
+    throw Exception(data['error'] ?? 'Failed to change password.');
+  }
+
 }

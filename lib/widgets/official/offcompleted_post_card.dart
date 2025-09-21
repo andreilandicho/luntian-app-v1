@@ -185,6 +185,7 @@ class _CompletedPostCardState extends State<CompletedPostCard> {
 
             /// Action Row (for completed, you might want different button text?)
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
                   onPressed: () {
@@ -209,7 +210,7 @@ class _CompletedPostCardState extends State<CompletedPostCard> {
 
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 5, 102, 181),
-                    padding: const EdgeInsets.symmetric(horizontal: 125, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 110, vertical: 6),
                     minimumSize: const Size(0, 30),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
