@@ -212,13 +212,23 @@ export async function reportStatusChange(req, res) {
   try {
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("status, user_id, title, description")
+      .select("status, user_id, description")
       .eq("report_id", report_id)
       .single();
 
     if (reportError || !report) {
       console.error("❌ Report not found:", reportError);
       return res.status(404).json({ error: "Report not found" });
+    }
+
+    if (newStatus !== report.status) {
+      await supabase
+        .from("reports")
+        .update({ status: newStatus })
+        .eq("report_id", report_id);
+    } else {
+      console.log(`ℹ️ No change. Status is already "${newStatus}"`);
+      return res.status(200).json({ message: "No status change applied" });
     }
 
     const { data: user, error: userError } = await supabase
@@ -238,11 +248,11 @@ export async function reportStatusChange(req, res) {
         {
           report_id,
           user_id: report.user_id,
-          title: "Report Approved",
-          content: `Your report "${report.title}" has been approved.`,
+          title: "Report Approved", // required for populating so it doesnt go null and break
+          content: `Your report "${report.description}" has been approved.`, // required same here
+          role: "citizen", // role like you did with barangay/official
           email: user.email,
-          role: "user",
-          status: ["sent"], // assuming this is text[]
+          status: ["sent"],
           created_at: new Date().toISOString(),
           context: "report status change",
         },
@@ -261,7 +271,6 @@ export async function reportStatusChange(req, res) {
           <h3>Good news!</h3>
           <p>Your report has been approved.</p>
           <p><strong>Report ID:</strong> ${report_id}</p>
-          <p><strong>Title:</strong> ${report.title}</p>
           <p><strong>Description:</strong> ${report.description}</p>
         `,
       });
