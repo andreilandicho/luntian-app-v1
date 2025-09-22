@@ -231,6 +231,16 @@ export async function reportStatusChange(req, res) {
       return res.status(200).json({ message: "No status change applied" });
     }
 
+    const { error: updateError } = await supabase
+      .from("reports")
+      .update({ status: newStatus })
+      .eq("report_id", report_id);
+
+    if (updateError) {
+      console.error("❌ Failed to update report status:", updateError);
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("email")
