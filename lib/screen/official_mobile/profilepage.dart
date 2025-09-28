@@ -20,7 +20,6 @@ class _ProfilePageState extends State<ProfilePage> {
   int selectedIndex = 3; // Profile tab index
   bool isNavVisible = true;
 
-
   UserOfficialModel? official;
   String barangayName = '';
   String barangayCity = '';
@@ -44,7 +43,8 @@ class _ProfilePageState extends State<ProfilePage> {
         profilePicUrl = loadedOfficial.officialProfileUrl;
       });
       // Fetch barangay info
-      final barangayInfo = await BarangayService().getBarangayInfo(loadedOfficial.officialBarangayId);
+      final barangayInfo =
+          await BarangayService().getBarangayInfo(loadedOfficial.officialBarangayId);
       if (barangayInfo != null) {
         setState(() {
           barangayName = barangayInfo['barangay_name'] ?? '';
@@ -71,6 +71,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
   }
+
   Future<void> _changeProfilePicture() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
@@ -104,7 +105,80 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     }
   }
-  
+
+  void _showChangePasswordDialog() {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final retypePasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Change Password"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldPasswordController,
+                decoration: const InputDecoration(labelText: "Old Password"),
+                obscureText: true,
+              ),
+              TextField(
+                controller: newPasswordController,
+                decoration: const InputDecoration(labelText: "New Password"),
+                obscureText: true,
+              ),
+              TextField(
+                controller: retypePasswordController,
+                decoration: const InputDecoration(labelText: "Retype New Password"),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (newPasswordController.text != retypePasswordController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("New passwords do not match")),
+                  );
+                  return;
+                }
+
+                try {
+                  if (official == null) return;
+
+                  final success = await OfficialProfileService().changePassword(
+                    official!.officialUserId,
+                    oldPasswordController.text,
+                    newPasswordController.text,
+                  );
+
+                  if (success) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Password changed successfully")),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e")),
+                  );
+                }
+              },
+              child: const Text("Change"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _logout() {
     showDialog(
       context: context,
@@ -141,7 +215,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +253,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             onTap: _changeProfilePicture,
                             child: const CircleAvatar(
                               radius: 16,
-                        backgroundColor: Colors.white,
+                              backgroundColor: Colors.white,
                               child: Icon(Icons.edit, size: 18, color: Colors.black),
                             ),
                           ),
@@ -192,7 +265,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     // Name & Location
                     Text(
                       official!.officialName,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -206,7 +280,22 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Action Buttons
+                    // Change Password button
+                    SizedBox(
+                      width: 200,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: _showChangePasswordDialog,
+                        child: const Text('Change Password', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Logout button
                     SizedBox(
                       width: 200,
                       child: ElevatedButton(
@@ -218,7 +307,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         onPressed: _logout,
                         child: const Text('Log Out', style: TextStyle(fontSize: 16)),
                       ),
-              ),
+                    ),
                   ],
                 ),
               ),

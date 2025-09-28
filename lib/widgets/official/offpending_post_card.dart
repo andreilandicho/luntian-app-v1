@@ -300,35 +300,37 @@ class _PendingPostCardState extends State<PendingPostCard> {
               ),
             ),
 
-            // Action Button
+            // Action Button - Fixed version
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ProofAction(reportId: widget.reportId),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProofAction(reportId: widget.reportId),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 5, 102, 181),
+                    padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 5, 102, 181),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    "Take a Photo",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                child: const Text(
-                  "Take a Photo",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -391,17 +393,17 @@ class _FullScreenImageViewState extends State<FullScreenImageView> {
                 child: Hero(
                   tag: img,
                   child: Center(
-                child: img.startsWith('http')
-                    ? Image.network(
-                        img,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.broken_image, size: 48, color: Colors.white),
-                      )
-                    : Image.asset(
-                        img,
-                        fit: BoxFit.contain,
-                      ),
+                    child: img.startsWith('http')
+                        ? Image.network(
+                            img,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.broken_image, size: 48, color: Colors.white),
+                          )
+                        : Image.asset(
+                            img,
+                            fit: BoxFit.contain,
+                          ),
                   ),
                 ),
               );
