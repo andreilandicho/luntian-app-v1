@@ -150,7 +150,8 @@ class _UserHomePageState extends State<UserHomePage> {
         return;
       }
       final solvedReports = await _reportService.getSolvedReportsByBarangay(
-        _currentUser!.barangayId ?? 0
+        _currentUser!.barangayId ?? 0,
+        _currentUser!.id
       );
       final formattedSolvedReports = solvedReports.map((report) {
         return {
@@ -176,6 +177,8 @@ class _UserHomePageState extends State<UserHomePage> {
           'after_photo_urls': report.afterPhotoUrls ?? [],
           'assigned_officials': report.assignedOfficials ?? [],
           'overall_average_rating': report.overallAverageRating ?? 0.0,
+          'has_user_rated': report.hasUserRated,
+          'user_rating': report.userRating ?? []
         };
       }).toList();
       setState(() {
@@ -514,7 +517,7 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
   Map<int, int> currentPages = {};
   bool showFab = false;
 
-  ReportSortType _sortType = ReportSortType.latest;
+  ReportSortType _sortType = ReportSortType.relevant;
 
   @override
   void initState() {
@@ -569,28 +572,75 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
     }
     return posts;
   }
-    Widget _buildFilterButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        FilterChip(
-          label: const Text('Relevant'),
+Widget _buildFilterButtons() {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(right: 8.0),
+        child: Text(
+          'Sort by:',
+          style: TextStyle(
+            color: Color(0xFF328E6E),
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Poppins',
+            fontSize: 12,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      Expanded(
+        child: FilterChip(
+          label: const Text('Relevance'),
+          labelStyle: TextStyle(
+            color: _sortType == ReportSortType.relevant ? Colors.white : const Color(0xFF328E6E),
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w500,
+          ),
           selected: _sortType == ReportSortType.relevant,
+          selectedColor: const Color(0xFF328E6E),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: _sortType == ReportSortType.relevant ? const Color(0xFF328E6E) : Colors.grey.shade300,
+            ),
+          ),
           onSelected: (_) {
             setState(() => _sortType = ReportSortType.relevant);
           },
+          showCheckmark: true,
+          checkmarkColor: Colors.white,
         ),
-        const SizedBox(width: 8),
-        FilterChip(
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: FilterChip(
           label: const Text('Latest'),
+          labelStyle: TextStyle(
+            color: _sortType == ReportSortType.latest ? Colors.white : const Color(0xFF328E6E),
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w500,
+          ),
           selected: _sortType == ReportSortType.latest,
+          selectedColor: const Color(0xFF328E6E),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: _sortType == ReportSortType.latest ? const Color(0xFF328E6E) : Colors.grey.shade300,
+            ),
+          ),
           onSelected: (_) {
             setState(() => _sortType = ReportSortType.latest);
           },
+          showCheckmark: true,
+          checkmarkColor: Colors.white,
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -668,7 +718,9 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
                             )
                           : ListView.builder(
                               controller: widget.scrollController,
-                              padding: EdgeInsets.all(screenWidth * 0.04),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.04 > 20 ? 20 : screenWidth * 0.04,
+                              ),
                               itemCount: _sortedPosts.length + 1,
                               itemBuilder: (context, index) {
                                 if (index == 0) {
@@ -752,7 +804,9 @@ class ReportPageState extends State<ReportPage> with TickerProviderStateMixin {
                             )
                           : ListView.builder(
                               controller: widget.scrollController,
-                              padding: EdgeInsets.all(screenWidth * 0.04),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.04 > 20 ? 20 : screenWidth * 0.04,
+                              ),
                               itemCount: widget.solvedPosts.length,
                               itemBuilder: (context, index) {
                                 final post = widget.solvedPosts[index];

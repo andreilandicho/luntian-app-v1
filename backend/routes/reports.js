@@ -151,6 +151,7 @@ router.get('/user/:userId', async (req, res) => {
 router.get('/solved/:barangayId', async (req, res) => {
   try {
     const { barangayId } = req.params;
+    const { userId } = req.query;
 
     // Use a single query with nested relationships
     const { data: reports, error } = await supabase
@@ -165,6 +166,8 @@ router.get('/solved/:barangayId', async (req, res) => {
       .eq('barangay_id', barangayId)
       .eq('status', 'resolved')
       .order('created_at', { ascending: false });
+    // Check if current user is interested
+      
 
     if (error) {
       return res.status(500).json({ error: error.message });
@@ -174,7 +177,7 @@ router.get('/solved/:barangayId', async (req, res) => {
       return res.json([]);
     }
 
-    const formattedReports = reports.map(report => {
+    const formattedReports = await Promise.all(reports.map(async report => {
       const assignedOfficials = report.report_assignments 
         ? report.report_assignments.map(assignment => assignment.official_id)
         : [];
@@ -190,6 +193,23 @@ router.get('/solved/:barangayId', async (req, res) => {
       const solution = report.report_solutions && report.report_solutions.length > 0 
         ? report.report_solutions[0] 
         : {};
+      // Check if the current user has rated this report
+      let hasUserRated = false;
+      let userRating = null;
+      if (userId) {
+        const { data: rateData, error: rateError } = await supabase
+          .from('report_ratings')
+          .select('*')
+          .eq('report_id', report.report_id)
+          .eq('rated_by', parseInt(userId))
+          .limit(1)
+          .maybeSingle();
+
+        if (rateData) {
+          hasUserRated = true;
+          userRating = rateData;
+        }
+      }
 
       // Create a new object without the nested relationships
       const { report_solutions, report_assignments, report_ratings, ...reportData } = report;
@@ -201,9 +221,11 @@ router.get('/solved/:barangayId', async (req, res) => {
         solution_updated: solution.updated_at,
         after_photo_urls: solution.after_photo_urls,
         assigned_officials: assignedOfficials,
-        overall_average_rating: overallAverageRating
+        overall_average_rating: overallAverageRating,
+        has_user_rated: hasUserRated,
+        user_rating: userRating // Will be null if not rated
       };
-    });
+    }));
 
     res.json(formattedReports);
   } catch (err) {

@@ -1,6 +1,7 @@
 // lib/services/report_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart';
 import '../models/report_model.dart';
 import '../models/solved_report_model.dart';
 
@@ -25,10 +26,10 @@ class ReportService {
     }
   }
 
-  Future<List<SolvedReportModel>> getSolvedReportsByBarangay(int barangayId) async {
+  Future<List<SolvedReportModel>> getSolvedReportsByBarangay(int barangayId, int currentUserId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/reports/solved/$barangayId'),
+        Uri.parse('$baseUrl/reports/solved/$barangayId?userId=$currentUserId'),
         headers: {'Content-Type': 'application/json'},
       );
       

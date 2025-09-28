@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class ViewReportPage extends StatefulWidget {
   final String reporterName;
   final String profileImage;
-  final String reportTime;
   final String reportDate;
   final String status; // "Accepted", "Rejected", "Pending"
   final String postImage;
@@ -14,7 +13,6 @@ class ViewReportPage extends StatefulWidget {
     super.key,
     required this.reporterName,
     required this.profileImage,
-    required this.reportTime,
     required this.reportDate,
     required this.status,
     required this.postImage,
@@ -131,8 +129,7 @@ class _ViewReportPageState extends State<ViewReportPage> {
                     children: [
                       Text(widget.reporterName,
                           style: const TextStyle(fontWeight: FontWeight.bold)),
-                      Text(
-                        "${widget.reportDate} • ${widget.reportTime}",
+                      Text(widget.reportDate,
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],

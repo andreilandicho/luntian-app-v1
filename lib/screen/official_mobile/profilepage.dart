@@ -51,7 +51,24 @@ class _ProfilePageState extends State<ProfilePage> {
           barangayCity = barangayInfo['barangay_municipality'] ?? '';
           isLoading = false;
         });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
       }
+    } else {
+      // No official_data found, stop loading and optionally navigate to login
+      setState(() {
+        isLoading = false;
+        official = null;
+      });
+      // Optionally, navigate to login automatically:
+      Future.microtask(() {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
+      });
     }
   }
   Future<void> _changeProfilePicture() async {
@@ -115,6 +132,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   MaterialPageRoute(builder: (_) => const LoginPage()),
                   (route) => false,
                 );
+                print('Navigated to LoginPage');
               });
             },
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
@@ -135,8 +153,10 @@ class _ProfilePageState extends State<ProfilePage> {
       appBar: LuntianHeader(
         isSmallScreen: isSmallScreen,
       ),
-      body: isLoading || official == null
+      body: isLoading
           ? const Center(child: CircularProgressIndicator())
+          : official == null
+              ? const Center(child: Text('You are not logged in.No official data found.'))
           : Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),

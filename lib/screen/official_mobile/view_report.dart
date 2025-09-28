@@ -58,7 +58,6 @@ class _ViewReportState extends State<ViewReport> {
                 postImage: widget.report['postImage'] ?? "assets/placeholder.png",
                 status: widget.status, // ✅ Dynamic
                 reportDate: widget.report['reportDate'] ?? "N/A",
-                reportTime: widget.report['reportTime'] ?? "N/A",
                 statusDescription: widget.report['statusDescription'] ?? "",
               ),
 

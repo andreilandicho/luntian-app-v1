@@ -295,9 +295,9 @@ class _ReportCardState extends State<ReportCard> {
       );
       return;
     }
-
+    //assigning officials
     try {
-      // Insert into report_assignments for each selected person
+      // official assignments
       for (final person in chosenPeople) {
         // Handle different possible field names for user ID
         final userId = person['user_id'] ?? 

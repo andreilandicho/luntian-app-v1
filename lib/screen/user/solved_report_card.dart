@@ -81,6 +81,7 @@ class SolvedReportCard extends StatelessWidget {
     );
   }
 
+
   void _showRatingModal(BuildContext context) {
     int satisfactionRating = 0;
     int responseTimeRating = 0;
@@ -159,7 +160,7 @@ class SolvedReportCard extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Submit rating logic here
+                      // to-dO: Call your submit rating API here with satisfactionRating, responseTimeRating, and suggestion
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text("Rating submitted successfully!")),
@@ -176,9 +177,62 @@ class SolvedReportCard extends StatelessWidget {
       ),
     );
   }
+    void _showViewRatingModal(BuildContext context, Map<String, dynamic>? userRating) {
+  if (userRating == null) return;
+  showModalBottomSheet(
+    context: context,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (context) => Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Your Rating",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          Text("Satisfaction: ${userRating['satisfaction_stars'] ?? '-'} / 5"),
+          Text("Response Time: ${userRating['response_time_stars'] ?? '-'} / 5"),
+          if (userRating['comments'] != null && userRating['comments'].toString().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12.0),
+              child: Text("Comments: ${userRating['comments']}"),
+            ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.delete, color: Colors.white),
+              label: const Text("Delete Rating"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                // TODO: Call your delete rating API here
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Rating deleted.")),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
+    print('Report ${post['report_id']} has_user_rated: ${post['has_user_rated']} (${post['has_user_rated'].runtimeType})');
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmall = screenWidth < 400;
     final clampedImageHeight = (MediaQuery.of(context).orientation == Orientation.portrait
@@ -342,8 +396,10 @@ class SolvedReportCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   // Buttons for solved reports
+                  
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    
                     children: [
                       ElevatedButton.icon(
                         onPressed: () => _showSolutionImages(context, post['after_photo_urls'] ?? []),
@@ -354,11 +410,18 @@ class SolvedReportCard extends StatelessWidget {
                           foregroundColor: Colors.white,
                         ),
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => _showRatingModal(context),
-                        icon: const Icon(Icons.star_rate),
-                        label: const Text("Rate Solution"),
-                      ),
+                      if (post['has_user_rated'] == true || post['has_user_rated'] == 1 || post['has_user_rated'] == 'true')
+                        ElevatedButton.icon(
+                          onPressed: () => _showViewRatingModal(context, post['user_rating']),
+                          icon: const Icon(Icons.star),
+                          label: const Text("View Rating"),
+                        )
+                      else
+                        ElevatedButton.icon(
+                          onPressed: () => _showRatingModal(context),
+                          icon: const Icon(Icons.star_rate),
+                          label: const Text("Rate Solution"),
+                        ),
                     ],
                   ),
                 ],

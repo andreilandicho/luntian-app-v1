@@ -212,12 +212,23 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                               backgroundColor: Colors.green.shade50,
                             ))
                         .toList(),
-                  )
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "Resolution Rate: ${barangay['resolution_rate'] != null ? (barangay['resolution_rate'] as num).toStringAsFixed(2) : '0.00'}%",
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  Builder(
+                    builder: (context) {
+                      double percent = barangay['average_user_rate'] != null ? (barangay['average_user_rate'] as num).toDouble() : 0.0;
+                      double starRating = (percent / 100) * 5;
+                      return Text(
+                        "Average User Rating: ${starRating.toStringAsFixed(2)}⭐",
+                        style: const TextStyle(fontSize: 12),
+                      );
+                    },
+                  ),
                 ],
-              ),
-              trailing: Text(
-                "${barangay['received_reports']} reports",
-                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
           ),

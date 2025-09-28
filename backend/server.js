@@ -14,6 +14,7 @@ import cors from 'cors';
 
 //for maintenance officials
 import maintenanceOfficialRouter from './routes/maintenance/user_official.js'
+import officialReportsRouter from './routes/maintenance/official_reports.js'
 
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/leaderboards', leaderboardsRouter);
 
 //for maintenance officials
 app.use('/official', maintenanceOfficialRouter);
+app.use('/official-reports', officialReportsRouter);
 
 
 app.listen(3000, () => console.log('Server running on port 3000'));
