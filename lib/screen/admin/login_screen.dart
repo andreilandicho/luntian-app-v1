@@ -194,10 +194,13 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
                                             // ✅ Passed all checks → navigate to dashboard
                                             final barangayId = user['barangay_id'];
+                                            final userId = user['user_id']; //added 
 
                                             // store globally or in SharedPreferences
                                             final prefs = await SharedPreferences.getInstance();
                                             await prefs.setInt('barangay_id', barangayId);
+                                            await prefs.setInt("user_id", userId); // added
+
 
                                             Navigator.pushReplacement(
                                               context,
@@ -430,10 +433,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
 
                               // ✅ Passed all checks → navigate to dashboard
                               final barangayId = user['barangay_id'];
+                              final userId = user['user_id'];
 
                               // store globally or in SharedPreferences
                               final prefs = await SharedPreferences.getInstance();
                               await prefs.setInt('barangay_id', barangayId);
+                              await prefs.setInt('user_id', userId); //add para magfetch yung events
 
                               Navigator.pushReplacement(
                                 context,

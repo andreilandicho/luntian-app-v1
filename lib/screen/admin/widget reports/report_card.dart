@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert'; // for jsonEncode
+import 'package:http/http.dart' as http; // for http.post, etc.
+
 
 class ReportCard extends StatefulWidget {
   final Map<String, dynamic> report;
@@ -278,68 +281,101 @@ class _ReportCardState extends State<ReportCard> {
   }
 
   Future<void> _handleAssign() async {
-    final chosenPeople = await _pickAssignees();
-    if (chosenPeople == null || chosenPeople.isEmpty) return;
+  final chosenPeople = await _pickAssignees();
+  if (chosenPeople == null || chosenPeople.isEmpty) return;
 
-    // Handle different possible field names for report ID
-    final reportId = widget.report['reportId'] ?? 
-                    widget.report['report_id'] ?? 
-                    widget.report['id'];
+  final reportId = widget.report['reportId'] ??
+      widget.report['report_id'] ??
+      widget.report['id'];
 
-    if (reportId == null) {
-      print('Debug: Report keys: ${widget.report.keys}');
-      print('Debug: Report ID: $reportId');
-      
+  if (reportId == null) {
+    print('Debug: Report keys: ${widget.report.keys}');
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ Missing report ID")),
       );
-      return;
+    }
+    return;
+  }
+
+  try {
+    // Insert or upsert assignments safely
+    for (final person in chosenPeople) {
+      final userId = person['user_id'] ??
+          person['id'] ??
+          person['userId'] ??
+          person['official_id'];
+      if (userId == null) continue;
+
+      final insertRes = await supabase
+        .from('report_assignments')
+        .upsert([
+          {
+            'report_id': reportId,
+            'official_id': userId,
+            'assigned_at': DateTime.now().toIso8601String(),
+          }
+        ], onConflict: 'report_id,official_id');
+
+
+      if (insertRes == null) {
+        print("❌ Insert returned null — check table access or RLS");
+      } else if (insertRes.error != null) {
+        print("❌ Insert error for user $userId: ${insertRes.error!.message}");
+      } else {
+        print("✅ Assignment inserted for user $userId");
+      }
     }
 
+    // Update report status
+    final updateRes = await supabase
+        .from('reports')
+        .update({'status': 'in_progress'})
+        .eq('report_id', reportId);
+
+    if (updateRes == null) {
+      print("❌ Update returned null — check table access");
+    } else if (updateRes.error != null) {
+      print("❌ Update error: ${updateRes.error!.message}");
+    } else {
+      print("✅ Report status updated");
+    }
+
+    // Call backend to trigger emails
     try {
-      // Insert into report_assignments for each selected person
-      for (final person in chosenPeople) {
-        // Handle different possible field names for user ID
-        final userId = person['user_id'] ?? 
-                      person['id'] ?? 
-                      person['userId'] ?? 
-                      person['official_id'];
-
-        if (userId == null) {
-          print('Debug: Person keys: ${person.keys}');
-          continue;
-        }
-
-        await supabase.from('report_assignments').insert({
-          'report_id': reportId,
-          'official_id': userId,
-          'assigned_at': DateTime.now().toIso8601String(),
-        });
-      }
-
-      // Optionally update report status
-      await supabase.from('reports').update({
-        'status': 'in_progress',
-      }).eq('report_id', reportId);
-
-      // Update local UI - create a comma-separated list of names
-      final names = chosenPeople
-          .map((p) => p["name"] ?? p["userName"] ?? "Unknown")
-          .join(", ");
-      
-      widget.report["assignedTo"] = names;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Assigned to ${chosenPeople.length} person(s)"),
-          duration: const Duration(seconds: 2),
-        ),
+      final backendRes = await http.post(
+        Uri.parse("http://localhost:3000/notif/officialAssignment"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"report_id": reportId}),
       );
 
-      // Inform parent
-      widget.onAssign(widget.report);
+      if (backendRes.statusCode == 200) {
+        print("✅ Official notification triggered successfully");
+      } else {
+        print("❌ Backend error: ${backendRes.body}");
+      }
     } catch (e) {
-      print("❌ Failed to assign: $e");
+      print("❌ Failed to call backend: $e");
+    }
+
+    if (!mounted) return;
+
+    final names = chosenPeople
+        .map((p) => p["name"] ?? p["userName"] ?? "Unknown")
+        .join(", ");
+    widget.report["assignedTo"] = names;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Assigned to ${chosenPeople.length} person(s)"),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+
+    widget.onAssign(widget.report);
+  } catch (e) {
+    print("❌ Failed to assign: $e");
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Failed to assign report"),
@@ -348,6 +384,9 @@ class _ReportCardState extends State<ReportCard> {
       );
     }
   }
+}
+
+
 
   @override
   Widget build(BuildContext context) {

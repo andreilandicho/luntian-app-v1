@@ -124,6 +124,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
 
   Future<void> _fetchUserReports() async {
     if (widget.user == null) {
+      if(!mounted) return;
       setState(() {
         isLoadingReports = false;
         reportsError = 'No user found';
@@ -132,6 +133,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
     }
     try {
       final reports = await ReportService().getReportsByUser(widget.user!.id);
+      if(!mounted) return;
       setState(() {
         userReports = reports.map((r) => r.toMap()).toList();
         isLoadingReports = false;
@@ -140,6 +142,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
         allBadges.firstWhere((b) => b['name'] == 'Report Master')['progress'] = upvotes;
       });
     } catch (e) {
+      if(!mounted) return;
       setState(() {
         isLoadingReports = false;
         reportsError = e.toString();
@@ -150,6 +153,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   // Fetch user events or event handling
   Future<void> _fetchUserEvents() async {
     if (widget.user == null) {
+      if(!mounted) return;
       setState(() {
         isLoadingEvents = false;
         eventsError = 'No user found';
@@ -172,17 +176,21 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
             : [];
         final List<Map<String, dynamic>> events =
             List<Map<String, dynamic>>.from(data);
+        
+        if(!mounted) return;
         setState(() {
           userEvents = events.map(_eventJsonToCardMap).toList();
           isLoadingEvents = false;
         });
       } else {
+        if(!mounted) return;
         setState(() {
           isLoadingEvents = false;
           eventsError = 'Failed to load events: ${response.statusCode}';
         });
       }
     } catch (e) {
+      if(!mounted) return;
       setState(() {
         isLoadingEvents = false;
         eventsError = e.toString();

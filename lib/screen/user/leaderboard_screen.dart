@@ -91,6 +91,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
   }
 
   Future<void> _fetchLeaderboardData() async {
+    if(!mounted) return;
     setState(() {
       _isLoading = true;
       _loadingProgress = 0.0;
@@ -102,10 +103,12 @@ class _LeaderboardPageState extends State<LeaderboardPage>
       );
       
       // Simulate progress updates
+      if(!mounted) return;
       setState(() => _loadingProgress = 0.5);
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        if(!mounted) return;
         setState(() {
           _barangaysWithReports = data['with_reports'];
           _peacefulBarangays = data['no_reports'];
@@ -120,6 +123,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
       }
     } catch (error) {
       print('Error fetching data: $error');
+
+      if(!mounted) return;
       setState(() => _isLoading = false);
     }
   }

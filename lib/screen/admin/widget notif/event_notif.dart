@@ -14,49 +14,60 @@ class EventNotificationWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isUnread = notif["unread"] as bool;
+    // Use safe defaults
+    final bool unread = notif["unread"] as bool? ?? false;
+    final String title = notif["title"] ?? "No title";
+    final String subtitle = notif["subtitle"] ?? "No details";
+    final String? profile = notif["profile"];
+    final Map<String, dynamic> event = notif["event"] ?? {};
+    final DateTime? date = event["date"] is DateTime ? event["date"] : null;
+    final int volunteers = event["volunteers"] ?? 0;
+    final String description = event["description"] ?? "No description";
+    final String details = event["details"] ?? "";
+    final String status = event["status"] ?? "pending";
 
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isSelected
-              ? Colors.blue
-              : isUnread
-                  ? Colors.blue.shade400
-                  : Colors.grey.shade300,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      elevation: isUnread ? 4 : 1,
       margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundImage: AssetImage(notif["profile"]),
-          radius: 22,
+          backgroundImage: profile != null ? AssetImage(profile) : null,
+          child: profile == null ? const Icon(Icons.event) : null,
         ),
-        title: Row(
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: unread ? Colors.black : Colors.grey[700],
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.event, size: 16, color: Colors.blue),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                notif["title"],
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
+            Text(subtitle),
+            const SizedBox(height: 4),
+            if (date != null)
+              Text("📅 ${date.toLocal().toString().split(" ")[0]}"),
+            Text("👥 Volunteers: $volunteers"),
+            Text(description),
+            if (details.isNotEmpty) Text(details),
+            Text("Status: $status"),
           ],
         ),
-        subtitle: Text(
-          notif["subtitle"],
-          style: TextStyle(color: Colors.grey[700]),
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.red),
-          onPressed: onDelete,
+        trailing: Wrap(
+          spacing: 8,
+          children: [
+            Checkbox(
+              value: isSelected,
+              onChanged: (_) {
+                // handled in parent
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.redAccent),
+              onPressed: onDelete,
+            ),
+          ],
         ),
       ),
     );

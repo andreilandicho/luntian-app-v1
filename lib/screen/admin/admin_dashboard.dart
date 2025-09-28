@@ -597,8 +597,11 @@ Widget _dashboardContent(BuildContext context) {
                 // 🔹 PIE CHART
                 _pieCard(),
 
-                _alertsCard(),
                 const SizedBox(height: 18),
+
+                //fix the spacing
+                _alertsCard(),
+                const SizedBox(height: 25),
 
                 // 🔹 STAT CARDS (responsive)
                 LayoutBuilder(

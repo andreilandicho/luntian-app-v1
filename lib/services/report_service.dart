@@ -133,13 +133,32 @@ class ReportService {
       throw Exception('Error fetching user report stats: $e');
     }
   }
+  
   Future<List<ReportModel>> getReportsByUser(int userId) async {
-  final response = await http.get(Uri.parse('$baseUrl/reports/user/$userId'));
-  if (response.statusCode == 200) {
-    final List data = jsonDecode(response.body);
-    return data.map((json) => ReportModel.fromJson(json)).toList();
-  } else {
-    throw Exception('Failed to fetch reports by user');
+    final response = await http.get(Uri.parse('$baseUrl/reports/user/$userId'));
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => ReportModel.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to fetch reports by user');
+    }
   }
-}
+
+  Future<List<Map<String, dynamic>>> getUserNotifications(int userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/notifications/$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      } else {
+        throw Exception('Failed to load notifications: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error fetching notifications: $e');
+    }
+  }
 }

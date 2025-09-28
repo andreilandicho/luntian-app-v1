@@ -888,9 +888,23 @@ class _AddPageState extends State<AddPage> {
       final response = await supabase
           .from('reports')
           .insert(reportData)
-          .select();
+          .select()
+          .single();
+
+      final reportId = response['report_id']; // ✅ matches Supabase table
 
       //emailer insert
+      final backendRes = await http.post(
+        Uri.parse("http://10.0.2.2:3000/notif/notifBarangay"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"report_id": reportId}),
+      );
+
+      if (backendRes.statusCode == 200) {
+        print("✅ Barangay notification triggered successfully");
+      } else {
+        print("❌ Backend error: ${backendRes.body}");
+      }
 
       // 6. clean up local images
       await _cleanupLocalImages();

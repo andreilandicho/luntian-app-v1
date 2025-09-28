@@ -297,6 +297,28 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  //for selecting photos in events
+  Future<List<String>> _uploadSelectedImagesToSupabase(List<XFile> images) async {
+  final urls = <String>[];
+  for (var img in images) {
+    final bytes = await img.readAsBytes();
+    final fileName = "event_${DateTime.now().millisecondsSinceEpoch}.jpg";
+
+    final res = await Supabase.instance.client.storage
+        .from("event-photos")
+        .uploadBinary(fileName, bytes,
+            fileOptions: const FileOptions(contentType: "image/jpeg"));
+
+    final publicUrl = Supabase.instance.client.storage
+        .from("event-photos")
+        .getPublicUrl(fileName);
+
+    urls.add(publicUrl);
+  }
+  return urls;
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -336,6 +358,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ],
               ),
+              //added floating button as add event
+              floatingActionButton: FloatingActionButton(
+              onPressed: _openAddEventDialog,
+              child: const Icon(Icons.add),
+            ),
       ),
     );
   }
@@ -827,6 +854,255 @@ void _openChangePassword() {
     },
   );
 }
+
+//for pop box to insert the information of event
+void _openAddEventDialog() {
+  final titleController = TextEditingController();
+  final descriptionController = TextEditingController();
+  final volunteersController = TextEditingController();
+  DateTime? dateTime;
+  bool isPublic = true;
+  List<XFile> selectedImages = [];
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Colors.grey.shade50,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: const [
+                Icon(Icons.event_available, color: Colors.blue),
+                SizedBox(width: 8),
+                Text(
+                  "Create New Event",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 600,  // ✅ fixed width
+              height: 500, // ✅ fixed height (prevents shrinking)
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title
+                      TextField(
+                        controller: titleController,
+                        decoration: InputDecoration(
+                          labelText: "Event Title *",
+                          prefixIcon: const Icon(Icons.title),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Description
+                      TextField(
+                        controller: descriptionController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: "Description",
+                          prefixIcon: const Icon(Icons.description),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Volunteers
+                      TextField(
+                        controller: volunteersController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: "Volunteers Needed",
+                          prefixIcon: const Icon(Icons.group),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Date Picker
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              dateTime == null
+                                  ? "📅 Select event date"
+                                  : DateFormat.yMMMd().format(dateTime!),
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.calendar_today, size: 18),
+                            label: const Text("Pick"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade600,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (picked != null) {
+                                setDialogState(() => dateTime = picked);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Public / Private
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(isPublic ? "🌍 Public" : "🔒 Private"),
+                          Switch(
+                            value: isPublic,
+                            onChanged: (val) => setDialogState(() => isPublic = val),
+                            activeColor: Colors.blue,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Image Upload
+                      const Text("📷 Event Photos"),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ...selectedImages.map((img) => ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: kIsWeb
+                                    ? Image.network(img.path, width: 70, height: 70, fit: BoxFit.cover)
+                                    : Image.file(File(img.path), width: 70, height: 70, fit: BoxFit.cover),
+                              )),
+                          InkWell(
+                            onTap: () async {
+                              final picker = ImagePicker();
+                              final imgs = await picker.pickMultiImage();
+                              if (imgs.isNotEmpty) {
+                                setDialogState(() => selectedImages.addAll(imgs));
+                              }
+                            },
+                            child: Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.add_a_photo, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (titleController.text.isEmpty || dateTime == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Please fill all required fields")),
+                    );
+                    return;
+                  }
+
+                  try {
+                    final imageUrls = await _uploadSelectedImagesToSupabase(selectedImages);
+
+                    final prefs = await SharedPreferences.getInstance();
+                    final barangayId = prefs.getInt("barangay_id");
+                    final userId = prefs.getInt("user_id");
+
+                    if (barangayId == null || userId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Missing barangay or user ID")),
+                      );
+                      return;
+                    }
+
+                    final eventData = {
+                      "title": titleController.text,
+                      "description": descriptionController.text,
+                      "event_date": dateTime?.toIso8601String(),
+                      "volunteers_needed": int.tryParse(volunteersController.text) ?? 0,
+                      "isPublic": isPublic,
+                      "approval_status": "approved",
+                      "barangay_id": barangayId,
+                      "created_by": userId,
+                      "photo_urls": imageUrls,
+                      "created_at": DateTime.now().toIso8601String(),
+                    };
+
+                    await Supabase.instance.client
+                        .from("volunteer_events")
+                        .insert(eventData);
+
+                    Navigator.pop(ctx);
+                    _fetchProfileAndEvents();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Event added successfully")),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error adding event: $e")),
+                    );
+                  }
+                },
+                child: const Text("Save"),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+
+
+
+
 
 
 

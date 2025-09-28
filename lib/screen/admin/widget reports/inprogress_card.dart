@@ -60,6 +60,29 @@ class _ReportCardState extends State<ReportCard> {
     _loadDeadline();
   }
 
+//calling the controller
+  Future<void> _notifyCitizenStatusChange(String reportId, String newStatus) async {
+    try {
+      final response = await http.post(
+        Uri.parse("http://localhost:3000/notif/reportStatusChange"), // your backend endpoint
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "report_id": reportId,
+          "newStatus": newStatus,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("✅ Citizen notification triggered successfully");
+      } else {
+        print("❌ Citizen notification failed: ${response.body}");
+      }
+    } catch (e) {
+      print("❌ Error notifying citizen: $e");
+    }
+  }
+
+
   Future<void> _loadDeadline() async {
     try {
       final supabase = Supabase.instance.client;
@@ -281,263 +304,256 @@ class _ReportCardState extends State<ReportCard> {
   }
 
   void _openActionModal(BuildContext context) {
+  String getDeadlineSubtitle() {
+    if (_loadingDeadline) return "Loading...";
+    if (_reportDeadline == null) return "Deadline: N/A";
 
-    String getDeadlineSubtitle() {
-      if (_loadingDeadline) return "Loading...";
-      if (_reportDeadline == null) return "Deadline: N/A";
+    final now = DateTime.now();
+    final difference = _reportDeadline!.difference(now);
 
-      final now = DateTime.now();
-      final difference = _reportDeadline!.difference(now);
+    if (difference.isNegative) return "Deadline Passed";
 
-      if (difference.isNegative) return "Deadline Passed";
+    final days = difference.inDays;
+    final hours = difference.inHours % 24;
 
-      final days = difference.inDays;
-      final hours = difference.inHours % 24;
+    if (days == 0 && hours == 0) return "Deadline: Less than an hour left";
+    if (days == 0) return "Deadline: $hours hour${hours > 1 ? 's' : ''} left";
+    if (hours == 0) return "Deadline: $days day${days > 1 ? 's' : ''} left";
 
-      if (days == 0 && hours == 0) return "Deadline: Less than an hour left";
-      if (days == 0) return "Deadline: $hours hour${hours > 1 ? 's' : ''} left";
-      if (hours == 0) return "Deadline: $days day${days > 1 ? 's' : ''} left";
+    return "Deadline: $days day${days > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''} left";
+  }
 
-      return "Deadline: $days day${days > 1 ? 's' : ''}, $hours hour${hours > 1 ? 's' : ''} left";
-    }
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (sheetCtx) {
+      return StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          final bool hasProof = true;
+          final bool stepAssignedCompleted = true;
+          final bool stepWaitingCompleted =
+              (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
+          final bool stepProofCompleted = hasProof && (_actionAccepted == true);
 
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          "Report Action",
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          if (Navigator.of(sheetCtx).canPop()) {
+                            Navigator.of(sheetCtx).pop();
+                          }
+                        },
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 8),
 
+                  // Timeline steps
+                  _buildTimelineStep(
+                    title: "Deployment personnel assigned",
+                    subtitle: _loadingAssignments
+                        ? "Loading..."
+                        : _assignments.isNotEmpty
+                            ? "Assigned to: ${_assignments.map((a) => a['name']).join(', ')}"
+                            : "Assigned to: N/A",
+                    completed: stepAssignedCompleted,
+                    isLast: false,
+                  ),
+                  _buildTimelineStep(
+                    title: "Waiting for action",
+                    subtitle: getDeadlineSubtitle(),
+                    completed: stepWaitingCompleted || hasProof,
+                    isLast: false,
+                  ),
+                  _buildTimelineStep(
+                    title: "Proof of Action",
+                    subtitle: (_actionAccepted == null
+                        ? "Awaiting decision"
+                        : (_actionAccepted == true ? "Accepted" : "Rejected")),
+                    completed: _actionAccepted == true,
+                    trailing: GestureDetector(
+                      onTap: () {
+                        _openImageDialog(
+                          url: widget.report["proofImage"],
+                        );
+                      },
+                      child: buildProofImage(null, widget.report["proofImage"]),
+                    ),
+                    isLast: true,
+                  ),
+                  const SizedBox(height: 16),
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetCtx) {
-        return StatefulBuilder(
-          builder: (modalCtx, setModalState) {
-            final bool hasProof = true; // always true since we use asset image
-            final bool stepAssignedCompleted = true;
-            final bool stepWaitingCompleted =
-                (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
-            final bool stepProofCompleted = hasProof && (_actionAccepted == true);
-
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header
+                  // Decision buttons
+                  if (_actionAccepted == null) ...[
                     Row(
                       children: [
-                        const Expanded(
-                          child: Text(
-                            "Report Action",
-                            style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              try {
+                                final supabase = Supabase.instance.client;
+                                final int reportId =
+                                    int.parse(widget.report['reportId'].toString());
+
+                                // Update report status
+                                await supabase
+                                    .from('report_solutions')
+                                    .update({'new_status': 'resolved'})
+                                    .eq('report_id', reportId);
+
+                                // Notify citizen
+                                await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
+
+                                if (!mounted) return;
+                                setState(() => _actionAccepted = true);
+                                setModalState(() {});
+
+                                // Show snack
+                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Action Accepted ✅"),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+
+                                // Inform parent
+                                widget.onCompleted();
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error updating status: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.thumb_up),
+                            label: const Text("Accept"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(48),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        )
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              try {
+                                final supabase = Supabase.instance.client;
+                                final int reportId =
+                                    int.parse(widget.report['reportId'].toString());
+
+                                await supabase
+                                    .from('reports')
+                                    .update({'status': 'in_progress'})
+                                    .eq('report_id', reportId);
+
+                                if (!mounted) return;
+                                setState(() => _actionAccepted = false);
+                                setModalState(() {});
+
+                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Action Rejected ❌"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error updating status: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.thumb_down),
+                            label: const Text("Reject"),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              side: const BorderSide(color: Colors.red),
+                              foregroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                  ],
 
-                    // Timeline
-                  _buildTimelineStep(
-                      title: "Deployment personnel assigned",
-                      subtitle: _loadingAssignments
-                      ? "Loading..."
-                      : _assignments.isNotEmpty
-                          ? "Assigned to: ${_assignments.map((a) => a['name']).join(', ')}"
-                          : "Assigned to: N/A",
-                      completed: stepAssignedCompleted,
-                      isLast: false,
-                    ),
-
-                    _buildTimelineStep(
-                      title: "Waiting for action",
-                      subtitle: getDeadlineSubtitle(),
-                      completed: stepWaitingCompleted || hasProof,
-                      isLast: false,
-                    ),
-
-                    _buildTimelineStep(
-                      title: "Proof of Action",
-                      subtitle: (_actionAccepted == null
-                          ? "Awaiting decision"
-                          : (_actionAccepted == true ? "Accepted" : "Rejected")),
-                      completed: _actionAccepted == true,
-                      trailing: GestureDetector(
-                        onTap: () {
-                          _openImageDialog(
-                            url: widget.report["proofImage"], // or pass bytes/path if needed
-                          );
-                        },
-                        child: buildProofImage(null, widget.report["proofImage"]),
-                      ),
-                      isLast: true,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Decision buttons
-                    if (_actionAccepted == null) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              // ✅ ACCEPT BUTTON
-                              onPressed: () async {
-                                try {
-                                  final supabase = Supabase.instance.client;
-
-                                  // 1. Update report status
-                                  await supabase
-                                      .from('reports')
-                                      .update({'status': 'resolved'})
-                                      .eq('report_id', widget.report['reportId']);
-
-                                  // 2. Update latest solution row new_status
-                                  await supabase
-                                      .from('report_solutions')
-                                      .update({'new_status': 'resolved'})
-                                      .eq('report_id', widget.report['reportId']);
-
-                                  if (!mounted) return;
-
-                                  setState(() => _actionAccepted = true);
-                                  setModalState(() {});
-                                  _showDecisionBar(
-                                    accepted: true,
-                                    setModalState: setModalState,
-                                    messengerCtx: sheetCtx,
-                                  );
-
-                                  // Call parent to remove from In-Progress page
-                                  widget.onCompleted();
-                                } catch (e) {
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Error updating status: $e"),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
-
-                              icon: const Icon(Icons.thumb_up),
-                              label: const Text("Accept"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              // ❌ REJECT BUTTON
-                              onPressed: () async {
-                                try {
-                                  final supabase = Supabase.instance.client;
-
-                                  // Do NOT update to resolved. Keep status as inprogress
-                                  await supabase
-                                      .from('reports')
-                                      .update({'status': 'in_progress'})
-                                      .eq('report_id', widget.report['reportId']);
-
-                                  if (!mounted) return;
-
-                                  setState(() => _actionAccepted = false);
-                                  setModalState(() {});
-                                  _showDecisionBar(
-                                    accepted: false,
-                                    setModalState: setModalState,
-                                    messengerCtx: sheetCtx,
-                                  );
-                                } catch (e) {
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text("Error updating status: $e"),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.thumb_down),
-                              label: const Text("Reject"),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(48),
-                                side: const BorderSide(color: Colors.red),
-                                foregroundColor: Colors.red,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // Chip status
-                    if (_actionAccepted != null) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Chip(
-                          avatar: Icon(
-                            _actionAccepted == true
-                                ? Icons.check_circle
-                                : Icons.cancel,
-                          ),
-                          label: Text(
-                            _actionAccepted == true
-                                ? "Action Accepted"
-                                : "Action Rejected",
-                          ),
-                          backgroundColor: _actionAccepted == true
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.red.withOpacity(0.1),
-                          side: BorderSide(
-                            color: _actionAccepted == true
-                                ? Colors.green
-                                : Colors.red,
-                          ),
+                  // Chip status
+                  if (_actionAccepted != null) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Chip(
+                        avatar: Icon(
+                          _actionAccepted == true ? Icons.check_circle : Icons.cancel,
+                        ),
+                        label: Text(
+                          _actionAccepted == true ? "Action Accepted" : "Action Rejected",
+                        ),
+                        backgroundColor: _actionAccepted == true
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.red.withOpacity(0.1),
+                        side: BorderSide(
+                          color: _actionAccepted == true ? Colors.green : Colors.red,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                    ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
-                    // Generate Report
-                    if (_actionAccepted == true)
-                      ElevatedButton.icon(
+                  // Generate PDF
+                  if (_actionAccepted == true)
+                    ElevatedButton.icon(
                       onPressed: () async {
                         try {
                           final pdfBytes = await ReportPdf.generate(context, widget.report);
                           if (pdfBytes == null) return;
 
                           if (kIsWeb) {
-                            downloadPdfWeb(pdfBytes, "report.pdf"); // ✅ only runs on web
+                            downloadPdfWeb(pdfBytes, "report.pdf");
                           } else {
                             await Printing.layoutPdf(
                               onLayout: (PdfPageFormat format) async => pdfBytes,
                             );
                           }
 
-
                           widget.onCompleted();
-                          if (context.mounted) Navigator.pop(context);
+                          if (Navigator.of(sheetCtx).canPop()) {
+                            Navigator.of(sheetCtx).pop();
+                          }
                         } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                          if (mounted) {
+                            ScaffoldMessenger.of(sheetCtx).showSnackBar(
                               SnackBar(
                                 content: Text("Error generating PDF: $e"),
                                 backgroundColor: Colors.red,
@@ -546,24 +562,24 @@ class _ReportCardState extends State<ReportCard> {
                           }
                         }
                       },
-                        icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text("Generate Report"),
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
+                      icon: const Icon(Icons.picture_as_pdf),
+                      label: const Text("Generate Report"),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
   Widget _buildTimelineStep({
     required String title,

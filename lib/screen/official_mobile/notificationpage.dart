@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
-import 'package:flutter_application_1/widgets/official/offnotification.dart'; // <- reusable widget
-import 'PendingReportDetailPage.dart'; 
-import 'view_report.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -13,81 +13,81 @@ class NotificationPage extends StatefulWidget {
 }
 
 class _NotificationPageState extends State<NotificationPage> {
+  int? userId;
+  List notifications = [];
+  bool isLoading = true;
   int selectedIndex = 2;
   bool isNavVisible = true;
 
-  final List<Map<String, dynamic>> notifications = [
-    {
-      'type': 'assigned',
-      'message': 'New report assigned',
-      'timestamp': DateTime.now(),
-      'isRead': false,
-      'report': {
-        'reporterName': 'Juan Dela Cruz',
-        'profileImage': 'assets/profile picture.png',
-        'reportTime': '7:30 PM',
-        'reportDate': 'Aug 15, 2025',
-        'priority': 'Medium',
-        'isHazardous': false,
-        'badge': 'Top Reporter',
-        'postImage': 'assets/garbage.png',
-        'description': 'There’s a water leak near the community park.',
-        'location': 'Community Park',
+  @override
+  void initState() {
+    super.initState();
+    _loadUserFromPrefs();
+  }
+
+  Future<void> _loadUserFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userDataString = prefs.getString('user_data');
+
+    if (userDataString != null) {
+      final userMap = jsonDecode(userDataString);
+      final storedId = userMap['id'];
+      debugPrint("📦 Loaded userId from prefs: $storedId");
+
+      if (!mounted) return;
+      setState(() {
+        userId = storedId;
+      });
+
+      await _fetchNotifications(storedId);
+    } else {
+      debugPrint("⚠️ No user data in prefs. Cannot fetch notifications.");
+      if (!mounted) return;
+      setState(() {
+        userId = null;
+        notifications = [];
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchNotifications(int id) async {
+    setState(() => isLoading = true);
+    try {
+      final response =
+          await http.get(Uri.parse("http://10.0.2.2:3000/notifications/$id"));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        if (!mounted) return;
+        setState(() {
+          notifications = data;
+          isLoading = false;
+        });
+      } else {
+        debugPrint("❌ Failed to fetch notifications: ${response.body}");
+        if (!mounted) return;
+        setState(() => isLoading = false);
       }
-    },
-    {
-      'type': 'rejected',
-      'message': 'Your uploaded solution was rejected',
-      'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
-      'isRead': false,
-      'report': {
-        'reporterName': 'Maria Santos',
-        'profileImage': 'assets/profile picture.png',
-        'reportTime': '2:00 PM',
-        'reportDate': 'Aug 14, 2025',
-        'postImage': 'assets/garbage.png',
-        'description': 'Garbage pile-up near the market.',
-        'statusDescription': 'Photo is unclear, please upload again.',
-      }
-    },
-    {
-      'type': 'accepted',
-      'message': 'Your uploaded solution was approved',
-      'timestamp': DateTime.now().subtract(const Duration(days: 1)),
-      'isRead': false,
-      'report': {
-        'reporterName': 'Pedro Cruz',
-        'profileImage': 'assets/profile picture.png',
-        'reportTime': '9:00 AM',
-        'reportDate': 'Aug 13, 2025',
-        'postImage': 'assets/garbage.png',
-        'description': 'Streetlights not working in Zone 5.',
-      }
-    },
-  ];
+    } catch (e) {
+      debugPrint("❌ Exception fetching notifications: $e");
+      if (!mounted) return;
+      setState(() => isLoading = false);
+    }
+  }
 
-  bool get _hasUnread => notifications.any((n) => n['isRead'] == false);
+  String timeAgo(String dateString) {
+    final date = DateTime.tryParse(dateString)?.toLocal();
+    if (date == null) return "";
 
-  void _deleteNotification(int index) {
-    final deletedNotif = notifications[index];
+    final now = DateTime.now();
+    final difference = now.difference(date);
 
-    setState(() {
-      notifications.removeAt(index);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text("Notification deleted"),
-        action: SnackBarAction(
-          label: "Undo",
-          onPressed: () {
-            setState(() {
-              notifications.insert(index, deletedNotif);
-            });
-          },
-        ),
-      ),
-    );
+    if (difference.inSeconds < 60) return "${difference.inSeconds}s ago";
+    if (difference.inMinutes < 60) return "${difference.inMinutes}m ago";
+    if (difference.inHours < 24) return "${difference.inHours}h ago";
+    if (difference.inDays < 7) return "${difference.inDays}d ago";
+    return "${date.day}/${date.month}/${date.year}";
   }
 
   @override
@@ -97,89 +97,81 @@ class _NotificationPageState extends State<NotificationPage> {
 
     return Scaffold(
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
-      appBar: LuntianHeader(
-        isSmallScreen: isSmallScreen,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// Title + Mark All as Read
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'NOTIFICATIONS',
-                    style: TextStyle(
-                      fontSize: isSmallScreen ? 24 : 32,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'MaryKate',
-                      color: const Color.fromARGB(255, 0, 0, 0),
-                    ),
+      appBar: LuntianHeader(isSmallScreen: isSmallScreen),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notifications.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No notifications yet",
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
-                  if (_hasUnread)
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          for (var notif in notifications) {
-                            notif['isRead'] = true;
-                          }
-                        });
-                      },
-                      child: const Text(
-                        "Mark all as read",
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'Poppins',
-                          color: Colors.blue,
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount:
+                      notifications.length > 20 ? 20 : notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = notifications[index];
+                    final title = n['title'] ?? 'General';
+
+                    // Icon and color based on title
+                    IconData icon;
+                    Color color;
+                    switch (title) {
+                      case 'New Report Submission':
+                        icon = Icons.note_add_rounded;
+                        color = Colors.blueAccent;
+                        break;
+                      case 'Report Due Reminder':
+                        icon = Icons.access_time_rounded;
+                        color = Colors.orangeAccent;
+                        break;
+                      case 'Report Assignment':
+                        icon = Icons.assignment_ind_rounded;
+                        color = Colors.purpleAccent;
+                        break;
+                      case 'Report Approved':
+                        icon = Icons.check_circle_rounded;
+                        color = Colors.green;
+                        break;
+                      default:
+                        icon = Icons.notifications;
+                        color = Colors.grey;
+                    }
+
+                    return Card(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 3,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: color.withOpacity(0.2),
+                          child: Icon(icon, color: color, size: 24),
+                        ),
+                        title: Text(
+                          title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 16),
+                        ),
+                        subtitle: Text(
+                          n['content'] ?? "No content",
+                          style: const TextStyle(
+                              fontSize: 14, color: Colors.black87),
+                        ),
+                        trailing: Text(
+                          n['created_at'] != null
+                              ? timeAgo(n['created_at'])
+                              : "",
+                          style:
+                              const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 15),
-
-              /// Notification list with swipe-to-delete
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: notifications.length,
-                itemBuilder: (context, index) {
-                  final notif = notifications[index];
-
-                  return Dismissible(
-                    key: Key(notif['message'] + notif['timestamp'].toString()),
-                    direction: DismissDirection.endToStart,
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      color: Colors.red,
-                      child: const Icon(Icons.delete, color: Colors.white),
-                    ),
-                    onDismissed: (direction) {
-                      _deleteNotification(index);
-                    },
-                    child: NotificationCard(
-                      type: notif['type'],
-                      message: notif['message'],
-                      timestamp: notif['timestamp'],
-                      isRead: notif['isRead'],
-                      onTap: () {
-                        setState(() {
-                          notifications[index]['isRead'] = true;
-                        });
-                      },
-                    ),
-                  );
-                },
-              )
-            ],
-          ),
-        ),
-      ),
+                    );
+                  },
+                ),
       bottomNavigationBar: LuntianFooter(
         selectedIndex: selectedIndex,
         isNavVisible: isNavVisible,
@@ -199,7 +191,7 @@ class _NotificationPageState extends State<NotificationPage> {
             });
           } else if (index == 2) {
             Future.microtask(() {
-              // Notifications page
+              // Stay on Notifications
             });
           }
         },

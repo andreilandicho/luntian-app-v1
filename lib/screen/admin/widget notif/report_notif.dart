@@ -14,13 +14,16 @@ class ReportNotificationWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isUnread = notif["unread"] as bool;
+    final bool isUnread = notif["unread"] as bool? ?? false;
+
+    final String title = notif["title"] ?? "No title";
+    final String subtitle = notif["subtitle"] ?? "No details";
+    final String? profile = notif["profile"];
 
     // ✅ Detect deadline notifications
-    final bool isDeadline = (notif["title"] as String)
-            .toLowerCase()
-            .contains("deadline") ||
-        (notif["subtitle"] as String).toLowerCase().contains("deadline");
+    final bool isDeadline =
+        title.toLowerCase().contains("deadline") ||
+        subtitle.toLowerCase().contains("deadline");
 
     return Card(
       shape: RoundedRectangleBorder(
@@ -43,8 +46,12 @@ class ReportNotificationWidget extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             CircleAvatar(
-              backgroundImage: AssetImage(notif["profile"]),
+              backgroundImage:
+                  profile != null ? AssetImage(profile) : null,
               radius: 22,
+              child: profile == null
+                  ? const Icon(Icons.report, color: Colors.white)
+                  : null,
             ),
             if (isDeadline)
               Positioned(
@@ -57,7 +64,8 @@ class ReportNotificationWidget extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 1),
                   ),
-                  child: const Icon(Icons.alarm, size: 14, color: Colors.white),
+                  child: const Icon(Icons.alarm,
+                      size: 14, color: Colors.white),
                 ),
               ),
           ],
@@ -72,10 +80,11 @@ class ReportNotificationWidget extends StatelessWidget {
             const SizedBox(width: 4),
             Expanded(
               child: Text(
-                notif["title"],
+                title,
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                  fontWeight:
+                      isUnread ? FontWeight.bold : FontWeight.normal,
                   color: isDeadline ? Colors.redAccent : null,
                 ),
               ),
@@ -83,9 +92,10 @@ class ReportNotificationWidget extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          notif["subtitle"],
+          subtitle,
           style: TextStyle(
-            color: isDeadline ? Colors.redAccent.shade200 : Colors.grey[700],
+            color:
+                isDeadline ? Colors.redAccent.shade200 : Colors.grey[700],
           ),
         ),
         trailing: IconButton(
