@@ -51,7 +51,7 @@ class _OfficialDashboardState extends State<OfficialDashboard> {
                     ),
                     child: Center(
                       child: Text(
-                        "Pending Reports (5)",
+                        "Pending Reports",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: tabIndex == 0 ? Colors.green : Colors.black54,
@@ -81,7 +81,7 @@ class _OfficialDashboardState extends State<OfficialDashboard> {
                     ),
                     child: Center(
                       child: Text(
-                        "Completed Reports (3)",
+                        "Submitted Solutions",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: tabIndex == 1 ? Colors.green : Colors.black54,

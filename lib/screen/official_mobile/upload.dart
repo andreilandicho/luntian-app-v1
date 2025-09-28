@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 import 'official.dart'; // Import the official dashboard
+import 'package:flutter_application_1/services/maintenance/solution_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ProofReviewPage extends StatefulWidget {
-  final String imagePath;
-  const ProofReviewPage({super.key, required this.imagePath});
+  final List<String> imagePaths;
+  final int reportId;
+  const ProofReviewPage({super.key, required this.imagePaths, required this.reportId});
 
   @override
   State<ProofReviewPage> createState() => _ProofReviewPageState();
@@ -17,6 +21,93 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
   bool isNavVisible = true;
 
   final TextEditingController _descriptionController = TextEditingController();
+
+  Future<int?> _getUserIdFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dataString = prefs.getString('official_data');
+    if (dataString != null) {
+      final data = jsonDecode(dataString);
+      return data['user_id'] as int?;
+    }
+    return null;
+  }
+
+  Future<void> _submitSolution() async {
+    final userId = await _getUserIdFromPrefs();
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not logged in.')),
+      );
+      return;
+    }
+
+    final cleanupNotes = _descriptionController.text.trim();
+    if (cleanupNotes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add cleanup notes.')),
+      );
+      return;
+    }
+
+    final imageFiles = widget.imagePaths.map((path) => File(path)).toList();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final success = await SolutionService.submitReportSolution(
+      reportId: widget.reportId,
+      userId: userId,
+      imageFiles: imageFiles,
+      cleanupNotes: cleanupNotes,
+    );
+
+    Navigator.of(context, rootNavigator: true).pop(); // Close loading
+
+    if (success) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            title: const Text(
+              "Solution Submitted",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              "Your solution has been submitted. Wait for the barangay's approval.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // close dialog
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const OfficialDashboard()),
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  "OK",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to submit solution.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +125,8 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// Title
               Text(
-                'REVIEW PROOF',
+                'REVIEW SOLUTION',
                 style: TextStyle(
                   fontSize: isSmallScreen ? 24 : 32,
                   fontWeight: FontWeight.bold,
@@ -44,28 +134,34 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
                   color: const Color.fromARGB(255, 0, 0, 0),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              /// Show captured photo
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(widget.imagePath),
-                  height: 450,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+              SizedBox(
+                height: 450,
+                child: ListView.builder(
+                  itemCount: widget.imagePaths.length,
+                  itemBuilder: (context, index) {
+                    final path = widget.imagePaths[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(path),
+                          height: 450,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              /// Description input
               TextField(
                 controller: _descriptionController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: "Enter description...",
+                  hintText: "Add cleanup notes...",
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -73,55 +169,14 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
-
-              /// Submit button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-
-                    // Show pop-up message
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          title: const Text(
-                            "Proof Submitted",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          content: Text(
-                            "Your proof has been submitted successfully",
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // close dialog
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const OfficialDashboard()),
-                                  (route) => false, // removes all previous routes
-                                );
-                              },
-                              child: const Text(
-                                "OK",
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                  onPressed: _submitSolution,
                   icon: const Icon(Icons.cloud_upload),
                   label: const Text(
-                    "Submit Proof",
+                    "Submit Solution",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -134,7 +189,6 @@ class _ProofReviewPageState extends State<ProofReviewPage> {
                   ),
                 ),
               ),
-
             ],
           ),
         ),

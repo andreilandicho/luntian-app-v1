@@ -6,7 +6,8 @@ import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 
 class ProofAction extends StatefulWidget {
-  const ProofAction({super.key});
+  final int reportId;
+  const ProofAction({super.key, required this.reportId});
 
   @override
   State<ProofAction> createState() => _ProofActionState();
@@ -21,6 +22,13 @@ class _ProofActionState extends State<ProofAction> {
   List<XFile> _capturedImages = [];
   XFile? _selectedImage;
 
+  final Set<int> _selectedImageIndexes = {};
+
+  List<CameraDescription>? _cameras;
+  int _selectedCameraIdx = 0;
+
+  bool _isCapturing = false; 
+
   @override
   void initState() {
     super.initState();
@@ -29,20 +37,35 @@ class _ProofActionState extends State<ProofAction> {
 
   Future<void> _setupCamera() async {
     try {
-      final cameras = await availableCameras();
-      final firstCamera = cameras.first;
+      _cameras = await availableCameras();
+      if (_cameras == null || _cameras!.isEmpty) return;
 
+      _selectedCameraIdx = 0; // Default to rear
+      final isRear = _cameras![_selectedCameraIdx].lensDirection == CameraLensDirection.back;
       _controller = CameraController(
-        firstCamera,
-        ResolutionPreset.high,
+        _cameras![_selectedCameraIdx],
+        isRear ? ResolutionPreset.low : ResolutionPreset.high,
         enableAudio: false,
       );
-
       _initializeControllerFuture = _controller!.initialize();
       if (mounted) setState(() {});
     } catch (e) {
       debugPrint("Camera setup error: $e");
     }
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras == null || _cameras!.length < 2) return;
+    _selectedCameraIdx = (_selectedCameraIdx + 1) % _cameras!.length;
+    _controller?.dispose();
+    final isRear = _cameras![_selectedCameraIdx].lensDirection == CameraLensDirection.back;
+    _controller = CameraController(
+      _cameras![_selectedCameraIdx],
+      isRear ? ResolutionPreset.low : ResolutionPreset.high,
+      enableAudio: false,
+    );
+    _initializeControllerFuture = _controller!.initialize();
+    if (mounted) setState(() {});
   }
 
   @override
@@ -52,6 +75,8 @@ class _ProofActionState extends State<ProofAction> {
   }
 
   Future<void> _capturePhoto() async {
+    if (_isCapturing) return; // Prevent double capture
+    _isCapturing = true;
     try {
       await _initializeControllerFuture;
       final image = await _controller!.takePicture();
@@ -61,6 +86,8 @@ class _ProofActionState extends State<ProofAction> {
       });
     } catch (e) {
       debugPrint("Error capturing photo: $e");
+    } finally {
+      _isCapturing = false;
     }
   }
 
@@ -68,6 +95,7 @@ class _ProofActionState extends State<ProofAction> {
     setState(() {
       _capturedImages.clear();
       _selectedImage = null;
+      _selectedImageIndexes.clear();
     });
   }
 
@@ -111,19 +139,18 @@ class _ProofActionState extends State<ProofAction> {
                   itemCount: _capturedImages.length,
                   itemBuilder: (context, index) {
                     final image = _capturedImages[index];
+                    final isSelected = _selectedImageIndexes.contains(index);
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          _selectedImage = image;
+                          isSelected ? _selectedImageIndexes.remove(index) : _selectedImageIndexes.add(index);
                         });
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 5),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _selectedImage == image
-                                ? Colors.green
-                                : Colors.white,
+                            color: isSelected ? Colors.green : Colors.white,
                             width: 3,
                           ),
                         ),
@@ -140,68 +167,90 @@ class _ProofActionState extends State<ProofAction> {
               ),
             ),
 
-          /// BUTTONS
-          Positioned(
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                /// Capture Button
-                ElevatedButton(
-                  onPressed: _capturePhoto,
-                  style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(18),
-                    backgroundColor: Colors.white,
-                  ),
-                  child: const Icon(Icons.camera_alt,
-                      color: Colors.black, size: 30),
-                ),
-                const SizedBox(width: 20),
+          // ... inside your build method, replacing the // BUTTONS Positioned widget:
 
-                /// Retake All Button
-                if (_capturedImages.isNotEmpty)
-                  ElevatedButton.icon(
-                    onPressed: _retakeAllPhotos,
-                    icon: const Icon(Icons.refresh, color: Colors.red),
-                    label: const Text(
-                      "Retake All",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.red,
-                    ),
-                  ),
-                const SizedBox(width: 20),
-
-                /// Use Selected Button
-                if (_selectedImage != null)
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ProofReviewPage(imagePath: _selectedImage!.path),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.check, color: Colors.green),
-                    label: const Text(
-                      "Use Selected",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.green,
-                    ),
-                  ),
-              ],
+/// BUTTONS
+Positioned(
+  bottom: 30,
+  left: 0,
+  right: 0,
+  child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // Retake All Button (leftmost)
+        if (_capturedImages.isNotEmpty)
+          ElevatedButton.icon(
+            onPressed: _retakeAllPhotos,
+            icon: const Icon(Icons.refresh, color: Colors.red),
+            label: const Text(
+              "Retake All",
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.red,
+            ),
+          )
+        else
+          const SizedBox(width: 110), // Placeholder to keep spacing
+
+        // Camera Button (center left)
+        ElevatedButton(
+          onPressed: _isCapturing ? null : _capturePhoto,
+          style: ElevatedButton.styleFrom(
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(18),
+            backgroundColor: Colors.white,
           ),
+          child: const Icon(Icons.camera_alt,
+              color: Colors.black, size: 30),
+        ),
+
+        // Switch Camera Button (center right)
+        ElevatedButton(
+          onPressed: _switchCamera,
+          style: ElevatedButton.styleFrom(
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(16),
+            backgroundColor: Colors.white,
+          ),
+          child: const Icon(Icons.flip_camera_ios, color: Colors.black, size: 28),
+        ),
+
+        // Use Selected Button (rightmost)
+        if (_selectedImageIndexes.isNotEmpty)
+          ElevatedButton.icon(
+            onPressed: () {
+              final selectedPaths = _selectedImageIndexes.map((i) => _capturedImages[i].path).toList();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProofReviewPage(
+                    imagePaths: selectedPaths,
+                    reportId: widget.reportId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.check, color: Colors.green),
+            label: const Text(
+              "Use Selected",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.green,
+            ),
+          )
+        else
+          const SizedBox(width: 120), // Placeholder for spacing
+      ],
+    ),
+  ),
+),
         ],
       ),
       bottomNavigationBar: LuntianFooter(

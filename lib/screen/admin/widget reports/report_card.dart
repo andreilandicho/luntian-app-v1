@@ -294,6 +294,22 @@ class _ReportCardState extends State<ReportCard> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ Missing report ID")),
       );
+      return;
+    }
+    //assigning officials
+    try {
+      // official assignments
+      for (final person in chosenPeople) {
+        // Handle different possible field names for user ID
+        final userId = person['user_id'] ?? 
+                      person['id'] ?? 
+                      person['userId'] ?? 
+                      person['official_id'];
+
+        if (userId == null) {
+          print('Debug: Person keys: ${person.keys}');
+          continue;
+        }
     }
     return;
   }

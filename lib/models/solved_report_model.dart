@@ -14,6 +14,8 @@ class SolvedReportModel {
   final List<String>? afterPhotoUrls;
   final List<int> assignedOfficials;
   final double? overallAverageRating;
+  final bool hasUserRated; 
+  final Map<String, dynamic>? userRating; 
 
   SolvedReportModel({
     required this.reportId,
@@ -31,6 +33,8 @@ class SolvedReportModel {
     this.afterPhotoUrls,
     required this.assignedOfficials,
     this.overallAverageRating,
+    required this.hasUserRated,
+    this.userRating,
   });
 
   factory SolvedReportModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,10 @@ class SolvedReportModel {
     overallAverageRating: (json['overall_average_rating'] != null)
         ? double.tryParse(json['overall_average_rating'].toString())
         : 0.0,
+    hasUserRated: json['has_user_rated'] == true ||
+              json['has_user_rated'] == 1 ||
+              json['has_user_rated'] == 'true', // <-- Default to false if not present
+    userRating: json['user_rating'] != null ? Map<String, dynamic>.from(json['user_rating']) : null,
   );
 }
 }

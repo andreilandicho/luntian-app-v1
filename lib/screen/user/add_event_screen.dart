@@ -238,7 +238,7 @@ class _AddEventScreenState extends State<AddEventScreen> {
           );
         },
       );
-
+      //Inserting event data to database
       final imageUrls = await _uploadSelectedImagesToSupabase();
       
       final eventData = {
