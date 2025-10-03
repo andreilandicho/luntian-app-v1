@@ -32,7 +32,7 @@ class PendingReportDetailPage extends StatelessWidget {
                   priority: report.priority,
                   postImages: report.postImages,
                   description: report.description,
-                  location: report.location ?? "No location provided",
+                  descriptiveLocation: report.descriptiveLocation,
                   isHazardous: report.isHazardous,
                   reportCategory: report.reportCategory,
                   assignedOfficials: report.assignedOfficials,

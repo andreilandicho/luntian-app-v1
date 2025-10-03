@@ -11,7 +11,7 @@ class PendingPostCard extends StatefulWidget {
   final String priority;
   final List<String> postImages;
   final String description;
-  final String location;
+  final String? descriptiveLocation;
   final bool isHazardous;
   final String reportCategory;
   final List<String> assignedOfficials;
@@ -29,7 +29,7 @@ class PendingPostCard extends StatefulWidget {
     required this.priority,
     required this.postImages,
     required this.description,
-    required this.location,
+    this.descriptiveLocation,
     this.isHazardous = false,
     required this.reportCategory,
     required this.assignedOfficials,
@@ -238,7 +238,7 @@ class _PendingPostCardState extends State<PendingPostCard> {
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                             color: Colors.blue,
-                            decoration: TextDecoration.underline,
+                            
                           ),
                         ),
                       )
@@ -291,7 +291,7 @@ Row(
                     ],
                   ),
                   const SizedBox(height: 10),
-                  Text("Descriptive Location: ${widget.location}"),
+                  Text("Descriptive Location: ${widget.descriptiveLocation != null && widget.descriptiveLocation!.isNotEmpty ? widget.descriptiveLocation : "No location provided"}"),
                   Text("Category: ${widget.reportCategory}"),
                   Text("Hazardous: ${widget.isHazardous ? "Yes" : "No"}"),
                   Text("Priority: ${widget.priority}"),

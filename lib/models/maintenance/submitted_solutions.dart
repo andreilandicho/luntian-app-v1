@@ -11,7 +11,7 @@ class SubmittedSolution {
   final List<String> solutionImages;
   final String description;
   final String cleanupNotes;
-  final String? location;
+  final String? descriptiveLocation;
   final bool isHazardous;
   final String reportCategory;
   final String reportStatus;
@@ -33,7 +33,7 @@ class SubmittedSolution {
     required this.solutionImages,
     required this.description,
     required this.cleanupNotes,
-    this.location,
+    this.descriptiveLocation,
     required this.isHazardous,
     required this.reportCategory,
     required this.reportStatus,
@@ -57,7 +57,7 @@ class SubmittedSolution {
       solutionImages: List<String>.from(json['solutionImages'] as List),
       description: json['description'] as String,
       cleanupNotes: json['cleanupNotes'] as String,
-      location: json['location'] as String?,
+      descriptiveLocation: json['descriptive_location'] as String?,
       isHazardous: json['isHazardous'] as bool,
       reportCategory: json['reportCategory'] as String,
       reportStatus: json['reportStatus'] as String,

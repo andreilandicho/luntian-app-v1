@@ -34,7 +34,7 @@ class _AddPageState extends State<AddPage> {
 
   // step 1 for location and address ng user
   Position? _currentLocation;
-  final streetController = TextEditingController();
+  final descriptiveLocation = TextEditingController();
   int? selectedBarangayId;
   String barangayName = "";
   String municipality = "";
@@ -425,9 +425,9 @@ class _AddPageState extends State<AddPage> {
                   ),
                   const SizedBox(height: 16),
                   TextField(
-                    controller: streetController,
+                    controller: descriptiveLocation,
                     decoration: const InputDecoration(
-                      labelText: "Street (optional)",
+                      labelText: "Descriptive Location (e.g., street, landmark)",
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -495,8 +495,8 @@ class _AddPageState extends State<AddPage> {
                     onPressed: isDetectingLocation ? null : _detectLocationAndMatch,
                     icon: const Icon(Icons.my_location),
                     label: Text(isDetectingLocation
-                        ? "Detecting..."
-                        : "Auto-fill using location"),
+                        ? "Geotagging..."
+                        : "Geotag"),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF328E6E),
                       foregroundColor: Colors.white,
@@ -867,7 +867,7 @@ class _AddPageState extends State<AddPage> {
       final reportData = {
         'user_id': _currentUser?.id, // Assuming user is logged in
         'barangay_id': selectedBarangayId,
-        // 'street_address': streetController.text.trim(),
+        'descriptive_location': descriptiveLocation.text.trim(),
         'description': _descriptionController.text.trim(),
         'photo_urls': imageUrls,
         'category': _selectedCategory,
@@ -951,7 +951,7 @@ class _AddPageState extends State<AddPage> {
   void dispose() {
     _cameraController.dispose();
     _descriptionController.dispose();
-    streetController.dispose();
+    descriptiveLocation.dispose();
     super.dispose();
   }
   

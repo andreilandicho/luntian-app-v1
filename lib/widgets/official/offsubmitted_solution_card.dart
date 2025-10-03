@@ -97,7 +97,7 @@ class _SubmittedSolutionCardState extends State<SubmittedSolutionCard> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Descriptive Location: ${widget.solution.location ?? 'No location provided'}"),
+            Text("Descriptive Location: ${widget.solution.descriptiveLocation ?? 'No location provided'}"),
             Text("Category: ${widget.solution.reportCategory}"),
             Text("Hazardous: ${widget.solution.isHazardous ? "Yes" : "No"}"),
             Text("Priority: ${widget.solution.priority}"),

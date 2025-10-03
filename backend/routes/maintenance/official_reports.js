@@ -22,6 +22,7 @@ router.get('/assigned-reports/:userId', async (req, res) => {
           category,
           hazardous,
           report_deadline,
+          descriptive_location,
           lat,
           lon,
           users!reports_user_id_fkey(
@@ -78,18 +79,19 @@ router.get('/assigned-reports/:userId', async (req, res) => {
       return {
         reportId: report.report_id,
         reporterName: report.users.name,
-        profileImage: report.users.user_profile_url || 'assets/profilepicture.png',
+        profileImage: report.users.user_profile_url || 'assets/profile picture.png',
         reportDate: report.created_at,
         priority: report.priority,
         postImages: report.photo_urls || [],
         description: report.description,
-        location: null, // to-do: add descriptive location in submit report for this
+        descriptiveLocation: report.descriptive_location,
         isHazardous: Boolean(report.hazardous),
         reportCategory: report.category,
         status: report.status,
         reportDeadline: report.report_deadline,
         lat: report.lat,
         lon: report.lon,
+        descriptiveLocation: report.descriptive_location,
         assignedOfficials: report.report_assignments.map(assignment => assignment.officials.name)
       };
     });
@@ -127,6 +129,7 @@ router.get('/submitted-solutions/:userId', async (req, res) => {
           category,
           hazardous,
           report_deadline,
+          descriptive_location,
           lat,
           lon,
           users!reports_user_id_fkey(
@@ -155,7 +158,7 @@ router.get('/submitted-solutions/:userId', async (req, res) => {
         solutionId: solution.update_id,
         reportId: solution.report_id,
         reporterName: report.users.name,
-        profileImage: report.users.user_profile_url || 'assets/profilepicture.png',
+        profileImage: report.users.user_profile_url || 'assets/profile picture.png',
         reportDate: report.created_at,
         solutionDate: solution.updated_at,
         priority: report.priority,
@@ -163,7 +166,7 @@ router.get('/submitted-solutions/:userId', async (req, res) => {
         solutionImages: solution.after_photo_urls || [],
         description: report.description,
         cleanupNotes: solution.cleanup_notes,
-        location: null, // to-do: add descriptive location
+        descriptiveLocation: report.descriptive_location,
         isHazardous: Boolean(report.hazardous),
         reportCategory: report.category,
         reportStatus: report.status,

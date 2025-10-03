@@ -23,7 +23,6 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _hasConfirm = false;
 
   int? selectedBarangayId;
-  bool isOfficial = false;
   List<dynamic> barangays = [];
   bool isLoadingBarangays = true;
 
@@ -94,7 +93,7 @@ class _SignUpPageState extends State<SignUpPage> {
         'firstName': firstNameController.text,
         'lastName': lastNameController.text,
         'barangay_id': selectedBarangayId,
-        'role': isOfficial ? 'official' : 'citizen', 
+        'role': 'citizen',
       }),
     );
 
@@ -254,20 +253,6 @@ class _SignUpPageState extends State<SignUpPage> {
                               value == null ? "Please select a barangay" : null,
                           ),
                       const SizedBox(height: 15),
-                      // OFFICIAL TICKBOX
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: isOfficial,
-                            onChanged: (val) => setState(() => isOfficial = val ?? false),
-                          ),
-                          const Text(
-                            'Sign up as Barangay Official',
-                            style: TextStyle(fontFamily: 'Poppins'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 25),
                       ElevatedButton(
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {

@@ -1,5 +1,6 @@
 // lib/services/report_service.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../models/homepage_event_model.dart';
 
@@ -147,4 +148,76 @@ class EventService {
       throw Exception('Error getting number of interested citizens: $e');
     }
   }
+
+
+  // for emailers that I have created
+  Future<void> notifyBarangayAboutEvent(int eventId) async {
+  try {
+    final url = '$baseUrl/notif/eventNotif';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'event_id': eventId}),
+    );
+    
+    if (response.statusCode != 200) {
+      print('Warning: Failed to send event notification');
+    }
+  } catch (e) {
+    print('Error sending event notification: $e');
+    // Non-critical error, don't throw
+  }
+}
+// Call this when an event is approved
+Future<void> notifyAllCitizensAboutEvent(int eventId, int barangayId) async {
+  try {
+    final url = '$baseUrl/notif/notifyBarangayCitizens';
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'event_id': eventId,
+        'barangay_id': barangayId
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      print('Successfully sent notifications to all citizens');
+    } else {
+      print('Error sending notifications: ${response.body}');
+    }
+  } catch (e) {
+    print('Exception sending notifications: $e');
+  }
+}
+
+//emailer for approval updates for event
+Future<void> updateEventApprovalStatus(int eventId, String status, int barangayId) async {
+  try {
+    // Send the notification
+    final url = '$baseUrl/notif/eventApproval';
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'event_id': eventId,
+        'approval_status': status
+      }),
+    );
+    
+    if (response.statusCode != 200) {
+      debugPrint('Warning: Failed to send event approval notification: ${response.body}');
+    } else {
+      debugPrint('✅ Event approval notification sent successfully');
+      
+      // If approved, also notify all citizens in the barangay
+      if (status == 'approved') {
+        await notifyAllCitizensAboutEvent(eventId, barangayId);
+      }
+    }
+  } catch (e) {
+    debugPrint('Error sending event approval notification: $e');
+  }
+}
 }

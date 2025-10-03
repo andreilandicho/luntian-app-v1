@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:path/path.dart' as path;
+import 'package:flutter_application_1/services/event_service.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -21,6 +22,9 @@ class AddEventScreen extends StatefulWidget {
 }
 
 class _AddEventScreenState extends State<AddEventScreen> {
+  //event service for notifications
+  final EventService _eventService = EventService();
+
   final ImagePicker picker = ImagePicker();
   final List<File> _selectedImages = [];
   final _formKey = GlobalKey<FormState>();
@@ -254,18 +258,29 @@ class _AddEventScreenState extends State<AddEventScreen> {
         'created_at': DateTime.now().toIso8601String(),
       };
 
+      int? eventId;
       if (widget.existingEvent != null) {
         // Update existing event
         await supabase
             .from('volunteer_events')
             .update(eventData)
             .eq('event_id', widget.existingEvent!['id']);
+        eventId = widget.existingEvent!['id'];
       } else {
         // Create new event
-        await supabase
+        final response = await supabase
             .from('volunteer_events')
-            .insert(eventData);
+            .insert(eventData)
+            .select();
+        if (response.isNotEmpty) {
+            eventId = response[0]['event_id'];
+        }
       }
+      
+      // Send notification to barangay if we have an event ID
+    if (eventId != null) {
+      await _eventService.notifyBarangayAboutEvent(eventId);
+    }
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop(); // Close progress dialog

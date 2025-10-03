@@ -12,6 +12,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+// for event notification
+import '../../services/event_service.dart';
+
 // ========================= AddressField (free API: OpenStreetMap Nominatim) =========================
 class AddressField extends StatefulWidget {
   final TextEditingController controller;
@@ -140,6 +143,9 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  //for event emailer
+  final EventService _eventService = EventService();
+
   File? _profileImage;
   final picker = ImagePicker();
 
@@ -228,6 +234,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final event = _events[index];
       final id = event['event_id'];
+      final barangayId = event['barangay_id'];
 
       if (status == "rejected") {
         // Delete the event if rejected
@@ -235,6 +242,9 @@ class _ProfilePageState extends State<ProfilePage> {
           .from('volunteer_events')
           .delete()
           .eq('event_id', id);
+
+          //Send the rejected email
+          await _eventService.updateEventApprovalStatus(id, "rejected", barangayId);
         
         setState(() {
           _events.removeAt(index);
@@ -248,6 +258,11 @@ class _ProfilePageState extends State<ProfilePage> {
             if (comment != null) 'comment': comment,
           })
           .eq('event_id', id);
+        
+        //emailer for approved events
+        if(status == "approved"){
+          await _eventService.updateEventApprovalStatus(id, "approved", barangayId);
+        }
 
         setState(() {
           if (status == "approved") {

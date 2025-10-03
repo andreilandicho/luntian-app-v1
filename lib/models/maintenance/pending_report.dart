@@ -6,7 +6,7 @@ class PendingReport {
   final String priority;
   final List<String> postImages;
   final String description;
-  final String? location;
+  final String? descriptiveLocation;
   final bool isHazardous;
   final String reportCategory;
   final String status;
@@ -23,7 +23,7 @@ class PendingReport {
     required this.priority,
     required this.postImages,
     required this.description,
-    this.location,
+    this.descriptiveLocation,
     required this.isHazardous,
     required this.reportCategory,
     required this.status,
@@ -47,7 +47,7 @@ class PendingReport {
       priority: json['priority'],
       postImages: List<String>.from(json['postImages']),
       description: json['description'],
-      location: json['location'],
+      descriptiveLocation: json['descriptiveLocation'],
       isHazardous: json['isHazardous'],
       reportCategory: json['reportCategory'],
       status: json['status'],

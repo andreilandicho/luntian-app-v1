@@ -10,6 +10,7 @@ import viewOfficialRequestsRouter from './routes/viewOfficialRequests.js';
 import leaderboardsRouter from './routes/leaderboards.js';
 import notificationsRouter from './routes/user_notifications.js';
 import notif from './routes/notif.js';
+import rating from './routes/rating.js'
 import "../lib/utils/cron.js"; // Import cron jobs to run them
 
 //for web use
@@ -34,6 +35,8 @@ app.use('/viewOfficialRequests', viewOfficialRequestsRouter);
 app.use('/leaderboards', leaderboardsRouter);
 app.use('/notifications', notificationsRouter);
 app.use("/notif", notif);
+app.use("/rating", rating);
+
 
 
 //for maintenance officials
