@@ -177,7 +177,7 @@ class SolvedReportCard extends StatelessWidget {
       ),
     );
   }
-    void _showViewRatingModal(BuildContext context, Map<String, dynamic>? userRating) {
+  void _showViewRatingModal(BuildContext context, Map<String, dynamic>? userRating) {
   if (userRating == null) return;
   showModalBottomSheet(
     context: context,

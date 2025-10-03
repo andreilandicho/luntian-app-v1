@@ -42,24 +42,34 @@ router.get('/assigned-reports/:userId', async (req, res) => {
       throw error;
     }
 
-    // Get report IDs that have PENDING or APPROVED solutions only
-    const { data: solutionReportIds, error: solutionsError } = await supabase
+    // ... inside your try block, after fetching assignments ...
+
+    // Get the LATEST solution status for each report
+    const { data: latestSolutions, error: solutionsError } = await supabase
       .from('report_solutions')
-      .select('report_id, approval_status')
-      .in('approval_status', ['pending', 'approved']);
-      
-    if (solutionsError) {
-      throw solutionsError;
-    }
+      .select('report_id, approval_status, updated_at')
+      .in('report_id', assignments.map(a => a.reports.report_id))
+      .order('updated_at', { ascending: false });
 
-    // Extract just the report IDs with pending or approved solutions
-    const reportsWithPendingOrApprovedSolutions = solutionReportIds.map(item => item.report_id);
+    if (solutionsError) throw solutionsError;
 
-    // Filter out ONLY reports with pending or approved solutions
-    // (keeps reports with no solutions or rejected solutions)
-    const filteredReports = assignments.filter(assignment => 
-      !reportsWithPendingOrApprovedSolutions.includes(assignment.reports.report_id)
-    );
+    // Create a map of the latest solution status for each report
+    const latestSolutionMap = {};
+    latestSolutions.forEach(solution => {
+      if (!latestSolutionMap[solution.report_id]) {
+        latestSolutionMap[solution.report_id] = solution.approval_status;
+      }
+    });
+
+    // Filter reports: Only show those with NO solution or whose LATEST solution is 'rejected'
+    const filteredReports = assignments.filter(assignment => {
+      const reportId = assignment.reports.report_id;
+      const latestStatus = latestSolutionMap[reportId];
+      // Keep report if it has no solution, or the latest solution was rejected
+      return !latestStatus || latestStatus === 'rejected';
+    });
+
+    // ... continue with transforming and returning filteredReports ...
 
     // Transform the data to match your desired format
     const formattedReports = filteredReports.map(assignment => {
@@ -122,6 +132,11 @@ router.get('/submitted-solutions/:userId', async (req, res) => {
           users!reports_user_id_fkey(
             name,
             user_profile_url
+          ),
+          report_assignments(
+            officials:users!report_assignments_official_id_fkey(
+              name
+            )
           )
         )
       `)
@@ -152,10 +167,11 @@ router.get('/submitted-solutions/:userId', async (req, res) => {
         isHazardous: Boolean(report.hazardous),
         reportCategory: report.category,
         reportStatus: report.status,
-        solutionStatus: solution.approval_status,
+        approval_status: solution.approval_status,
         reportDeadline: report.report_deadline,
         lat: report.lat,
-        lon: report.lon
+        lon: report.lon,
+        assignedOfficials: report.report_assignments.map(assignment => assignment.officials.name)
       };
     });
 

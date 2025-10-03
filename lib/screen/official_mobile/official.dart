@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/models/maintenance/submitted_solutions.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_header.dart';
 import 'package:flutter_application_1/widgets/official/offluntian_footer.dart';
 import 'pending_reports_page.dart';
 import 'completed_reports_page.dart';
+import 'submitted_solutions.dart';
 
 class OfficialDashboard extends StatefulWidget {
   const OfficialDashboard({super.key});
@@ -98,7 +100,7 @@ class _OfficialDashboardState extends State<OfficialDashboard> {
           Expanded(
             child: tabIndex == 0
                 ? const PendingReportsPage()
-                : const CompletedReportsPage(),
+                : const SubmittedSolutionsPage(),
           ),
         ],
       ),

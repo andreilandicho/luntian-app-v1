@@ -259,79 +259,115 @@ class _PendingPostCardState extends State<PendingPostCard> {
               child: Text(widget.description),
             ),
 
-            // Report Details Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.info_outline),
-                label: const Text("Report Details"),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("Report Details"),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Descriptive Location: ${widget.location}"),
-                          Text("Location: ${widget.location}"),
-                          Text("Category: ${widget.reportCategory}"),
-                          Text("Hazardous: ${widget.isHazardous ? "Yes" : "No"}"),
-                          Text("Priority: ${widget.priority}"),
-                          Text("Assigned to: ${widget.assignedOfficials.isNotEmpty ? widget.assignedOfficials.join(', ') : 'None'}"),
-                          Text("Date & Time: ${widget.reportDate}"),
-                          Text("Status: ${widget.status}"),
-                          Text(
-                              "Deadline: ${widget.reportDeadline != null ? DateFormat('yyyy-MM-dd').format(widget.reportDeadline!) : 'No deadline'}",  // <- Formatted DateTime? to String
-                              style: const TextStyle(color: Colors.red),
-                            ),
-                        ],
+            // Report Details Button - Size-matched to Take a Photo
+const SizedBox(height: 8),
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    OutlinedButton(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          builder: (context) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title Bar with Close Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Report Details",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("Close"),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text("Descriptive Location: ${widget.location}"),
+                  Text("Category: ${widget.reportCategory}"),
+                  Text("Hazardous: ${widget.isHazardous ? "Yes" : "No"}"),
+                  Text("Priority: ${widget.priority}"),
+                  Text("Assigned to: ${widget.assignedOfficials.isNotEmpty ? widget.assignedOfficials.join(', ') : 'None'}"),
+                  Text("Date & Time: ${widget.reportDate}"),
+                  Text("Status: ${widget.status}"),
+                  Text(
+                    "Deadline: ${widget.reportDeadline != null ? DateFormat('yyyy-MM-dd').format(widget.reportDeadline!) : 'No deadline'}",
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
               ),
+            );
+          },
+        );
+      },
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.green,
+        side: const BorderSide(color: Colors.green),
+        backgroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.info_outline),
+          SizedBox(width: 8),
+          Text(
+            "Report Details",
+            style: TextStyle(
+              color: Colors.green,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
 
-            // Action Button - Fixed version
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProofAction(reportId: widget.reportId),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 5, 102, 181),
-                    padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    "Take a Photo",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+// Action Button - Remains unchanged, for reference
+const SizedBox(height: 8),
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    ElevatedButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProofAction(reportId: widget.reportId),
+          ),
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromARGB(255, 5, 102, 181),
+        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: const Text(
+        "Take a Photo",
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+  ],
+),
           ],
         ),
       ),
