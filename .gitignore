@@ -31,6 +31,9 @@ generated_plugin_registrant.dart
 **/doc/api/
 **/ios/Flutter/.last_build_id
 
+#node modules
+node_modules/
+
 # Symbolication related
 app.*.symbols
 
