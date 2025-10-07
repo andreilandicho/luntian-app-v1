@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 class AuthService {
   // Using 10.0.2.2 for Android emulator to access localhost
   final String baseUrl = 'http://10.0.2.2:3000';
-  
+
   // Key for storing user data in shared preferences
   static const String userKey = 'user_data';
   

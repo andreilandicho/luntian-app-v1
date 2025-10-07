@@ -24,8 +24,9 @@ class _AddPageState extends State<AddPage> {
 
   // step 0 for photo
 
-
+  List<CameraDescription>? _cameras;
   late CameraController _cameraController;
+  int _selectedCameraIdx = 0; //0 means rear cam conventionally
   late Future<void> _initializeControllerFuture;
   bool _isCameraInitialized = false;
   final List<File> _capturedImages = []; // Store all captured images
@@ -73,12 +74,24 @@ class _AddPageState extends State<AddPage> {
 
   // ======== PHOTO CAPTURING FOR REPORT ========
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.last;
-    _cameraController = CameraController(camera, ResolutionPreset.medium);
+    _cameras = await availableCameras();
+    // Default to rear camera: typically CameraLensDirection.back
+    _selectedCameraIdx = _cameras!.indexWhere((c) => c.lensDirection == CameraLensDirection.back);
+    if (_selectedCameraIdx == -1) _selectedCameraIdx = 0; // fallback to first camera
+    _cameraController = CameraController(_cameras![_selectedCameraIdx], ResolutionPreset.medium);
     _initializeControllerFuture = _cameraController.initialize();
     await _initializeControllerFuture;
     if (mounted) setState(() => _isCameraInitialized = true);
+  }
+
+  Future<void> _switchCamera() async {
+    if (_cameras == null || _cameras!.length < 2) return; // nothing to switch
+    _selectedCameraIdx = (_selectedCameraIdx + 1) % _cameras!.length;
+    await _cameraController.dispose();
+    _cameraController = CameraController(_cameras![_selectedCameraIdx], ResolutionPreset.medium);
+    _initializeControllerFuture = _cameraController.initialize();
+    await _initializeControllerFuture;
+    if (mounted) setState(() {});
   }
 
   Future<void> _takePicture() async {
@@ -232,6 +245,17 @@ class _AddPageState extends State<AddPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    ElevatedButton(
+                      onPressed: _switchCamera,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF328E6E),
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(14),
+                        elevation: 6,
+                      ),
+                      child: const Icon(Icons.flip_camera_android, color: Colors.white, size: 24),
+                    ),
+                    const SizedBox(width: 20),
                     ElevatedButton(
                       onPressed: _takePicture,
                       style: ElevatedButton.styleFrom(

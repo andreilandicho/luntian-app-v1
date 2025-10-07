@@ -5,6 +5,7 @@ import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:flutter_application_1/main.dart';  // Add this import for MyApp
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../user/signupemailscreen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -157,7 +158,7 @@ class _LoginPageState extends State<LoginPage> {
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const SignUpPage()),
+                                MaterialPageRoute(builder: (_) => const EmailSignUpScreen()),
                               );
                             },
                             child: const Text(

@@ -12,6 +12,9 @@ import notificationsRouter from './routes/user_notifications.js';
 import notif from './routes/notif.js';
 import rating from './routes/rating.js'
 import "../lib/utils/cron.js"; // Import cron jobs to run them
+import emailExpiredReportsHandler from '../api/email-expired-reports.js';
+import badgesRouter from './routes/badges.js';
+
 
 //for web use
 import cors from 'cors';
@@ -36,12 +39,24 @@ app.use('/leaderboards', leaderboardsRouter);
 app.use('/notifications', notificationsRouter);
 app.use("/notif", notif);
 app.use("/rating", rating);
-
-
+app.use('/badges', badgesRouter);
 
 //for maintenance officials
 app.use('/official', maintenanceOfficialRouter);
 app.use('/official-reports', officialReportsRouter);
+
+//for sign up email verification
+import sendOTPHandler from '../api/send-otp.js';
+import verifyOTPHandler from '../api/verify-otp.js';
+import checkEmailCitizenHandler from '../api/check-email-citizen.js';
+import checkEmailExistsHandler from '../api/check-email-exists.js';
+import resetPasswordHandler from '../api/reset-password.js';
+app.post('/api/check-email-citizen', checkEmailCitizenHandler);
+app.post('/api/send-otp', sendOTPHandler);
+app.post('/api/verify-otp', verifyOTPHandler);
+
+app.post('/api/check-email-exists', checkEmailExistsHandler);
+app.post('/api/reset-password', resetPasswordHandler);
 
 
 app.listen(3000, () => console.log('Server running on port 3000'));

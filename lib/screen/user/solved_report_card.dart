@@ -181,7 +181,7 @@ class SolvedReportCard extends StatelessWidget {
                               satisfactionStars: satisfactionRating,
                               responseTimeStars: responseTimeRating,
                               comments: suggestion,
-                            );
+                            ).timeout(Duration(seconds: 10));
 
                             // Close loading and modal
                             Navigator.of(context).pop(); // Close loading

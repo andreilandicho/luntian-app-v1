@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../user/signupotpverification.dart'; // Adjust the path to your OTPVerificationScreen
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -10,6 +13,51 @@ class ForgotPasswordPage extends StatefulWidget {
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
+
+  Future<void> handleResetPassword() async {
+    if (_formKey.currentState!.validate()) {
+      final email = emailController.text.trim();
+
+      // 1. Check if email exists
+      final resp = await http.post(
+        Uri.parse('http://10.0.2.2:3000/api/check-email-exists'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email}),
+      );
+      final data = jsonDecode(resp.body);
+
+      if (resp.statusCode == 200 && data['exists'] == true) {
+        // 2. Send OTP with reset password subject
+        final otpResp = await http.post(
+          Uri.parse('http://10.0.2.2:3000/api/send-otp'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'subject': 'Reset Password'}),
+        );
+        final otpData = jsonDecode(otpResp.body);
+
+        if (otpResp.statusCode == 200 && otpData['success'] == true) {
+          // 3. Navigate to OTP screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OTPVerificationScreen(
+                email: email,
+                isResetPassword: true,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to send OTP.")),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Email not found.")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,20 +118,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       ),
                       const SizedBox(height: 25),
                       ElevatedButton(
-                        onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Password reset link sent!"),
-                            ),
-                          );
-
-                          // Delay for 1.5 seconds then go back
-                          Future.delayed(const Duration(seconds: 1), () {
-                            Navigator.pop(context); // Back to login screen
-                          });
-                        }
-                      },
+                        onPressed: handleResetPassword,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF328D6E),
                           shape: RoundedRectangleBorder(
@@ -135,25 +170,25 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 }
 
 Widget _buildTextField({
-    required IconData icon,
-    required String hintText,
-    required TextEditingController controller,
-    required String? Function(String?) validator,
-    bool obscureText = false,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: const Color(0xFF328D6E)),
-        hintText: hintText,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
-        filled: true,
-        fillColor: Colors.grey[200],
+  required IconData icon,
+  required String hintText,
+  required TextEditingController controller,
+  required String? Function(String?) validator,
+  bool obscureText = false,
+}) {
+  return TextFormField(
+    controller: controller,
+    obscureText: obscureText,
+    decoration: InputDecoration(
+      prefixIcon: Icon(icon, color: const Color(0xFF328D6E)),
+      hintText: hintText,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(30),
+        borderSide: BorderSide.none,
       ),
-      validator: validator,
-    );
-  }
+      filled: true,
+      fillColor: Colors.grey[200],
+    ),
+    validator: validator,
+  );
+}

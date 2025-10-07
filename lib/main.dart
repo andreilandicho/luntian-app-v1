@@ -4,7 +4,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'package:app_links/app_links.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screen/user/loading_screen.dart';
@@ -13,6 +12,8 @@ import 'models/user_model.dart';
 import 'screen/user/login_screen.dart';
 import 'screen/user/home_screen.dart';
 import 'screen/user/signup_screen.dart';
+import 'screen/user/signupemailscreen.dart';
+
 import 'screen/admin/login_screen.dart';
 
 import 'screen/admin/admin_dashboard_stub.dart'
@@ -41,7 +42,6 @@ class _MyAppState extends State<MyApp> {
   bool isLoading = true;
 
   late final SupabaseClient supabase;
-  final AppLinks _appLinks = AppLinks();
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
@@ -53,48 +53,11 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _checkSession();
-      _initAppLinks();
     });
 
     supabase.auth.onAuthStateChange.listen((data) async {
       await _handleAuth(data.session);
     });
-  }
-
-  void _initAppLinks() async {
-    try {
-      final initialUri = await _appLinks.getInitialAppLink();
-      if (initialUri != null) {
-        _handleMagicLinkUri(initialUri);
-      }
-    } catch (e) {
-      debugPrint("Failed to get initial link: $e");
-    }
-
-    _appLinks.uriLinkStream.listen((uri) {
-      if (uri != null) _handleMagicLinkUri(uri);
-    });
-  }
-
-  Future<void> _handleMagicLinkUri(Uri uri) async {
-    final code = uri.queryParameters['code'];
-    if (code == null) return;
-
-    debugPrint("Magic link code: $code");
-
-    try {
-      final response = await supabase.auth.getSessionFromUrl(uri);
-      if (response.session != null) {
-        await _handleAuth(response.session, fromMagicLink: true);
-      } else {
-        _navigatorKey.currentState?.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const SignUpPage()),
-          (route) => false,
-        );
-      }
-    } catch (e) {
-      debugPrint("Magic link error: $e");
-    }
   }
 
   Future<void> _checkSession() async {
@@ -174,7 +137,7 @@ class _MyAppState extends State<MyApp> {
         debugPrint("⚠️ No user row found for $email");
         _navigatorKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => fromMagicLink ? const SignUpPage() : const LoginPage(),
+            builder: (_) => const LoginPage(),
           ),
           (route) => false,
         );

@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
+  final String lockedEmail;
+  const SignUpPage({super.key, required this.lockedEmail});
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -29,6 +30,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   void initState() {
     super.initState();
+    emailController.text = widget.lockedEmail;
     fetchBarangays();
   }
 
@@ -172,7 +174,9 @@ class _SignUpPageState extends State<SignUpPage> {
                         icon: Icons.email,
                         hintText: "Email address...",
                         controller: emailController,
-                        validator: _validateEmail,
+                        // validator: _validateEmail, refactored since ginawa ko na read only ang email
+                        validator: (_) => null,
+                        readOnly: true,
                       ),
                       const SizedBox(height: 15),
                       _buildTextField(
@@ -327,11 +331,13 @@ Widget _buildTextField({
   bool obscureText = false,
   Widget? suffixIcon,
   void Function(String)? onChanged,
+  bool readOnly = false,
 }) {
   return TextFormField(
     controller: controller,
     obscureText: obscureText,
     onChanged: onChanged,
+    readOnly: readOnly,
     decoration: InputDecoration(
       prefixIcon: Icon(icon, color: const Color(0xFF328D6E)),
       suffixIcon: suffixIcon,
