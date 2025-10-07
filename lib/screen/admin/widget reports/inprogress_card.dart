@@ -53,6 +53,9 @@ class _ReportCardState extends State<ReportCard> {
 
   bool? _actionAccepted;
 
+  Map<String, dynamic>? _latestSolution;
+  bool _loadingSolution = false;
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +70,88 @@ class _ReportCardState extends State<ReportCard> {
     _commentController.dispose();
     _pageController.dispose();
     super.dispose();
+  }
+  //Helper services for accepting and rejticng solution submissions
+  // Helper: Get latest solution for this report
+  Future<Map<String, dynamic>?> _fetchLatestSolution(int reportId) async {
+    setState(() => _loadingSolution = true);
+    final supabase = Supabase.instance.client;
+    final solution = await supabase
+        .from('report_solutions')
+        .select()
+        .eq('report_id', reportId)
+        .eq('approval_status', 'pending')
+        .order('updated_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    setState(() {
+      _latestSolution = solution;
+      _loadingSolution = false;
+    });
+    return solution;
+  }
+
+  // Accept solution
+  Future<void> _acceptLatestSolution(int reportId, String comment) async {
+    final supabase = Supabase.instance.client;
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt("user_id");
+
+    // 1. Fetch latest solution
+    final latestSolution = await _fetchLatestSolution(reportId);
+    if (latestSolution == null) throw Exception("No solution found for this report");
+    final solutionId = latestSolution['update_id'];
+
+    // 2. Update reports table
+    await supabase.from('reports')
+        .update({'status': 'resolved'})
+        .eq('report_id', reportId);
+
+    // 3. Update report_solutions table
+    await supabase.from('report_solutions')
+        .update({'new_status': 'resolved', 'approval_status': 'approved'})
+        .eq('update_id', solutionId);
+
+    // 4. Insert into solution_approvals
+    await supabase.from('solution_approvals').insert({
+      'solution_id': solutionId,
+      'reviewed_by': userId,
+      'status': 'approved',
+      'comments': comment.isEmpty ? 'Approved by admin' : comment,
+    });
+
+    // ✅ Notify citizen
+                                await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
+  }
+
+  // Reject solution
+  Future<void> _rejectLatestSolution(int reportId, String comment) async {
+    final supabase = Supabase.instance.client;
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt("user_id");
+
+    // 1. Fetch latest solution
+    final latestSolution = await _fetchLatestSolution(reportId);
+    if (latestSolution == null) throw Exception("No solution found for this report");
+    final solutionId = latestSolution['update_id'];
+
+    // 2. Update reports table
+    await supabase.from('reports')
+        .update({'status': 'in_progress'})
+        .eq('report_id', reportId);
+
+    // 3. Update report_solutions table
+    await supabase.from('report_solutions')
+        .update({'new_status': 'in_progress', 'approval_status': 'rejected'})
+        .eq('update_id', solutionId);
+
+    // 4. Insert into solution_approvals
+    await supabase.from('solution_approvals').insert({
+      'solution_id': solutionId,
+      'reviewed_by': userId,
+      'status': 'rejected',
+      'comments': comment.isEmpty ? 'Rejected by admin' : comment,
+    });
   }
 
 
@@ -379,12 +464,17 @@ class _ReportCardState extends State<ReportCard> {
     builder: (sheetCtx) {
       return StatefulBuilder(
         builder: (modalCtx, setModalState) {
-          final List proofImages = widget.report["proofImages"] as List? ?? [];
-          final bool hasProof = proofImages.isNotEmpty;
+          if (_loadingSolution) {
+              return const Center(child: CircularProgressIndicator());
+            }
+          final List proofImages = _latestSolution?["after_photo_urls"] as List? ?? [];
+            final String cleanupNotes = _latestSolution?["cleanup_notes"] ?? "No cleanup notes.";
+            final bool hasProof = proofImages.isNotEmpty;
 
           final bool stepAssignedCompleted = _assignments.isNotEmpty;
-          final bool stepWaitingCompleted =
-              (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
+            final bool stepWaitingCompleted =
+                (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
+           
 
           // Step proof should be completed if there is proof, regardless of accept/reject
           final bool stepProofCompleted = hasProof;
@@ -446,15 +536,15 @@ class _ReportCardState extends State<ReportCard> {
                         if (hasProof)
                           SizedBox(
                             height: 60,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: proofImages.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final url = proofImages[index];
-                                return GestureDetector(
-                                  onTap: () => _openImageDialog(url: url),
-                                  child: buildProofImage(null, url),
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: proofImages.length,
+                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                itemBuilder: (context, index) {
+                                  final url = proofImages[index];
+                                  return GestureDetector(
+                                    onTap: () => _openImageDialog(url: url),
+                                    child: buildProofImage(null, url),
                                 );
                               },
                             ),
@@ -474,21 +564,18 @@ class _ReportCardState extends State<ReportCard> {
                             border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.sticky_note_2_outlined, color: Colors.blueGrey, size: 22),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  widget.report["cleanupNotes"] != null &&
-                                          widget.report["cleanupNotes"].toString().trim().isNotEmpty
-                                      ? widget.report["cleanupNotes"]
-                                      : "No cleanup notes provided.",
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black87,
-                                    height: 1.4,
-                                  ),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.sticky_note_2_outlined, color: Colors.blueGrey, size: 22),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    cleanupNotes.isNotEmpty ? cleanupNotes : "No cleanup notes provided.",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black87,
+                                      height: 1.4,
+                                    ),
                                 ),
                               ),
                             ],
@@ -523,154 +610,69 @@ class _ReportCardState extends State<ReportCard> {
 
                   // Decision buttons
                   if (_actionAccepted == null) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              try {
-                                final supabase = Supabase.instance.client;
-                                final int reportId = int.parse(widget.report['reportId'].toString());
-                                final prefs = await SharedPreferences.getInstance();
-                                final userId = prefs.getInt("user_id");
-
-                                // ✅ Step 1: Update the report_solutions table
-                                await supabase
-                                    .from('report_solutions')
-                                    .update({
-                                      'new_status': 'resolved',
-                                      'approval_status': 'approved',
-                                    })
-                                    .eq('report_id', reportId);
-
-                                // ✅ Step 2: Get the solution's update_id (primary key of report_solutions)
-                                final response = await supabase
-                                    .from('report_solutions')
-                                    .select('update_id')
-                                    .eq('report_id', reportId)
-                                    .maybeSingle();
-
-                                if (response == null || response['update_id'] == null) {
-                                  throw Exception("No matching solution found for report_id $reportId");
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final int reportId = int.parse(widget.report['reportId'].toString());
+                                  await _acceptLatestSolution(reportId, _commentController.text.trim());
+                                  if (!mounted) return;
+                                  setState(() => _actionAccepted = true);
+                                  setModalState(() {});
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    const SnackBar(content: Text("Action Accepted ✅"), backgroundColor: Colors.green),
+                                  );
+                                  widget.onCompleted();
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red),
+                                  );
                                 }
-
-                                final int solutionId = response['update_id'];
-
-                                // ✅ Step 3: Insert into solution_approvals using update_id
-                                await supabase.from('solution_approvals').insert({
-                                  'solution_id': solutionId,
-                                  'reviewed_by': userId,
-                                  'status': 'approved',
-                                  'comments': _commentController.text.trim().isEmpty
-                                  ? 'Approved by admin'
-                                  : _commentController.text.trim(),
-                                });
-
-                                // ✅ Step 4: Notify citizen
-                                await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
-
-                                if (!mounted) return;
-                                setState(() => _actionAccepted = true);
-                                setModalState(() {});
-
-                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Action Accepted ✅"),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-
-                                widget.onCompleted();
-                              } catch (e) {
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                  SnackBar(
-                                    content: Text("No solution provided"),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
-
-                            icon: const Icon(Icons.thumb_up),
-                            label: const Text("Accept"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                              },
+                              icon: const Icon(Icons.thumb_up),
+                              label: const Text("Accept"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
-                        ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              try {
-                                final supabase = Supabase.instance.client;
-                                final int reportId = int.parse(widget.report['reportId'].toString());
-
-                                // ✅ Get the logged-in user ID
-                                final prefs = await SharedPreferences.getInstance();
-                                final userId = prefs.getInt("user_id");
-
-                                // ✅ Step 1: Update report status
-                                await supabase
-                                    .from('reports')
-                                    .update({'status': 'in_progress'})
-                                    .eq('report_id', reportId);
-
-                                // ✅ Step 2: Get the related solution's update_id
-                                final response = await supabase
-                                    .from('report_solutions')
-                                    .select('update_id')
-                                    .eq('report_id', reportId)
-                                    .maybeSingle();
-
-                                if (response == null || response['update_id'] == null) {
-                                  throw Exception("No matching solution found for report_id $reportId");
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  final int reportId = int.parse(widget.report['reportId'].toString());
+                                  await _rejectLatestSolution(reportId, _commentController.text.trim());
+                                  if (!mounted) return;
+                                  setState(() => _actionAccepted = false);
+                                  setModalState(() {});
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    const SnackBar(content: Text("Action Rejected ❌"), backgroundColor: Colors.red),
+                                  );
+                                } catch (e) {
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                                    SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red),
+                                  );
                                 }
-
-                                final int solutionId = response['update_id'];
-
-                                // ✅ Step 3: Insert into solution_approvals
-                                await supabase.from('solution_approvals').insert({
-                                  'solution_id': solutionId,
-                                  'reviewed_by': userId,
-                                  'status': 'rejected',
-                                  'comments': _commentController.text.trim().isEmpty
-                                      ? 'Rejected by admin'
-                                      : _commentController.text.trim(),
-                                });
-
-                                // ✅ Step 4: Update UI and show confirmation
-                                if (!mounted) return;
-                                setState(() => _actionAccepted = false);
-                                setModalState(() {});
-
-                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Action Rejected ❌"),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              } catch (e) {
-                                if (!mounted) return;
-                                print("Error updating status: $e");
-                              }
-                            },
-
-                            icon: const Icon(Icons.thumb_down),
-                            label: const Text("Reject"),
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              side: const BorderSide(color: Colors.red),
-                              foregroundColor: Colors.red,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                              },
+                              icon: const Icon(Icons.thumb_down),
+                              label: const Text("Reject"),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(48),
+                                side: const BorderSide(color: Colors.red),
+                                foregroundColor: Colors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                             ),
                           ),
                         ),
@@ -681,24 +683,24 @@ class _ReportCardState extends State<ReportCard> {
 
                   // Chip status
                   if (_actionAccepted != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Chip(
-                        avatar: Icon(
-                          _actionAccepted == true ? Icons.check_circle : Icons.cancel,
-                        ),
-                        label: Text(
-                          _actionAccepted == true ? "Action Accepted" : "Action Rejected",
-                        ),
-                        backgroundColor: _actionAccepted == true
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.red.withOpacity(0.1),
-                        side: BorderSide(
-                          color: _actionAccepted == true ? Colors.green : Colors.red,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Chip(
+                          avatar: Icon(
+                            _actionAccepted == true ? Icons.check_circle : Icons.cancel,
+                          ),
+                          label: Text(
+                            _actionAccepted == true ? "Action Accepted" : "Action Rejected",
+                          ),
+                          backgroundColor: _actionAccepted == true
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.red.withOpacity(0.1),
+                          side: BorderSide(
+                            color: _actionAccepted == true ? Colors.green : Colors.red,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 12),
                   ],
 
                   // Generate PDF
@@ -1047,7 +1049,10 @@ class _ReportCardState extends State<ReportCard> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () => _openActionModal(context),
+                      onPressed: () async {
+  await _fetchLatestSolution(int.parse(widget.report['reportId'].toString()));
+  _openActionModal(context);
+},
                       icon: const Icon(Icons.playlist_add_check),
                       label: const Text("Make an Action"),
                       style: ElevatedButton.styleFrom(
