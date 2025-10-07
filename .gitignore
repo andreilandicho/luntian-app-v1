@@ -43,3 +43,5 @@ firebase-debug.log
 
 # Environment
 .env
+
+node_modules/
