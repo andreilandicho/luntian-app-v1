@@ -116,7 +116,7 @@ class _PendingPageState extends State<PendingPage> {
           'reportId': report['report_id'],
           'userId': report['user_id'],
           'userName': report['anonymous'] == true
-              ? 'Anonymous'
+              ? 'Anonymous Citizen'
               : userData['name'] ?? 'Unknown',
           'avatar': userData['user_profile_url'] ?? 'assets/profile picture.png',
           'description': report['description'] ?? '',
@@ -126,7 +126,7 @@ class _PendingPageState extends State<PendingPage> {
               report['hazardous'] == true || report['hazardous'] == 'true',
           'location': (report['lat'] != null && report['lon'] != null)
               ? '${report['lat']}, ${report['lon']}'
-              : 'Location unavailable',
+              : null,
           'createdAt': DateTime.parse(report['created_at']),
         };
       }).toList();

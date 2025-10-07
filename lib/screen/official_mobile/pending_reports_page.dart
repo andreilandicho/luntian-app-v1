@@ -57,6 +57,7 @@ class _PendingReportsPageState extends State<PendingReportsPage> {
                 reportDeadline: report.reportDeadline,
                 lat: report.lat,
                 lon: report.lon,
+                anonymous: report.anonymous, // ✅ pass the field from your model
               );
             },
           );

@@ -11,8 +11,8 @@ import 'package:flutter_application_1/screen/admin/web_utils.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class ReportCard extends StatefulWidget {
@@ -48,6 +48,8 @@ class _ReportCardState extends State<ReportCard> {
   int _currentImageIndex = 0;
   late PageController _pageController;
   final GlobalKey _cardKey = GlobalKey();
+  final TextEditingController _commentController = TextEditingController();
+
 
   bool? _actionAccepted;
 
@@ -59,6 +61,14 @@ class _ReportCardState extends State<ReportCard> {
     _loadAssignments();
     _loadDeadline();
   }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
 
 //calling the controller
   Future<void> _notifyCitizenStatusChange(String reportId, String newStatus) async {
@@ -80,6 +90,26 @@ class _ReportCardState extends State<ReportCard> {
     } catch (e) {
       print("❌ Error notifying citizen: $e");
     }
+  }
+
+  Future<void> _openMap(String location) async {
+    final query = Uri.encodeComponent(location);
+    final googleMapsUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query&t=k");
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open map")),
+      );
+    }
+  }
+
+  bool hasValidLocation(dynamic loc) {
+    if (loc == null) return false;
+    if (loc is! String) return false;
+    final trimmed = loc.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'null') return false;
+    return true;
   }
 
 
@@ -181,24 +211,40 @@ class _ReportCardState extends State<ReportCard> {
 
       // 2. Fetch proof (after photos) from report_solutions
       try {
-        final solution = await supabase
+        final solutions = await supabase
             .from('report_solutions')
-            .select('after_photo_urls')
+            .select('after_photo_urls, cleanup_notes')
             .eq('report_id', widget.report['reportId'])
-            .order('updated_at', ascending: false)
-            .maybeSingle();
+            .order('updated_at', ascending: false);
 
-        if (solution != null && solution['after_photo_urls'] != null) {
-          final List<dynamic> urls = solution['after_photo_urls'];
-          if (urls.isNotEmpty) {
-            // Store first photo (or use urls.last for latest)
-            widget.report["proofImage"] = urls.first as String;
+        List<String> allImages = [];
+        String? cleanupNotes; // 👈 Add variable to store cleanup notes
+
+        for (var s in solutions) {
+          // Collect proof images
+          if (s['after_photo_urls'] != null) {
+            final List<dynamic> urls = s['after_photo_urls'];
+            allImages.addAll(urls.cast<String>());
+          }
+
+          // Capture cleanup_notes (take the first non-empty one)
+          if (s['cleanup_notes'] != null &&
+              s['cleanup_notes'].toString().trim().isNotEmpty &&
+              cleanupNotes == null) {
+            cleanupNotes = s['cleanup_notes'];
           }
         }
+
+        // Save to widget.report
+        widget.report["proofImages"] = allImages.isNotEmpty ? allImages : [];
+        widget.report["cleanupNotes"] = cleanupNotes ?? ""; // 👈 Store the notes
       } catch (e) {
-        print("Error fetching proof image: $e");
-        widget.report["proofImage"] = null;
+        print("Error fetching proof images: $e");
+        widget.report["proofImages"] = [];
+        widget.report["cleanupNotes"] = ""; // also handle this in error case
       }
+
+
 
       if (!mounted) return; // 👈 guard again before final setState
       setState(() {
@@ -333,11 +379,16 @@ class _ReportCardState extends State<ReportCard> {
     builder: (sheetCtx) {
       return StatefulBuilder(
         builder: (modalCtx, setModalState) {
-          final bool hasProof = true;
-          final bool stepAssignedCompleted = true;
+          final List proofImages = widget.report["proofImages"] as List? ?? [];
+          final bool hasProof = proofImages.isNotEmpty;
+
+          final bool stepAssignedCompleted = _assignments.isNotEmpty;
           final bool stepWaitingCompleted =
               (widget.report["status"]?.toString().toLowerCase() ?? "") != "waiting";
-          final bool stepProofCompleted = hasProof && (_actionAccepted == true);
+
+          // Step proof should be completed if there is proof, regardless of accept/reject
+          final bool stepProofCompleted = hasProof;
+
 
           return Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -386,19 +437,88 @@ class _ReportCardState extends State<ReportCard> {
                   _buildTimelineStep(
                     title: "Proof of Action",
                     subtitle: (_actionAccepted == null
-                        ? "Awaiting decision"
+                        ? (hasProof ? "Proof submitted, awaiting decision" : "Awaiting proof")
                         : (_actionAccepted == true ? "Accepted" : "Rejected")),
-                    completed: _actionAccepted == true,
-                    trailing: GestureDetector(
-                      onTap: () {
-                        _openImageDialog(
-                          url: widget.report["proofImage"],
-                        );
-                      },
-                      child: buildProofImage(null, widget.report["proofImage"]),
+                    completed: stepProofCompleted,
+                    trailing: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasProof)
+                          SizedBox(
+                            height: 60,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: proofImages.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final url = proofImages[index];
+                                return GestureDetector(
+                                  onTap: () => _openImageDialog(url: url),
+                                  child: buildProofImage(null, url),
+                                );
+                              },
+                            ),
+                          )
+                        else
+                          const Text("No proof available"),
+
+                        const SizedBox(height: 12),
+
+                        // ✅ Styled cleanup notes
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.sticky_note_2_outlined, color: Colors.blueGrey, size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  widget.report["cleanupNotes"] != null &&
+                                          widget.report["cleanupNotes"].toString().trim().isNotEmpty
+                                      ? widget.report["cleanupNotes"]
+                                      : "No cleanup notes provided.",
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     isLast: true,
                   ),
+                  const SizedBox(height: 16),
+
+                  // 📝 Admin Comment Input
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: "Add Comment",
+                      hintText: "Write your feedback or remarks here...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.blue.shade400, width: 1.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                  ),
+
                   const SizedBox(height: 16),
 
                   // Decision buttons
@@ -410,23 +530,49 @@ class _ReportCardState extends State<ReportCard> {
                             onPressed: () async {
                               try {
                                 final supabase = Supabase.instance.client;
-                                final int reportId =
-                                    int.parse(widget.report['reportId'].toString());
+                                final int reportId = int.parse(widget.report['reportId'].toString());
+                                final prefs = await SharedPreferences.getInstance();
+                                final userId = prefs.getInt("user_id");
 
-                                // Update report status
+                                // ✅ Step 1: Update the report_solutions table
                                 await supabase
                                     .from('report_solutions')
-                                    .update({'new_status': 'resolved'})
+                                    .update({
+                                      'new_status': 'resolved',
+                                      'approval_status': 'approved',
+                                    })
                                     .eq('report_id', reportId);
 
-                                // Notify citizen
+                                // ✅ Step 2: Get the solution's update_id (primary key of report_solutions)
+                                final response = await supabase
+                                    .from('report_solutions')
+                                    .select('update_id')
+                                    .eq('report_id', reportId)
+                                    .maybeSingle();
+
+                                if (response == null || response['update_id'] == null) {
+                                  throw Exception("No matching solution found for report_id $reportId");
+                                }
+
+                                final int solutionId = response['update_id'];
+
+                                // ✅ Step 3: Insert into solution_approvals using update_id
+                                await supabase.from('solution_approvals').insert({
+                                  'solution_id': solutionId,
+                                  'reviewed_by': userId,
+                                  'status': 'approved',
+                                  'comments': _commentController.text.trim().isEmpty
+                                  ? 'Approved by admin'
+                                  : _commentController.text.trim(),
+                                });
+
+                                // ✅ Step 4: Notify citizen
                                 await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
 
                                 if (!mounted) return;
                                 setState(() => _actionAccepted = true);
                                 setModalState(() {});
 
-                                // Show snack
                                 ScaffoldMessenger.of(sheetCtx).showSnackBar(
                                   const SnackBar(
                                     content: Text("Action Accepted ✅"),
@@ -434,18 +580,18 @@ class _ReportCardState extends State<ReportCard> {
                                   ),
                                 );
 
-                                // Inform parent
                                 widget.onCompleted();
                               } catch (e) {
                                 if (!mounted) return;
                                 ScaffoldMessenger.of(sheetCtx).showSnackBar(
                                   SnackBar(
-                                    content: Text("Error updating status: $e"),
+                                    content: Text("No solution provided"),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
                               }
                             },
+
                             icon: const Icon(Icons.thumb_up),
                             label: const Text("Accept"),
                             style: ElevatedButton.styleFrom(
@@ -464,14 +610,42 @@ class _ReportCardState extends State<ReportCard> {
                             onPressed: () async {
                               try {
                                 final supabase = Supabase.instance.client;
-                                final int reportId =
-                                    int.parse(widget.report['reportId'].toString());
+                                final int reportId = int.parse(widget.report['reportId'].toString());
 
+                                // ✅ Get the logged-in user ID
+                                final prefs = await SharedPreferences.getInstance();
+                                final userId = prefs.getInt("user_id");
+
+                                // ✅ Step 1: Update report status
                                 await supabase
                                     .from('reports')
                                     .update({'status': 'in_progress'})
                                     .eq('report_id', reportId);
 
+                                // ✅ Step 2: Get the related solution's update_id
+                                final response = await supabase
+                                    .from('report_solutions')
+                                    .select('update_id')
+                                    .eq('report_id', reportId)
+                                    .maybeSingle();
+
+                                if (response == null || response['update_id'] == null) {
+                                  throw Exception("No matching solution found for report_id $reportId");
+                                }
+
+                                final int solutionId = response['update_id'];
+
+                                // ✅ Step 3: Insert into solution_approvals
+                                await supabase.from('solution_approvals').insert({
+                                  'solution_id': solutionId,
+                                  'reviewed_by': userId,
+                                  'status': 'rejected',
+                                  'comments': _commentController.text.trim().isEmpty
+                                      ? 'Rejected by admin'
+                                      : _commentController.text.trim(),
+                                });
+
+                                // ✅ Step 4: Update UI and show confirmation
                                 if (!mounted) return;
                                 setState(() => _actionAccepted = false);
                                 setModalState(() {});
@@ -484,14 +658,10 @@ class _ReportCardState extends State<ReportCard> {
                                 );
                               } catch (e) {
                                 if (!mounted) return;
-                                ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Error updating status: $e"),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                print("Error updating status: $e");
                               }
                             },
+
                             icon: const Icon(Icons.thumb_down),
                             label: const Text("Reject"),
                             style: OutlinedButton.styleFrom(
@@ -799,14 +969,42 @@ class _ReportCardState extends State<ReportCard> {
                             const SizedBox(height: 2),
                             Row(
                               children: [
-                                Flexible(
-                                  child: Text(
-                                    widget.report["location"],
-                                    style: TextStyle(
-                                        color: Colors.grey[600], fontSize: 12),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                 Flexible(
+                                  child: widget.report["location"] != null && widget.report["location"].isNotEmpty
+                                      ? TextButton.icon(
+                                          onPressed: () => _openMap(widget.report["location"]),
+                                          icon: const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                                          label: const Text(
+                                            "View on Map",
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        )
+                                      : TextButton.icon(
+                                          onPressed: null, // This properly disables the button
+                                          icon: const Icon(Icons.location_off, size: 16, color: Colors.grey),
+                                          label: const Text(
+                                            "Not Available",
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
                                 ),
                                 const SizedBox(width: 6),
                                 Container(

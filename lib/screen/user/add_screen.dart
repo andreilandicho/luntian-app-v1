@@ -30,6 +30,8 @@ class _AddPageState extends State<AddPage> {
   bool _isCameraInitialized = false;
   final List<File> _capturedImages = []; // Store all captured images
   final Set<int> _selectedImageIndexes = {};
+  bool _isAnonymous = false;
+
 
 
   // step 1 for location and address ng user
@@ -652,6 +654,22 @@ class _AddPageState extends State<AddPage> {
 
                   const SizedBox(height: 30),
 
+                  SwitchListTile(
+                    title: const Text(
+                      "Submit as Anonymous",
+                      style: TextStyle(fontFamily: 'Poppins'),
+                    ),
+                    activeColor: const Color(0xFF328E6E),
+                    value: _isAnonymous,
+                    onChanged: (value) {
+                      setState(() {
+                        _isAnonymous = value;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+
                   // Submit Button
                   ElevatedButton(
                     onPressed: () async {
@@ -875,7 +893,8 @@ class _AddPageState extends State<AddPage> {
         'hazardous': _isHazardous,
         'status': 'pending', // Default status
         'created_at': DateTime.now().toIso8601String(),
-        'report_deadline': deadline.toIso8601String(), // ✅ new field
+        'report_deadline': deadline.toIso8601String(),
+        'anonymous': _isAnonymous, // ✅ include toggle result // ✅ new field
       };
       
       // Add location if available

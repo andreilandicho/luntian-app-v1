@@ -267,6 +267,51 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _cancelApprovedEvent(int index) async {
+    final event = _approvedEvents[index];
+    final eventId = event['event_id'];
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Cancel Event"),
+        content: const Text("Are you sure you want to cancel this event? This action cannot be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("No"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Yes, Cancel"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await Supabase.instance.client
+          .from('volunteer_events')
+          .delete()
+          .eq('event_id', eventId);
+
+      setState(() {
+        _approvedEvents.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Event cancelled successfully")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error cancelling event: $e")),
+      );
+    }
+  }
+
+
   // 📌 Example: update user profile
   Future<void> _updateProfile(String newName) async {
     try {
@@ -582,6 +627,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   if (showActions) const Divider(height: 20),
                   if (showActions)
+                    // For Pending tab
                     Wrap(
                       spacing: 10,
                       children: [
@@ -594,7 +640,23 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: const Text("Reject"),
                         ),
                       ],
+                    )
+                  else
+                    // For Approved tab
+                    Padding(
+                    padding: const EdgeInsets.only(top: 10.0), // 👈 adds space above the button
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        label: const Text(
+                          "Cancel Event",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        onPressed: () => _cancelApprovedEvent(index!),
+                      ),
                     ),
+                  ),
                 ],
               ),
             ),

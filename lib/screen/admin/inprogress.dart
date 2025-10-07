@@ -98,7 +98,7 @@ class _InProgressPageState extends State<InProgressPage> {
         'reportId': report['report_id'],
         'userId': report['user_id'],
         'userName': report['anonymous'] == true
-            ? 'Anonymous'
+            ? 'Anonymous Citizen'
             : userData['name'] ?? 'Unknown',
         'avatar': userData['user_profile_url'] ?? 'assets/profile picture.png',
         'description': report['description'] ?? '',
@@ -107,7 +107,7 @@ class _InProgressPageState extends State<InProgressPage> {
         'hazardous': report['hazardous'] == 'true',
         'location': (report['lat'] != null && report['lon'] != null)
             ? '${report['lat']}, ${report['lon']}'
-            : 'Location unavailable',
+            : null,
         'createdAt': DateTime.parse(report['created_at']),
         'status': report['status'] ?? 'in_progress',
       };
