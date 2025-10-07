@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:convert'; // for jsonEncode
 import 'package:http/http.dart' as http; // for http.post, etc.
+import 'package:url_launcher/url_launcher.dart';
+
 
 
 class ReportCard extends StatefulWidget {
@@ -79,6 +81,28 @@ class _ReportCardState extends State<ReportCard> {
       );
     }
   }
+
+  Future<void> _openMap(String location) async {
+    final query = Uri.encodeComponent(location);
+    final googleMapsUrl = Uri.parse("https://www.google.com/maps/search/?api=1&query=$query&t=k");
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open map")),
+      );
+    }
+  }
+
+  bool hasValidLocation(dynamic loc) {
+    if (loc == null) return false;
+    if (loc is! String) return false;
+    final trimmed = loc.trim();
+    if (trimmed.isEmpty || trimmed.toLowerCase() == 'null') return false;
+    return true;
+  }
+
+
 
   Future<List<Map<String, dynamic>>?> _pickAssignees() async {
     String query = "";
@@ -544,13 +568,44 @@ class _ReportCardState extends State<ReportCard> {
                             Row(
                               children: [
                                 Flexible(
-                                  child: Text(
-                                    widget.report["location"] ?? "",
-                                    style: TextStyle(
-                                      color: Colors.grey[600], fontSize: 12),
-                                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                                  ),
+                                  child: widget.report["location"] != null && widget.report["location"].isNotEmpty
+                                      ? TextButton.icon(
+                                          onPressed: () => _openMap(widget.report["location"]),
+                                          icon: const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                                          label: const Text(
+                                            "View on Map",
+                                            style: TextStyle(
+                                              color: Colors.blue,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        )
+                                      : TextButton.icon(
+                                          onPressed: null, // This properly disables the button
+                                          icon: const Icon(Icons.location_off, size: 16, color: Colors.grey),
+                                          label: const Text(
+                                            "Not Available",
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          style: TextButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                        ),
                                 ),
+
+
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(

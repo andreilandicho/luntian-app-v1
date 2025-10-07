@@ -85,11 +85,14 @@ class _ResolvedPageState extends State<ResolvedPage> {
             
             // Location - extract latitude and longitude from reports table
             // Check for different possible field names
-            map["latitude"] = map["latitude"] ?? map["lat"] ?? map["gps_lat"] ?? map["location_lat"] ?? 0.0;
-            map["longitude"] = map["longitude"] ?? map["lon"] ?? map["lng"] ?? map["gps_lng"] ?? map["location_lng"] ?? 0.0;
+             // Location - extract latitude and longitude from multiple possible fields
+            map["latitude"] = map["latitude"] ?? map["lat"] ?? map["gps_lat"] ?? map["location_lat"];
+            map["longitude"] = map["longitude"] ?? map["lon"] ?? map["lng"] ?? map["gps_lng"] ?? map["location_lng"];
             
 
-            map["location"] = "${map["latitude"]}, ${map["longitude"]}";
+            map["location"] = (map["latitude"] != null && map["longitude"] != null)
+            ? "${map["latitude"]}, ${map["longitude"]}"
+            : null;
 
             // Dates from reports table
             map["createdAt"] = map["created_at"] != null
@@ -140,11 +143,20 @@ class _ResolvedPageState extends State<ResolvedPage> {
             
 
             // User info (reporter) from users table
-            map["userName"] =
-                map["users"] != null ? map["users"]["name"] : "Unknown";
-            map["userProfileUrl"] =
-                map["users"] != null ? map["users"]["user_profile_url"] : null;
-            map["userId"] = map["users"] != null ? map["users"]["user_id"] : null;
+            final isAnonymous = map["anonymous"] == true;
+
+            map["userName"] = isAnonymous
+                ? "Anonymous Citizen"
+                : (map["users"] != null ? map["users"]["name"] : "Unknown");
+
+            map["userProfileUrl"] = isAnonymous
+                ? null // ✅ no image at all
+                : (map["users"] != null ? map["users"]["user_profile_url"] : null);
+
+            map["userId"] = isAnonymous
+                ? null
+                : (map["users"] != null ? map["users"]["user_id"] : null);
+
 
             return map;
           }).toList();

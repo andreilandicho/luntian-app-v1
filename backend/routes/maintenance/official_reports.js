@@ -25,6 +25,7 @@ router.get('/assigned-reports/:userId', async (req, res) => {
           descriptive_location,
           lat,
           lon,
+          anonymous,
           users!reports_user_id_fkey(
             name,
             user_profile_url
@@ -79,7 +80,8 @@ router.get('/assigned-reports/:userId', async (req, res) => {
       return {
         reportId: report.report_id,
         reporterName: report.users.name,
-        profileImage: report.users.user_profile_url || 'assets/profile picture.png',
+        profileImage: report.users.user_profile_url || 'assets/profilepicture.png',
+        anonymous: report.anonymous ?? false,
         reportDate: report.created_at,
         priority: report.priority,
         postImages: report.photo_urls || [],

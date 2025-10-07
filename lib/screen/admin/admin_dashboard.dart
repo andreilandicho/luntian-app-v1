@@ -17,11 +17,18 @@ import 'package:flutter_application_1/screen/admin/request_screen.dart';
 import 'package:flutter_application_1/screen/admin/threshold.dart';
 import 'package:flutter_application_1/screen/admin/leaderboard.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart' show rootBundle;
+
 
 
 void main() {
   runApp(const LuntianAdminApp());
 }
+
 
 Future<List<Map<String, dynamic>>> fetchBarangay2Reports() async {
    final prefs = await SharedPreferences.getInstance();
@@ -89,6 +96,9 @@ class _AdminDashboardState extends State<AdminDashboard>
 int _pending = 0;
 int _inProgress = 0;
 int _resolved = 0;
+int? _selectedMonth;
+int? _selectedYear;
+
 
 String? _selectedFilter; 
 DateTimeRange? _selectedDateRange;
@@ -101,6 +111,82 @@ List<Map<String, dynamic>> _reports = [];
 
   // Hazardous filter
   bool? _hazardousOnly;
+
+  void _showGenerateDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text("Generate Report"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Optional: select month/year to filter.\nLeave blank to generate all data.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Month dropdown
+                  DropdownButton<int>(
+                    hint: const Text("Month"),
+                    value: _selectedMonth,
+                    isExpanded: true,
+                    items: List.generate(12, (i) => i + 1)
+                        .map((m) => DropdownMenuItem(
+                              value: m,
+                              child: Text(DateFormat.MMMM().format(DateTime(0, m))),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedMonth = val),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Year dropdown
+                  DropdownButton<int>(
+                    hint: const Text("Year"),
+                    value: _selectedYear,
+                    isExpanded: true,
+                    items: List.generate(5, (i) => DateTime.now().year - i)
+                        .map((y) => DropdownMenuItem(
+                              value: y,
+                              child: Text(y.toString()),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedYear = val),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+
+                    // Directly generate report with the selected filters
+                    _generateReport(
+                      month: _selectedMonth,
+                      year: _selectedYear,
+                    );
+                  },
+                  child: const Text("Generate"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+
+
 
   // --- Update dashboard counts based on filters ---
   void _updateDataForRange([DateTimeRange? range]) {
@@ -149,6 +235,129 @@ List<Map<String, dynamic>> _reports = [];
       _pieController.forward(from: 0);
     });
   }
+
+Future<void> _generateReport({int? month, int? year}) async {
+  final pdf = pw.Document();
+
+  // Load logo image from assets
+  final Uint8List logoBytes = await rootBundle.load('assets/logo only luntian.png').then((b) => b.buffer.asUint8List());
+  final pw.ImageProvider logo = pw.MemoryImage(logoBytes);
+
+  // Filter reports
+  final filteredReports = _reports.where((r) {
+    final createdAt = DateTime.parse(r['created_at']);
+    if (month != null && createdAt.month != month) return false;
+    if (year != null && createdAt.year != year) return false;
+    return true;
+  }).toList();
+
+  final pending = filteredReports.where((r) => r["status"] == "pending").length;
+  final inProgress = filteredReports.where((r) => r["status"] == "in_progress").length;
+  final resolved = filteredReports.where((r) => r["status"] == "resolved").length;
+  final total = pending + inProgress + resolved;
+
+  pdf.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(24),
+      build: (pw.Context context) {
+        return [
+          // Header with logo
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.start,
+            children: [
+              pw.Container(
+                height: 50,
+                width: 50,
+                child: pw.Image(logo, fit: pw.BoxFit.contain),
+              ),
+              pw.SizedBox(width: 10),
+              pw.Text("Luntian Dashboard Report",
+                  style: pw.TextStyle(
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green)),
+            ],
+          ),
+          pw.Divider(thickness: 2, color: PdfColors.green),
+          pw.SizedBox(height: 15),
+
+          // Overview
+          pw.Text("Reports Overview",
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 10),
+          pw.Table.fromTextArray(
+            headers: ["Status", "Count", "Percentage"],
+            data: [
+              [
+                "Pending",
+                pending.toString(),
+                total == 0 ? "0 %" : "${(pending / total * 100).toStringAsFixed(2)} %"
+              ],
+              [
+                "In Progress",
+                inProgress.toString(),
+                total == 0 ? "0 %" : "${(inProgress / total * 100).toStringAsFixed(2)} %"
+              ],
+              [
+                "Resolved",
+                resolved.toString(),
+                total == 0 ? "0 %" : "${(resolved / total * 100).toStringAsFixed(2)} %"
+              ],
+            ],
+            headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
+            cellHeight: 30,
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.center,
+              2: pw.Alignment.center,
+            },
+          ),
+          pw.SizedBox(height: 25),
+
+          // Detailed Reports
+          pw.Text("Report Details",
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 10),
+          pw.Table.fromTextArray(
+            headers: ["Report ID", "Status", "Date", "Time"],
+            data: filteredReports.map((r) {
+              final dt = DateTime.parse(r['created_at']);
+              return [
+                r['report_id'].toString(),
+                r['status'].toString(),
+                DateFormat.yMd().format(dt),
+                DateFormat.Hms().format(dt),
+              ];
+            }).toList(),
+            headerStyle:
+                pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+            headerDecoration:
+                const pw.BoxDecoration(color: PdfColors.blueGrey),
+            cellHeight: 25,
+            cellAlignments: {
+              0: pw.Alignment.center,
+              1: pw.Alignment.center,
+              2: pw.Alignment.center,
+              3: pw.Alignment.center,
+            },
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text("Generated on: ${DateFormat.yMMMMd().add_Hms().format(DateTime.now())}",
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+        ];
+      },
+    ),
+  );
+
+  await Printing.sharePdf(
+      bytes: await pdf.save(), filename: 'dashboard_report.pdf');
+}
+
+
+
 
   // Date & time
   Timer? _clockTimer;
@@ -920,13 +1129,27 @@ Widget _pieCard() {
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
-                            Text(
+                          children: [
+                            const Text(
                               "Reports Overview",
                               style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _showGenerateDialog,
+                              icon: const Icon(Icons.download, size: 18),
+                              label: const Text("Generate"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
                             ),
                           ],
                         ),

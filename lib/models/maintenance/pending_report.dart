@@ -14,6 +14,7 @@ class PendingReport {
   final double? lat;
   final double? lon;
   final List<String> assignedOfficials;
+  final bool anonymous; // ✅ add this
 
   PendingReport({
     required this.reportId,
@@ -31,6 +32,7 @@ class PendingReport {
     this.lat,
     this.lon,
     required this.assignedOfficials,
+    required this.anonymous, // ✅ add this
   });
 
   factory PendingReport.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class PendingReport {
       lat: (json['lat'] is num) ? (json['lat'] as num).toDouble() : null,
       lon: (json['lon'] is num) ? (json['lon'] as num).toDouble() : null,
       assignedOfficials: List<String>.from(json['assignedOfficials']),
+      anonymous: json['anonymous'] ?? false, // ✅ make sure you have this
     );
   }
 }

@@ -19,6 +19,7 @@ class PendingPostCard extends StatefulWidget {
   final DateTime? reportDeadline;
   final double? lat;
   final double? lon;
+  final bool anonymous; // ✅ new field
 
   const PendingPostCard({
     super.key,
@@ -37,6 +38,7 @@ class PendingPostCard extends StatefulWidget {
     required this.reportDeadline,
     this.lat,
     this.lon,
+    this.anonymous = false, // ✅ add this
   });
 
   @override
@@ -117,8 +119,10 @@ class _PendingPostCardState extends State<PendingPostCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.reporterName,
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        widget.anonymous ? "Anonymous Citizen" : widget.reporterName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       Text(widget.reportDate,
                         style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),

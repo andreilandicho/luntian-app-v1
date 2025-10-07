@@ -5,6 +5,7 @@ import 'package:flutter_application_1/screen/admin/admin_dashboard.dart' as admi
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bcrypt/bcrypt.dart'; // Add bcrypt import
+import 'package:flutter_application_1/screen/super_admin/super_admin_dashboard.dart' as super_admin_dashboard;
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -181,32 +182,36 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                                               return;
                                             }
 
-                                            // 3️⃣ Check role
-                                            if (user['role'] != 'barangay') {
+                                            // 3️⃣ Check role and navigate accordingly
+                                            final role = user['role'];
+                                            final prefs = await SharedPreferences.getInstance();
+                                            await prefs.setInt('user_id', user['user_id']);
+
+                                            if (role == 'barangay') {
+                                              final barangayId = user['barangay_id'];
+                                              await prefs.setInt('barangay_id', barangayId);
+
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
+                                              );
+                                              return;
+                                            } else if (role == 'admin') {
+
+                                              Navigator.pushReplacement(
+                                                context,
+                                                MaterialPageRoute(builder: (_) => const super_admin_dashboard.SuperAdminDashboard()),
+                                              );
+                                              return;
+                                            } else {
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 const SnackBar(
-                                                  content: Text("❌ Only barangay accounts are allowed to log in"),
+                                                  content: Text("❌ Access denied. Only admin or barangay accounts can log in."),
                                                   backgroundColor: Colors.red,
                                                 ),
                                               );
                                               return;
                                             }
-
-                                            // ✅ Passed all checks → navigate to dashboard
-                                            final barangayId = user['barangay_id'];
-                                            final userId = user['user_id']; //added 
-
-                                            // store globally or in SharedPreferences
-                                            final prefs = await SharedPreferences.getInstance();
-                                            await prefs.setInt('barangay_id', barangayId);
-                                            await prefs.setInt("user_id", userId); // added
-
-
-                                            Navigator.pushReplacement(
-                                              context,
-                                              MaterialPageRoute(builder: (_) => const admin_dashboard.AdminDashboard()),
-                                            );
-
                                           } catch (e) {
                                             debugPrint("❌ Login error: $e");
                                             if (!mounted) return;
