@@ -121,7 +121,7 @@ class _ReportCardState extends State<ReportCard> {
     });
 
     // ✅ Notify citizen
-                                await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
+    await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
   }
 
   // Reject solution

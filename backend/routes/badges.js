@@ -55,7 +55,8 @@ router.get('/:userId', async (req, res) => {
         description: "Get 10 reports approved.",
         progress: Math.min(topReporterProgress, 10),
         goal: 10,
-        qualification: ""
+        qualification: "The Gina Lopez Badge is awarded to citizens who have demonstrated exceptional commitment to environmental advocacy by submitting a total of 10 reports in a month."
+        // This badge honors the legacy of Gina Lopez, a renowned environmentalist and philanthropist known for her relentless efforts in protecting the environment and promoting sustainable practices.
       },
       {
         name: "Eco Warrior",
@@ -63,7 +64,7 @@ router.get('/:userId', async (req, res) => {
         description: "Successfully complete 3 cleanup events.",
         progress: Math.min(ecoWarriorProgress, 3),
         goal: 3,
-        qualification: "Completed events only"
+        qualification: "The Anna Oposa Badge is awarded to citizens..."
       },
       {
         name: "Event Initiator",
@@ -71,7 +72,7 @@ router.get('/:userId', async (req, res) => {
         description: "Successfully organize your first event.",
         progress: Math.min(eventInitiatorProgress, 1),
         goal: 1,
-        qualification: "Completed or approved events"
+        qualification: "The Rodney Galicha Badge is awarded to citizens..."
       }
     ];
 

@@ -73,6 +73,7 @@ async function buildReportHtml(report) {
 
 export default async function emailExpiredReportsHandler(req, res) {
   try {
+    console.log("emailExpiredReportsHandler called");
     const { data: reports, error } = await supabase
       .from('reports')
       .select('report_id, user_id, barangay_id, descriptive_location, lat, lon, description, photo_urls, category, priority, hazardous, anonymous, status, created_at, report_deadline')
