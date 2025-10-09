@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class BarangayService {
   //request url
-  final String baseUrl = 'http://luntian-app-v1-production.up.railway.app';
+  final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
 
   Future<Map<String, dynamic>?> getBarangayInfo(int barangayId) async {
   final response = await http.get(Uri.parse('$baseUrl/barangays/$barangayId'));

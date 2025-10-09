@@ -52,7 +52,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
   try {
     final period = _selectedFilter.toLowerCase();
     //request url
-    final uri = Uri.parse('http://luntian-app-v1-production.up.railway.app/leaderboards?period=$period');
+    final uri = Uri.parse('https://luntian-app-v1-production.up.railway.app/leaderboards?period=$period');
     print("[DEBUG] Fetching leaderboard from $uri");
     final res = await http.get(uri);
     print("[DEBUG] Response status: ${res.statusCode}");

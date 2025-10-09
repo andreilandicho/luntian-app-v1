@@ -20,7 +20,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
       // 1. Check if email exists
       final resp = await http.post(
-        Uri.parse('http://luntian-app-v1-production.up.railway.app/api/check-email-exists'),
+        Uri.parse('https://luntian-app-v1-production.up.railway.app/api/check-email-exists'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
@@ -29,7 +29,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (resp.statusCode == 200 && data['exists'] == true) {
         // 2. Send OTP with reset password subject
         final otpResp = await http.post(
-          Uri.parse('http://luntian-app-v1-production.up.railway.app/api/send-otp'),
+          Uri.parse('https://luntian-app-v1-production.up.railway.app/api/send-otp'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'email': email, 'subject': 'Reset Password'}),
         );

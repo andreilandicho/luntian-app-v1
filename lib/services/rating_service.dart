@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class RatingService {
   //request url
-  static const String baseUrl = "http://luntian-app-v1-production.up.railway.app"; 
+  static const String baseUrl = "https://luntian-app-v1-production.up.railway.app"; 
 
   // Submit a rating
   static Future<Map<String, dynamic>> submitRating({

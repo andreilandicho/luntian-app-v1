@@ -160,7 +160,7 @@ class _ReportCardState extends State<ReportCard> {
     try {
       //request url
       final response = await http.post(
-        Uri.parse("http://luntian-app-v1-production.up.railway.app/notif/reportStatusChange"), // your backend endpoint
+        Uri.parse("https://luntian-app-v1-production.up.railway.app/notif/reportStatusChange"), // your backend endpoint
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "report_id": reportId,

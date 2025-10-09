@@ -309,7 +309,7 @@ class _AddPageState extends State<AddPage> {
     setState(() => isFetchingBarangays = true);
     try {
       //request url
-      final res = await http.get(Uri.parse('http://luntian-app-v1-production.up.railway.app/barangays'));
+      final res = await http.get(Uri.parse('https://luntian-app-v1-production.up.railway.app/barangays'));
       if (res.statusCode == 200) {
         setState(() {
           barangays = jsonDecode(res.body);
@@ -367,7 +367,7 @@ class _AddPageState extends State<AddPage> {
       // 5. Make API request to find matching barangay
       //request url
       final matchRes = await http.get(Uri.parse(
-        'http://luntian-app-v1-production.up.railway.app/barangays/match/${pos.latitude}/${pos.longitude}'));
+        'https://luntian-app-v1-production.up.railway.app/barangays/match/${pos.latitude}/${pos.longitude}'));
 
       // 6. Process API response
       if (matchRes.statusCode == 200) {
@@ -941,7 +941,7 @@ class _AddPageState extends State<AddPage> {
       //emailer insert
       //request url
       final backendRes = await http.post(
-        Uri.parse("http://luntian-app-v1-production.up.railway.app/notif/notifBarangay"),
+        Uri.parse("https://luntian-app-v1-production.up.railway.app/notif/notifBarangay"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"report_id": reportId}),
       );

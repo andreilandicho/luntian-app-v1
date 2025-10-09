@@ -213,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
           try {
             //request url
             final response = await http.get(
-              Uri.parse('http://luntian-app-v1-production.up.railway.app/official/${user.id}'),
+              Uri.parse('https://luntian-app-v1-production.up.railway.app/official/${user.id}'),
               headers: {'Content-Type': 'application/json'},
             );
             if (response.statusCode == 200) {

@@ -165,7 +165,7 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       final response = await Future.delayed(
         const Duration(milliseconds: 400),
         () async {
-          final uri = Uri.parse('http://luntian-app-v1-production.up.railway.app/events/user/${widget.user!.id}');
+          final uri = Uri.parse('https://luntian-app-v1-production.up.railway.app/events/user/${widget.user!.id}');
           final httpResponse = await Future.sync(() => http.get(uri));
           return httpResponse;
         },

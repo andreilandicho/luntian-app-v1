@@ -19,7 +19,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
     // 1. Check if email exists with role 'citizen'
     final checkResponse = await http.post(
       //request url
-      Uri.parse('http://luntian-app-v1-production.up.railway.app/api/check-email-citizen'),
+      Uri.parse('https://luntian-app-v1-production.up.railway.app/api/check-email-citizen'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
     );
@@ -29,7 +29,7 @@ class _EmailSignUpScreenState extends State<EmailSignUpScreen> {
       // 2. Send OTP
       //request url
       final otpResponse = await http.post(
-        Uri.parse('http://luntian-app-v1-production.up.railway.app/api/send-otp'),
+        Uri.parse('https://luntian-app-v1-production.up.railway.app/api/send-otp'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );

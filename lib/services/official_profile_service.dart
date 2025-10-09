@@ -5,7 +5,7 @@ import 'package:http_parser/http_parser.dart';
 
 class OfficialProfileService {
   //request url
-  final String baseUrl = 'http://luntian-app-v1-production.up.railway.app';
+  final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
 
   Future<String?> uploadProfilePhoto(int userId, String filePath) async {
     final request = http.MultipartRequest(

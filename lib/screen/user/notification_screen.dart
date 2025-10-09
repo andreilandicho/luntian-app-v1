@@ -52,7 +52,7 @@ class _NotificationPageState extends State<NotificationPage> {
     //request url
     try {
       final response =
-          await http.get(Uri.parse("http://luntian-app-v1-production.up.railway.app/notifications/$id"));
+          await http.get(Uri.parse("https://luntian-app-v1-production.up.railway.app/notifications/$id"));
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);

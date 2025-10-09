@@ -6,7 +6,7 @@ import '../models/homepage_event_model.dart';
 
 class EventService {
   //request url
-  final String baseUrl = 'http://luntian-app-v1-production.up.railway.app';
+  final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
 
   //for event screen
   Future<int?> getCitizenIdOfUser(int userId) async {
