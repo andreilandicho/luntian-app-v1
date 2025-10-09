@@ -7,7 +7,8 @@ import 'package:path/path.dart' as path;
 
 
 class ProfileService {
-  final String baseUrl = 'http://10.0.2.2:3000'; // Same as your other services
+  //request url
+  final String baseUrl = 'http://luntian-app-v1-production.up.railway.app'; // Same as your other services
   //get user information
   Future<Map<String, dynamic>> getUserInfo(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/users/$userId'));

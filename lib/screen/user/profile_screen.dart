@@ -161,11 +161,11 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       return;
     }
     try {
-      // Example REST API call, adapt endpoint as needed
+      // request url
       final response = await Future.delayed(
         const Duration(milliseconds: 400),
         () async {
-          final uri = Uri.parse('http://10.0.2.2:3000/events/user/${widget.user!.id}');
+          final uri = Uri.parse('http://luntian-app-v1-production.up.railway.app/events/user/${widget.user!.id}');
           final httpResponse = await Future.sync(() => http.get(uri));
           return httpResponse;
         },

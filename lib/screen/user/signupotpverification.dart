@@ -44,8 +44,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   Future<void> verifyOtp() async {
+    //request url
   final response = await http.post(
-    Uri.parse('http://10.0.2.2:3000/api/verify-otp'),
+    Uri.parse('http://luntian-app-v1-production.up.railway.app/api/verify-otp'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'email': widget.email, 'otp': otpController.text.trim()}),
   );
@@ -78,8 +79,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   Future<void> resendOtp() async {
     setState(() => isResending = true);
+    //request url
     final response = await http.post(
-      Uri.parse('http://10.0.2.2:3000/api/send-otp'),
+      Uri.parse('http://luntian-app-v1-production.up.railway.app/api/send-otp'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': widget.email}),
     );

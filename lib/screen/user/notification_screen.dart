@@ -49,9 +49,10 @@ class _NotificationPageState extends State<NotificationPage> {
 
   Future<void> _fetchNotifications(int id) async {
     setState(() => isLoading = true);
+    //request url
     try {
       final response =
-          await http.get(Uri.parse("http://10.0.2.2:3000/notifications/$id"));
+          await http.get(Uri.parse("http://luntian-app-v1-production.up.railway.app/notifications/$id"));
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);

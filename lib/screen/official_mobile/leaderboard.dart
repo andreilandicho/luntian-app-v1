@@ -102,7 +102,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
 
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:3000/leaderboards?period=$_selectedFilter'),
+        //request url
+        Uri.parse('http://luntian-app-v1-production.up.railway.app/leaderboards?period=$_selectedFilter'),
       );
 
       if (response.statusCode == 200) {

@@ -20,9 +20,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> resetPassword() async {
     setState(() => _isLoading = true);
-
+    //request url
     final response = await http.post(
-      Uri.parse('http://10.0.2.2:3000/api/reset-password'),
+      Uri.parse('http://luntian-app-v1-production.up.railway.app/api/reset-password'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': widget.email,

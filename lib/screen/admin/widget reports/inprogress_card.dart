@@ -158,8 +158,9 @@ class _ReportCardState extends State<ReportCard> {
 //calling the controller
   Future<void> _notifyCitizenStatusChange(String reportId, String newStatus) async {
     try {
+      //request url
       final response = await http.post(
-        Uri.parse("http://localhost:3000/notif/reportStatusChange"), // your backend endpoint
+        Uri.parse("http://luntian-app-v1-production.up.railway.app/notif/reportStatusChange"), // your backend endpoint
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "report_id": reportId,

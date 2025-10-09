@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RatingService {
-  static const String baseUrl = "http://10.0.2.2:3000"; 
+  //request url
+  static const String baseUrl = "http://luntian-app-v1-production.up.railway.app"; 
 
   // Submit a rating
   static Future<Map<String, dynamic>> submitRating({

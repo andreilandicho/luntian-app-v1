@@ -6,8 +6,9 @@ import '../models/report_model.dart';
 import '../models/solved_report_model.dart';
 
 class ReportService {
-  final String baseUrl = 'http://10.0.2.2:3000';
-  
+  //request url
+  final String baseUrl = 'http://luntian-app-v1-production.up.railway.app';
+
   Future<List<ReportModel>> getReportsByBarangay(int barangayId, int userId) async {
     try {
       final response = await http.get(
