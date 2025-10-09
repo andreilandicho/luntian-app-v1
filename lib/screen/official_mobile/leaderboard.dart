@@ -100,6 +100,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
   Future<void> _fetchLeaderboardData() async {
     setState(() => _isLoading = true);
 
+    //check for latest deployment in railway
+    
     try {
       final response = await http.get(
         //request url
