@@ -1,7 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import supabase from '../supabaseClient.js';
 import bcrypt from 'bcrypt';
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function resetPasswordHandler(req, res) {
   const { email, password } = req.body;

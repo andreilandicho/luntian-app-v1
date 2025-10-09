@@ -1,4 +1,4 @@
-import redisClient from '../lib/utils/redisClient.js';
+import redisClient from '../../backend-utils/redisClient.js';
 
 export default async function verifyOTPHandler(req, res) {
   const { email, otp } = req.body;

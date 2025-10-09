@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+import supabase from '../supabaseClient.js';
 
 export default async function checkEmailExistsHandler(req, res) {
   const { email } = req.body;

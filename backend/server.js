@@ -13,13 +13,13 @@ import notif from './routes/notif.js';
 import rating from './routes/rating.js'
 import "./backend-utils/cron.js"; // Import cron jobs to run them
 import badgesRouter from './routes/badges.js';
-import emailExpiredReportsHandler from '../api/email-expired-reports.js';
+import emailExpiredReportsHandler from './routes/email-expired-reports.js';
 //for sign up email verification
-import sendOTPHandler from '../api/send-otp.js';
-import verifyOTPHandler from '../api/verify-otp.js';
-import checkEmailCitizenHandler from '../api/check-email-citizen.js';
-import checkEmailExistsHandler from '../api/check-email-exists.js';
-import resetPasswordHandler from '../api/reset-password.js';
+import sendOTPHandler from './routes/otp-mailer/send-otp.js';
+import verifyOTPHandler from './routes/otp-mailer/verify-otp.js';
+import checkEmailCitizenHandler from './routes/check-email-citizen.js';
+import checkEmailExistsHandler from './routes/check-email-exists.js';
+import resetPasswordHandler from './routes/reset-password.js';
 
 
 //for web use
