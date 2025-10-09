@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import supabase from "../../backend/supabaseClient.js";
+import supabase from "../supabaseClient.js";
 import { transporter } from "./mailer.js";
 import { DateTime } from "luxon";
 

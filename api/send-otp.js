@@ -1,5 +1,5 @@
 import redisClient from '../lib/utils/redisClient.js';
-import { transporter } from '../lib/utils/mailer.js'; // Your Nodemailer setup
+import { transporter } from '../backend/backend-utils/mailer.js'; // Your Nodemailer setup
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();

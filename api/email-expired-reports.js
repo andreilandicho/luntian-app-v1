@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { transporter } from '../lib/utils/mailer.js';
+import { transporter } from '../backend/backend-utils/mailer.js';
 import fs from 'fs/promises';
 import path from 'path';
 

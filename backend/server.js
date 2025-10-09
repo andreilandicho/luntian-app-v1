@@ -11,7 +11,7 @@ import leaderboardsRouter from './routes/leaderboards.js';
 import notificationsRouter from './routes/user_notifications.js';
 import notif from './routes/notif.js';
 import rating from './routes/rating.js'
-import "../lib/utils/cron.js"; // Import cron jobs to run them
+import "./backend-utils/cron.js"; // Import cron jobs to run them
 import badgesRouter from './routes/badges.js';
 import emailExpiredReportsHandler from '../api/email-expired-reports.js';
 //for sign up email verification
