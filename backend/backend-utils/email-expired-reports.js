@@ -67,7 +67,7 @@ async function buildReportHtml(report) {
 
 // Cron job: runs every day at 6:00 AM PH time
 cron.schedule(
-  "24 14 * * *",
+  "26 14 * * *",
   async () => {
     console.log("⏰ Running expired reports emailer job...");
 
