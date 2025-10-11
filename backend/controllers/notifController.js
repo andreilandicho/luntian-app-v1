@@ -33,6 +33,64 @@ const supabase = createClient(
 // });
 
 //
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
+import supabase from "../../backend/supabaseClient.js";
+import { sendEmail } from "./mailer.js";
+import { DateTime } from "luxon";
+
+// Helper to build the HTML content from template and report data
+async function buildReportHtml(report) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const templatePath = path.resolve(__dirname, "./email-templates/report-submission.html");
+  let template = await fs.readFile(templatePath, "utf8");
+
+  // Prepare variables for template
+  let mapsLink = "";
+  if (report.lat && report.lon) {
+    mapsLink = `<a href="https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lon}" target="_blank" style="color:#2e7d32;">View on Google Maps</a>`;
+  }
+
+  let photoUrlsHtml = "";
+  if (Array.isArray(report.photo_urls)) {
+    photoUrlsHtml = report.photo_urls.map(url =>
+      `<img src="${url}" style="max-width:120px; max-height:120px; margin:4px; border-radius:8px;" alt="Report Photo" />`
+    ).join("");
+  }
+
+  let badgeText = "";
+  let badgeClass = "";
+  if (report.status === "expired") { badgeText = "Status: EXPIRED – Immediate Action Required"; badgeClass = "expired"; }
+  else if (report.status === "pending") { badgeText = "Status: PENDING – Requires Follow-Up"; badgeClass = "pending"; }
+  else if (report.status === "in_progress") { badgeText = "Status: IN PROGRESS – Ongoing"; badgeClass = "progress"; }
+  else { badgeText = "Status: ON TRACK"; badgeClass = "ontrack"; }
+
+  // Additional template variables
+  const createdAt = DateTime.fromISO(report.created_at).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+  const reportDeadline = report.report_deadline ? DateTime.fromISO(report.report_deadline).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm") : "";
+  const anonymous = report.anonymous ? "Yes" : "No";
+  const status = report.status;
+
+  template = template
+    .replace("${BADGE_TEXT}", badgeText)
+    .replace("${BADGE_CLASS}", badgeClass)
+    .replace("${REPORT_ID}", report.report_id)
+    .replace("${DESCRIPTIVE_LOCATION}", report.descriptive_location || "")
+    .replace("${CATEGORY}", report.category)
+    .replace("${PRIORITY}", report.priority)
+    .replace("${HAZARDOUS}", report.hazardous ? "Yes" : "No")
+    .replace("${GOOGLE_MAPS_LINK}", mapsLink)
+    .replace("${DESCRIPTION}", report.description || "")
+    .replace("${PHOTO_URLS_HTML}", photoUrlsHtml)
+    .replace("${ANONYMOUS}", anonymous)
+    .replace("${CREATED_AT}", createdAt)
+    .replace("${REPORT_DEADLINE}", reportDeadline)
+    .replace("${STATUS}", status);
+
+  return template;
+}
+
 export async function reportNotifBarangay(req, res) {
   try {
     const { report_id } = req.body;
@@ -40,7 +98,7 @@ export async function reportNotifBarangay(req, res) {
     // Fetch report details using report_id
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("description, category, priority, hazardous, lat, lon, user_id, barangay_id")
+      .select("report_id, user_id, barangay_id, descriptive_location, lat, lon, description, photo_urls, category, priority, hazardous, anonymous, status, created_at, report_deadline")
       .eq("report_id", report_id)
       .single();
 
@@ -67,30 +125,21 @@ export async function reportNotifBarangay(req, res) {
       .select("user_id")
       .eq("barangay_id", report.barangay_id)
       .eq("role", "barangay")
-      .single(); // This should return only one record
+      .single();
 
     if (userError || !barangayUser) {
       console.error("Error fetching barangay user:", userError);
       return res.status(404).json({ error: "Barangay user not found" });
     }
 
+    // Build the HTML content using template
+    const html = await buildReportHtml(report);
+
     // Send email
     await sendEmail({
       to: barangay.contact_email,
-      subject: "New Report Submission",
-      html: `
-        <h3>New Report Submitted</h3>
-        <p><strong>Report ID:</strong> ${report_id}</p>
-        <p><strong>Description:</strong> ${report.description}</p>
-        <p><strong>Category:</strong> ${report.category}</p>
-        <p><strong>Priority:</strong> ${report.priority}</p>
-        <p><strong>Hazardous:</strong> ${report.hazardous}</p>
-        <p><strong>Location:</strong> 
-          <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
-            View on Google Maps
-          </a>
-        </p>
-      `,
+      subject: "New Report Submission!",
+      html: html,
     });
 
     console.log("Email sent successfully to:", barangay.contact_email);
@@ -100,7 +149,7 @@ export async function reportNotifBarangay(req, res) {
     // Insert email log with the correct barangay user_id
     const { error: emailError } = await supabase.from("email").insert({
       report_id,
-      user_id: barangayUser.user_id, // Correct user_id from users table
+      user_id: barangayUser.user_id,
       title: "New Report Submission",
       content: `New report received: ${report.description}`,
       role: "barangay",
