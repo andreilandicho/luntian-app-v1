@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import supabase from "../supabaseClient.js";
 // import { transporter } from "./mailer.js"; //not supported in railway
-import { sendEmail } from "..backend-utils/mailer.js";
+import { sendEmail } from "./mailer.js";
 import { DateTime } from "luxon";
 
 // Runs daily at 8:00 AM Philippine Time (better timing for business hours)

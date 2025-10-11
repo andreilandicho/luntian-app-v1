@@ -1,6 +1,6 @@
 import supabase from '../supabaseClient.js';
 // import { transporter } from '../backend-utils/mailer.js';
-import { sendEmail } from '../backend-utils/mailer.js';
+import { sendEmail } from "../backend-utils/mailer.js";
 import fs from 'fs/promises';
 import path from 'path';
 

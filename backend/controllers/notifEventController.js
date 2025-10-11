@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
-import {sendEmail} from "../backend-utils/mailer.js";
+import { sendEmail } from "../backend-utils/mailer.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
