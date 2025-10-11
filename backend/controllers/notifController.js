@@ -36,7 +36,8 @@ import { DateTime } from "luxon";
 // Helper to build the HTML content from template and report data
 async function buildReportHtml(report) {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const templatePath = path.resolve(__dirname, "./email-templates/report-submission.html");
+  const templatePath = path.resolve(__dirname, "../backend-utils/email-templates/report-submission.html");
+                                                
   let template = await fs.readFile(templatePath, "utf8");
 
   // Prepare variables for template
