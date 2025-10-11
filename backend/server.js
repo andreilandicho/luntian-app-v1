@@ -12,7 +12,7 @@ import notificationsRouter from './routes/user_notifications.js';
 import notif from './routes/notif.js';
 import rating from './routes/rating.js'
 import "./backend-utils/cron.js"; // Import cron jobs to run them
-import "./backend-utils/cron-expired-reports.js";
+import "./backend-utils/email-expired-reports.js";
 import badgesRouter from './routes/badges.js';
 // import emailExpiredReportsHandler from './routes/email-expired-reports.js';
 //for sign up email verification
