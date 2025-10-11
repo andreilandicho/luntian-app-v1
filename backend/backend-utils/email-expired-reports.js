@@ -2,6 +2,7 @@ import cron from "node-cron";
 import supabase from "../supabaseClient.js";
 import { sendEmail } from "./mailer.js";
 import fs from "fs/promises";
+import { fileURLToPath } from "url";
 import path from "path";
 import { DateTime } from "luxon";
 
@@ -37,8 +38,8 @@ async function buildReportHtml(report) {
       `<img src="${url}" style="max-width:120px; max-height:120px; margin:4px; border-radius:8px;" alt="Report Photo" />`
     ).join("");
   }
-
-  const templatePath = path.resolve(process.cwd(), "../lib/utils/email-templates/escalated-report.html");
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const templatePath = path.resolve(__dirname, "../../lib/utils/email-templates/escalated-report.html");
   let template = await fs.readFile(templatePath, "utf8");
   template = template
     .replace("${BADGE_TEXT}", badgeText)
@@ -66,7 +67,7 @@ async function buildReportHtml(report) {
 
 // Cron job: runs every day at 6:00 AM PH time
 cron.schedule(
-  "13 14 * * *",
+  "19 14 * * *",
   async () => {
     console.log("⏰ Running expired reports emailer job...");
 
