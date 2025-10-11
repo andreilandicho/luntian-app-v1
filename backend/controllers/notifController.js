@@ -18,7 +18,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
-import supabase from "../../backend/supabaseClient.js";
+import supabase from '../supabaseClient.js';
 import { sendEmail } from "./mailer.js";
 import { DateTime } from "luxon";
 
