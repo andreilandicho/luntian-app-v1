@@ -1,6 +1,6 @@
 import redisClient from '../../backend-utils/redisClient.js';
-import { transporter } from '../../backend-utils/mailer.js'; // Your Nodemailer setup
-
+// import { transporter } from '../../backend-utils/mailer.js'; // Your Nodemailer setup
+import { sendEmail } from '../../backend-utils/mailer.js';
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -19,8 +19,8 @@ export default async function sendOTPHandler(req, res) {
 
   try {
     // Send email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
+      // from: process.env.EMAIL_USER,
       to: email,
       subject: mailSubject,
       text: `Your verification code is: ${otp}`,

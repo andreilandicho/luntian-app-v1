@@ -14,7 +14,8 @@
 //3. citizen status change emailer also with 1 once the status is met
 //4. due date emailer to barangay and official
 
-import nodemailer from "nodemailer";
+// import nodemailer from "nodemailer";
+import { sendEmail } from "../backend-utils/mailer.js";
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
 
@@ -23,13 +24,13 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 
 //
 export async function reportNotifBarangay(req, res) {
@@ -74,8 +75,7 @@ export async function reportNotifBarangay(req, res) {
     }
 
     // Send email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
       to: barangay.contact_email,
       subject: "New Report Submission",
       html: `
@@ -185,8 +185,8 @@ export async function officialAssignment(req, res) {
         console.error("❌ Error inserting into email log:", emailError);
       }
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      await sendEmail({
+        // from: process.env.EMAIL_USER,
         to: official.email,
         subject: `Official Notification: ${report.title}`,
         html: `
@@ -271,8 +271,8 @@ export async function reportStatusChange(req, res) {
         {
           report_id,
           user_id: report.user_id,
-          title: "Report Approved", // required for populating so it doesnt go null and break
-          content: `Your report "${report.description}" has been approved.`, // required same here
+          title: "Report Solved", // required for populating so it doesnt go null and break
+          content: `Your report "${report.description}" has been solved. Open Luntian to view solutions. Please rate the submitted solutions so that we can improve our service.`, // required same here
           role: "citizen", // role like you did with barangay/official
           email: user.email,
           status: ["sent"],
@@ -286,8 +286,8 @@ export async function reportStatusChange(req, res) {
       }
 
       // Send notification email
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      await sendEmail({
+        // from: process.env.EMAIL_USER,
         to: user.email,
         subject: `Your Report Has Been Approved`,
         html: `

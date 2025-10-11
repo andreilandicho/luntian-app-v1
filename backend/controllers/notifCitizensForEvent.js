@@ -1,19 +1,20 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
+import {sendEmail} from "../backend-utils/mailer.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 /**
  * This controller is inended for sending notifications to all citizens in a barangay when an event is approved. Only when an veent is approved should this be triggered.
  */
@@ -100,8 +101,8 @@ export async function notifyBarangayCitizens(req, res) {
       const batchPromises = batch.map(async (citizen) => {
         try {
           // Send email to each citizen
-          await transporter.sendMail({
-            from: process.env.EMAIL_USER,
+          await sendEmail({
+            // from: process.env.EMAIL_USER,
             to: citizen.email,
             subject: `New Event: ${event.title}`,
             html: htmlContent,

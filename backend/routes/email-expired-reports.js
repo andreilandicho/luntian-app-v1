@@ -1,5 +1,6 @@
 import supabase from '../supabaseClient.js';
-import { transporter } from '../backend-utils/mailer.js';
+// import { transporter } from '../backend-utils/mailer.js';
+import { sendEmail } from '../backend-utils/mailer.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -87,8 +88,8 @@ export default async function emailExpiredReportsHandler(req, res) {
       const subject = `URGENT: Report Expired (${report.report_id})`;
       const html = await buildReportHtml(report);
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      await sendEmail({
+        // from: process.env.EMAIL_USER,
         to: recipient,
         subject,
         html,
