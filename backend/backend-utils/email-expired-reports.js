@@ -39,7 +39,7 @@ async function buildReportHtml(report) {
     ).join("");
   }
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const templatePath = path.resolve(__dirname, "../../lib/utils/email-templates/escalated-report.html");
+  const templatePath = path.resolve(__dirname, "./email-templates/escalated-report.html");
   let template = await fs.readFile(templatePath, "utf8");
   template = template
     .replace("${BADGE_TEXT}", badgeText)
@@ -67,7 +67,7 @@ async function buildReportHtml(report) {
 
 // Cron job: runs every day at 6:00 AM PH time
 cron.schedule(
-  "19 14 * * *",
+  "24 14 * * *",
   async () => {
     console.log("⏰ Running expired reports emailer job...");
 
