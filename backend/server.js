@@ -12,8 +12,9 @@ import notificationsRouter from './routes/user_notifications.js';
 import notif from './routes/notif.js';
 import rating from './routes/rating.js'
 import "./backend-utils/cron.js"; // Import cron jobs to run them
+import "./backend-utils/cron-expired-reports.js";
 import badgesRouter from './routes/badges.js';
-import emailExpiredReportsHandler from './routes/email-expired-reports.js';
+// import emailExpiredReportsHandler from './routes/email-expired-reports.js';
 //for sign up email verification
 import sendOTPHandler from './routes/otp-mailer/send-otp.js';
 import verifyOTPHandler from './routes/otp-mailer/verify-otp.js';
@@ -35,7 +36,7 @@ app.use(cors()); // Enable CORS for all routes
 app.use(express.json());
 
 
-app.post('/api/email-expired-reports', emailExpiredReportsHandler);
+// app.post('/api/email-expired-reports', emailExpiredReportsHandler);
 console.log("Registered /api/email-expired-reports route");
 
 app.use('/auth', authRouter);
