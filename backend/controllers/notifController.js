@@ -15,14 +15,12 @@
 //4. due date emailer to barangay and official
 
 // import nodemailer from "nodemailer";
-import { sendEmail } from "../backend-utils/mailer.js";
-import { createClient } from "@supabase/supabase-js";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
+import supabase from "../../backend/supabaseClient.js";
+import { sendEmail } from "./mailer.js";
 import { DateTime } from "luxon";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
 
 // const transporter = nodemailer.createTransport({
 //   service: "gmail",
@@ -33,12 +31,7 @@ const supabase = createClient(
 // });
 
 //
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs/promises";
-import supabase from "../../backend/supabaseClient.js";
-import { sendEmail } from "./mailer.js";
-import { DateTime } from "luxon";
+
 
 // Helper to build the HTML content from template and report data
 async function buildReportHtml(report) {
