@@ -17,7 +17,6 @@
 // import nodemailer from "nodemailer";
 import path from "path";
 import { fileURLToPath } from "url";
-import fs from "fs/promises";
 import supabase from '../supabaseClient.js';
 import { sendEmail } from "../backend-utils/mailer.js";
 import { DateTime } from "luxon";
