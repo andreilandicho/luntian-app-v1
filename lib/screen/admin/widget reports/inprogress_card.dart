@@ -150,18 +150,6 @@ class _ReportCardState extends State<ReportCard> {
       'status': 'rejected',
       'comments': comment.isEmpty ? 'Rejected by admin' : comment,
     });
-
-    final response = await http.post(
-        Uri.parse('http://localhost:3000/notif/reportNotifBarangay'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'report_id': reportId}),
-      );
-
-      if (response.statusCode == 200) {
-        print("📧 Official assignment email(s) sent successfully");
-      } else {
-        print("⚠️ Email sending failed: ${response.body}");
-      }
   }
 
 
