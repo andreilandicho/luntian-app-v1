@@ -80,7 +80,7 @@ router.get('/assigned-reports/:userId', async (req, res) => {
       return {
         reportId: report.report_id,
         reporterName: report.users.name,
-        profileImage: report.users.user_profile_url || 'assets/profilepicture.png',
+        profileImage: report.users.user_profile_url || 'assets/profile picture.png',
         anonymous: report.anonymous ?? false,
         reportDate: report.created_at,
         priority: report.priority,

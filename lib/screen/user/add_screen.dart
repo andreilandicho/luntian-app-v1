@@ -165,144 +165,173 @@ class _AddPageState extends State<AddPage> {
   }
 
   Widget _buildPhotoStep() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double screenWidth = constraints.maxWidth;
-        final double cameraPreviewHeight = screenWidth * 3 / 4;
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      final double screenHeight = constraints.maxHeight;
+      final double screenWidth = constraints.maxWidth;
 
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                // Camera Preview
-                Container(
-                  width: screenWidth,
-                  height: cameraPreviewHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: _isCameraInitialized
-                        ? CameraPreview(_cameraController)
-                        : const Center(child: CircularProgressIndicator()),
-                  ),
-                ),
+      return SafeArea(
+        child: Stack(
+          children: [
+            // 📸 Fullscreen Camera Preview
+            Positioned.fill(
+              child: _isCameraInitialized
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(0),
+                      child: CameraPreview(_cameraController),
+                    )
+                  : Container(
+                      color: Colors.black,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                    ),
+            ),
 
-                const SizedBox(height: 12),
-
-                // Captured Image Grid
-                if (_capturedImages.isNotEmpty)
-                  Padding(
+            // 🖼️ Captured Images (bottom thumbnails)
+            if (_capturedImages.isNotEmpty)
+              Positioned(
+                bottom: 130,
+                left: 0,
+                right: 0,
+                child: SizedBox(
+                  height: 90,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: List.generate(_capturedImages.length, (index) {
-                        final isSelected = _selectedImageIndexes.contains(index);
-                        final imageSize = (screenWidth - 64) / 4;
-
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              isSelected
-                                  ? _selectedImageIndexes.remove(index)
-                                  : _selectedImageIndexes.add(index);
-                            });
-                          },
-                          child: Stack(
-                            children: [
-                              Container(
-                                width: imageSize,
-                                height: imageSize,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  image: DecorationImage(
-                                    image: FileImage(_capturedImages[index]),
-                                    fit: BoxFit.cover,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemCount: _capturedImages.length,
+                    itemBuilder: (context, index) {
+                      final isSelected = _selectedImageIndexes.contains(index);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            isSelected
+                                ? _selectedImageIndexes.remove(index)
+                                : _selectedImageIndexes.add(index);
+                          });
+                        },
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 110,
+                              height: 110,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                image: DecorationImage(
+                                  image: FileImage(_capturedImages[index]),
+                                  fit: BoxFit.cover,
+                                ),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.greenAccent
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            if (isSelected)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
                                   ),
                                 ),
                               ),
-                              if (isSelected)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.5),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(Icons.check_circle, color: Colors.white),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+            // 🎛️ Bottom Buttons
+            Positioned(
+              bottom: 30,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Switch Camera
+                  ElevatedButton(
+                    onPressed: _switchCamera,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.5),
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(14),
+                      elevation: 4,
                     ),
+                    child: const Icon(Icons.flip_camera_ios_rounded,
+                        color: Colors.white, size: 26),
                   ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(width: 40),
 
-                // Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ElevatedButton(
-                      onPressed: _switchCamera,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF328E6E),
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(14),
-                        elevation: 6,
-                      ),
-                      child: const Icon(Icons.flip_camera_android, color: Colors.white, size: 24),
+                  // Capture Button
+                  ElevatedButton(
+                    onPressed: _takePicture,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF328E6E),
+                      shape: const CircleBorder(),
+                      padding: const EdgeInsets.all(22),
+                      elevation: 8,
                     ),
-                    const SizedBox(width: 20),
-                    ElevatedButton(
-                      onPressed: _takePicture,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF328E6E),
-                        shape: const CircleBorder(),
-                        padding: const EdgeInsets.all(18),
-                        elevation: 6,
-                      ),
-                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 20),
-                    ElevatedButton(
-                      onPressed: _selectedImageIndexes.isNotEmpty
-                      ? () {
-                          // Initialize values needed for next step
-                          setState(() {
-                            // Make sure these have default values if needed
-                            barangayName = "";
-                            municipality = "";
-                            province = "";
-                            region = "";
-                            currentPage = 1;
-                          });
-                        }
-                      : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF328E6E),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                      ),
-                      child: const Text(
-                        'Next',
-                        style: TextStyle(fontFamily: 'Poppins', color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
+                    child:
+                        const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 30),
+                  ),
 
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(width: 40),
+
+                  // Next Button
+                  ElevatedButton(
+                    onPressed: _selectedImageIndexes.isNotEmpty
+                        ? () {
+                            setState(() {
+                              barangayName = "";
+                              municipality = "";
+                              province = "";
+                              region = "";
+                              currentPage = 1;
+                            });
+                          }
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _selectedImageIndexes.isNotEmpty
+                          ? const Color(0xFF328E6E)
+                          : Colors.grey,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 14),
+                      elevation: 5,
+                    ),
+                    child: const Text(
+                      "Next",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   // ======== LOCATION STEP ========
   Future<void> _fetchBarangays() async {
@@ -435,183 +464,298 @@ class _AddPageState extends State<AddPage> {
   }
 
   Widget _buildAddressStep() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    "Address Information",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: descriptiveLocation,
-                    decoration: const InputDecoration(
-                      labelText: "Descriptive Location (e.g., street, landmark)",
-                      border: OutlineInputBorder(),
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: IntrinsicHeight(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // 🏠 Title
+                Row(
+                  children: const [
+                    Icon(Icons.location_on_rounded,
+                        color: Color(0xFF328E6E), size: 26),
+                    SizedBox(width: 8),
+                    Text(
+                      "Address Information",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // 📍 Descriptive Location
+                TextField(
+                  controller: descriptiveLocation,
+                  decoration: InputDecoration(
+                    labelText: "Descriptive Location",
+                    hintText: "e.g., Purok 5, near Barangay Hall",
+                    prefixIcon: const Icon(Icons.home_outlined,
+                        color: Color(0xFF328E6E)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
                   ),
-                  const SizedBox(height: 16),
-                  isFetchingBarangays
-                      ? const Center(child: CircularProgressIndicator())
-                      : (barangays.isEmpty
-                          ? const Text("No barangays found. Please try again.")
-                          : DropdownButtonFormField<int>(
-                              value: selectedBarangayId,
-                              decoration: const InputDecoration(
-                                labelText: "Barangay",
-                                border: OutlineInputBorder(),
-                              ),
-                              items: barangays
-                                  .map<DropdownMenuItem<int>>((b) => DropdownMenuItem<int>(
-                                        value: b['barangay_id'],
-                                        child: Text(b['barangay_name']),
-                                      ))
-                                  .toList(),
-                              onChanged: _onBarangayDropdownChanged,
-                              validator: (val) =>
-                                  val == null ? "Please select barangay" : null,
-                            )),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: "Municipality/City",
-                            border: OutlineInputBorder(),
-                            hintText: "Auto-filled",
+                ),
+                const SizedBox(height: 16),
+
+                // 🏘 Barangay Dropdown
+                if (isFetchingBarangays)
+                  const Center(child: CircularProgressIndicator())
+                else if (barangays.isEmpty)
+                  const Text("No barangays found. Please try again.")
+                else
+                  DropdownButtonFormField<int>(
+                    value: selectedBarangayId,
+                    decoration: InputDecoration(
+                      labelText: "Barangay",
+                      prefixIcon: const Icon(Icons.apartment_outlined,
+                          color: Color(0xFF328E6E)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                    ),
+                    items: barangays
+                        .map<DropdownMenuItem<int>>(
+                          (b) => DropdownMenuItem<int>(
+                            value: b['barangay_id'],
+                            child: Text(
+                              b['barangay_name'],
+                              style: const TextStyle(fontFamily: 'Poppins'),
+                            ),
                           ),
-                          controller: TextEditingController(text: municipality),
+                        )
+                        .toList(),
+                    onChanged: _onBarangayDropdownChanged,
+                    validator: (val) =>
+                        val == null ? "Please select barangay" : null,
+                  ),
+                const SizedBox(height: 16),
+
+                // 🏙 Municipality + Province
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        readOnly: true,
+                        controller: TextEditingController(text: municipality),
+                        decoration: InputDecoration(
+                          labelText: "Municipality/City",
+                          prefixIcon: const Icon(Icons.location_city_outlined,
+                              color: Color(0xFF328E6E)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          readOnly: true,
-                          decoration: const InputDecoration(
-                            labelText: "Province",
-                            border: OutlineInputBorder(),
-                            hintText: "Auto-filled",
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        readOnly: true,
+                        controller: TextEditingController(text: province),
+                        decoration: InputDecoration(
+                          labelText: "Province",
+                          prefixIcon: const Icon(Icons.map_outlined,
+                              color: Color(0xFF328E6E)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          controller: TextEditingController(text: province),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    readOnly: true,
-                    decoration: const InputDecoration(
-                      labelText: "Region",
-                      border: OutlineInputBorder(),
-                      hintText: "Auto-filled",
                     ),
-                    controller: TextEditingController(text: region),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // 🌏 Region
+                TextFormField(
+                  readOnly: true,
+                  controller: TextEditingController(text: region),
+                  decoration: InputDecoration(
+                    labelText: "Region",
+                    prefixIcon: const Icon(Icons.public_outlined,
+                        color: Color(0xFF328E6E)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
-                  const SizedBox(height: 18),
-                  ElevatedButton.icon(
-                    onPressed: isDetectingLocation ? null : _detectLocationAndMatch,
-                    icon: const Icon(Icons.my_location),
-                    label: Text(isDetectingLocation
-                        ? "Geotagging..."
-                        : "Geotag"),
+                ),
+                const SizedBox(height: 20),
+
+                // 📍 Geotag Button
+                ElevatedButton.icon(
+                  onPressed: isDetectingLocation ? null : _detectLocationAndMatch,
+                  icon: Icon(
+                    isDetectingLocation
+                        ? Icons.sync_rounded
+                        : Icons.my_location_rounded,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    isDetectingLocation ? "Detecting Location..." : "Geotag My Address",
+                    style: const TextStyle(
+                        fontFamily: 'Poppins', fontWeight: FontWeight.w500),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF328E6E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 2,
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // ➡️ Next Button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    onPressed: (selectedBarangayId != null)
+                        ? () => setState(() => currentPage = 2)
+                        : null,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: const Text(
+                      "Next",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF328E6E),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 3,
                     ),
                   ),
-                  const Spacer(), // This will push the Next button to the bottom
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      ElevatedButton(
-                        onPressed: (selectedBarangayId != null)
-                            ? () => setState(() => currentPage = 2)
-                            : null,
-                        child: const Text("Next"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF328E6E),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
 
   // ======== Details Step ========
   Widget _buildDetailsStep() {
-    final selectedImages = _selectedImageIndexes.map((i) => _capturedImages[i]).toList();
+  final selectedImages = _selectedImageIndexes.map((i) => _capturedImages[i]).toList();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    "Report Details",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                    ),
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.article_rounded, color: Color(0xFF328E6E), size: 26),
+                SizedBox(width: 8),
+                Text(
+                  "Report Details",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                    color: Color(0xFF328E6E),
                   ),
-                  const SizedBox(height: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
 
-                  // Selected Images
-                  if (selectedImages.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: selectedImages
-                          .map((img) => ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.file(img, width: 80, height: 80, fit: BoxFit.cover),
-                              ))
-                          .toList(),
-                    ),
+            // 🖼 Selected Images Preview
+            if (selectedImages.isNotEmpty)
+              SizedBox(
+                height: 250, // height same as image height
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: selectedImages.length,
+                  itemBuilder: (context, index) {
+                    final img = selectedImages[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        left: index == 0 ? 0 : 8,
+                        right: index == selectedImages.length - 1 ? 0 : 8,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: 250,
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 6,
+                                offset: const Offset(2, 3),
+                              ),
+                            ],
+                          ),
+                          child: Image.file(
+                            img,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            if (selectedImages.isNotEmpty) const SizedBox(height: 20),
 
-                  const SizedBox(height: 16),
 
-                  // Category
-                  _buildFormBox(
+            // 🏷️ Category
+            _buildFormBox(
+              child: Row(
+                children: [
+                  const Icon(Icons.category_rounded, color: Color(0xFF328E6E)),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: DropdownButtonFormField<String>(
                       value: (_selectedCategory != null && _selectedCategory != "") ? _selectedCategory : null,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         labelText: 'Category',
                       ),
-                      // fix this part based on SLA
-                      items: ['General Littering', //1 - value in database
-                              'Baradong Kanal', //2
-                              'Masangsang na Estero', //3
-                              'Tambak ng Basura', //5
-                              'Patay na Hayop (Dead Animals)', //6
-                              'Nabasag na Bote / Debris', //7
-                              'Illegal Dumping', //8
-                              'Oil/Chemical Spills' //9
-                              ]
+                      items: [
+                        'General Littering',
+                        'Baradong Kanal',
+                        'Masangsang na Estero',
+                        'Tambak ng Basura',
+                        'Patay na Hayop (Dead Animals)',
+                        'Nabasag na Bote / Debris',
+                        'Illegal Dumping',
+                        'Oil/Chemical Spills',
+                      ]
                           .map((cat) => DropdownMenuItem(
                                 value: cat,
                                 child: Text(cat, style: const TextStyle(fontFamily: 'Poppins')),
@@ -620,19 +764,25 @@ class _AddPageState extends State<AddPage> {
                       onChanged: (val) => setState(() => _selectedCategory = val),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                  // Priority
-                  _buildFormBox(
+            // ⚠️ Priority
+            _buildFormBox(
+              child: Row(
+                children: [
+                  const Icon(Icons.flag_rounded, color: Color(0xFF328E6E)),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: DropdownButtonFormField<String>(
                       value: (_selectedPriority != null && _selectedPriority != "") ? _selectedPriority : null,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         labelText: 'Priority',
                       ),
-                      items: ['Low', //1 - value in database
-                              'Medium', //2 - value in database
-                              'High'] //3 - value in database
+                      items: ['Low', 'Medium', 'High']
                           .map((p) => DropdownMenuItem(
                                 value: p,
                                 child: Text(p, style: const TextStyle(fontFamily: 'Poppins')),
@@ -641,27 +791,47 @@ class _AddPageState extends State<AddPage> {
                       onChanged: (val) => setState(() => _selectedPriority = val),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                  // Hazardous
-                  _buildFormBox(
+            // ☣️ Hazardous
+            _buildFormBox(
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Color(0xFF328E6E)),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: DropdownButtonFormField<bool>(
-                      value: (_isHazardous != null) ? _isHazardous : null,
+                      value: _isHazardous,
                       decoration: const InputDecoration(
                         border: InputBorder.none,
-                        labelText: 'Nakakalason/Hazardous?',
+                        labelText: 'Nakakalason / Hazardous?',
                       ),
                       items: const [
-                        DropdownMenuItem(value: true, child: Text("Yes", style: TextStyle(fontFamily: 'Poppins'))), //1 - value in database
-                        DropdownMenuItem(value: false, child: Text("No", style: TextStyle(fontFamily: 'Poppins'))), //0 - value in database
+                        DropdownMenuItem(value: true, child: Text("Yes", style: TextStyle(fontFamily: 'Poppins'))),
+                        DropdownMenuItem(value: false, child: Text("No", style: TextStyle(fontFamily: 'Poppins'))),
                       ],
                       onChanged: (val) => setState(() => _isHazardous = val),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
-                  // Description
-                  _buildFormBox(
+            // 📝 Description
+            _buildFormBox(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Icon(Icons.description_rounded, color: Color(0xFF328E6E)),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: TextField(
                       controller: _descriptionController,
                       maxLength: 200,
@@ -675,78 +845,90 @@ class _AddPageState extends State<AddPage> {
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 30),
-
-                  SwitchListTile(
-                    title: const Text(
-                      "Submit as Anonymous",
-                      style: TextStyle(fontFamily: 'Poppins'),
-                    ),
-                    activeColor: const Color(0xFF328E6E),
-                    value: _isAnonymous,
-                    onChanged: (value) {
-                      setState(() {
-                        _isAnonymous = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-
-                  // Submit Button
-                  ElevatedButton(
-                    onPressed: () async {
-                      if (!_validateDetailsForm()) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please complete all fields.')),
-                        );
-                        return;
-                      }
-
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Submit Post", style: TextStyle(fontFamily: 'Poppins')),
-                          content: const Text("Are you sure you want to submit?", style: TextStyle(fontFamily: 'Poppins')),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text("Cancel", style: TextStyle(fontFamily: 'Poppins')),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text("Submit", style: TextStyle(fontFamily: 'Poppins')),
-                            ),
-                          ],
-                        ),
-                      );
-
-                      if (confirm == true) {
-                        await _submitReport(); // Call the _submitReport method
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF328E6E),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      minimumSize: const Size(double.infinity, 48),
-                      elevation: 4,
-                    ),
-                    child: const Text(
-                      "Submit",
-                      style: TextStyle(fontFamily: 'Poppins', fontSize: 16, color: Colors.white),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
+            const SizedBox(height: 24),
+
+            // 🙈 Anonymous Toggle
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                title: const Row(
+                  children: [
+                    Icon(Icons.visibility_off_rounded, color: Color(0xFF328E6E)),
+                    SizedBox(width: 10),
+                    Text("Submit as Anonymous", style: TextStyle(fontFamily: 'Poppins')),
+                  ],
+                ),
+                activeColor: const Color(0xFF328E6E),
+                value: _isAnonymous,
+                onChanged: (value) {
+                  setState(() => _isAnonymous = value);
+                },
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            // 🚀 Submit Button
+            ElevatedButton.icon(
+              onPressed: () async {
+                if (!_validateDetailsForm()) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please complete all fields.')),
+                  );
+                  return;
+                }
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text("Submit Post", style: TextStyle(fontFamily: 'Poppins')),
+                    content: const Text("Are you sure you want to submit?", style: TextStyle(fontFamily: 'Poppins')),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text("Cancel", style: TextStyle(fontFamily: 'Poppins')),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text("Submit", style: TextStyle(fontFamily: 'Poppins')),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await _submitReport();
+                }
+              },
+              icon: const Icon(Icons.send_rounded, color: Colors.white),
+              label: const Text(
+                "Submit Report",
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 16, color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF328E6E),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                minimumSize: const Size(double.infinity, 50),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildFormBox({required Widget child}) {
     return Container(

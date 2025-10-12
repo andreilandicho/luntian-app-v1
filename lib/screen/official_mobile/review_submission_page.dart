@@ -28,7 +28,7 @@ class _ReviewSubmissionPageState extends State<ReviewSubmissionPage> {
       backgroundColor: const Color.fromRGBO(221, 221, 221, 1),
       appBar: AppBar(
         title: const Text('Review Submission'),
-        backgroundColor: const Color.fromARGB(255, 5, 102, 181),
+        backgroundColor: const Color(0xFF328E6E),
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(

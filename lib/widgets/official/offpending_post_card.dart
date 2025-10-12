@@ -316,7 +316,7 @@ Row(
         foregroundColor: Colors.green,
         side: const BorderSide(color: Colors.green),
         backgroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),

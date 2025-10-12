@@ -129,21 +129,24 @@ class _ProofActionState extends State<ProofAction> {
           /// THUMBNAIL PREVIEW
           if (_capturedImages.isNotEmpty)
             Positioned(
-              bottom: 120,
+              bottom: 90,
               left: 0,
               right: 0,
               child: SizedBox(
-                height: 80,
+                height: 90,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: _capturedImages.length,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   itemBuilder: (context, index) {
                     final image = _capturedImages[index];
                     final isSelected = _selectedImageIndexes.contains(index);
                     return GestureDetector(
                       onTap: () {
                         setState(() {
-                          isSelected ? _selectedImageIndexes.remove(index) : _selectedImageIndexes.add(index);
+                          isSelected
+                              ? _selectedImageIndexes.remove(index)
+                              : _selectedImageIndexes.add(index);
                         });
                       },
                       child: Container(
@@ -153,12 +156,16 @@ class _ProofActionState extends State<ProofAction> {
                             color: isSelected ? Colors.green : Colors.white,
                             width: 3,
                           ),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Image.file(
-                          File(image.path),
-                          width: 60,
-                          height: 60,
-                          fit: BoxFit.cover,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.file(
+                            File(image.path),
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          ),
                         ),
                       ),
                     );
@@ -167,91 +174,123 @@ class _ProofActionState extends State<ProofAction> {
               ),
             ),
 
-          // ... inside your build method, replacing the // BUTTONS Positioned widget:
+          /// BUTTONS
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // 🔄 Retake Button (leftmost)
+                    if (_capturedImages.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: _retakeAllPhotos,
+                        icon: const Icon(Icons.refresh, color: Colors.red, size: 22),
+                        label: const Text(
+                          "Retake",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.red,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          minimumSize: const Size(100, 50),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 100),
 
-/// BUTTONS
-Positioned(
-  bottom: 30,
-  left: 0,
-  right: 0,
-  child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // Retake All Button (leftmost)
-        if (_capturedImages.isNotEmpty)
-          ElevatedButton.icon(
-            onPressed: _retakeAllPhotos,
-            icon: const Icon(Icons.refresh, color: Colors.red),
-            label: const Text(
-              "Retake All",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.red,
-            ),
-          )
-        else
-          const SizedBox(width: 110), // Placeholder to keep spacing
+                    // 📸 Capture Button (center left)
+                    ElevatedButton(
+                      onPressed: _isCapturing ? null : _capturePhoto,
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(16),
+                        backgroundColor: Colors.white,
+                        elevation: 4,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.black,
+                        size: 32,
+                      ),
+                    ),
 
-        // Camera Button (center left)
-        ElevatedButton(
-          onPressed: _isCapturing ? null : _capturePhoto,
-          style: ElevatedButton.styleFrom(
-            shape: const CircleBorder(),
-            padding: const EdgeInsets.all(18),
-            backgroundColor: Colors.white,
-          ),
-          child: const Icon(Icons.camera_alt,
-              color: Colors.black, size: 30),
-        ),
+                    // 🔁 Switch Camera (center right)
+                    ElevatedButton(
+                      onPressed: _switchCamera,
+                      style: ElevatedButton.styleFrom(
+                        shape: const CircleBorder(),
+                        padding: const EdgeInsets.all(16),
+                        backgroundColor: Colors.white,
+                        elevation: 4,
+                      ),
+                      child: const Icon(
+                        Icons.flip_camera_ios,
+                        color: Colors.black,
+                        size: 30,
+                      ),
+                    ),
 
-        // Switch Camera Button (center right)
-        ElevatedButton(
-          onPressed: _switchCamera,
-          style: ElevatedButton.styleFrom(
-            shape: const CircleBorder(),
-            padding: const EdgeInsets.all(16),
-            backgroundColor: Colors.white,
-          ),
-          child: const Icon(Icons.flip_camera_ios, color: Colors.black, size: 28),
-        ),
-
-        // Use Selected Button (rightmost)
-        if (_selectedImageIndexes.isNotEmpty)
-          ElevatedButton.icon(
-            onPressed: () {
-              final selectedPaths = _selectedImageIndexes.map((i) => _capturedImages[i].path).toList();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProofReviewPage(
-                    imagePaths: selectedPaths,
-                    reportId: widget.reportId,
-                  ),
+                    // ✅ Use Selected (rightmost)
+                    if (_selectedImageIndexes.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          final selectedPaths = _selectedImageIndexes
+                              .map((i) => _capturedImages[i].path)
+                              .toList();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProofReviewPage(
+                                imagePaths: selectedPaths,
+                                reportId: widget.reportId,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.check, color: Colors.green, size: 22),
+                        label: const Text(
+                          "Use",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.green,
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          minimumSize: const Size(100, 50),
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 100),
+                  ],
                 ),
-              );
-            },
-            icon: const Icon(Icons.check, color: Colors.green),
-            label: const Text(
-              "Use Selected",
-              style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.green,
-            ),
-          )
-        else
-          const SizedBox(width: 120), // Placeholder for spacing
-      ],
-    ),
-  ),
-),
+          ),
         ],
+
       ),
       bottomNavigationBar: LuntianFooter(
         selectedIndex: selectedIndex,

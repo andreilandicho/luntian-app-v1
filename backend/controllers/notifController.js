@@ -17,6 +17,8 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
+import path from "path";
+import fs from "fs";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -39,7 +41,7 @@ export async function reportNotifBarangay(req, res) {
     // Fetch report details using report_id
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("description, category, priority, hazardous, lat, lon, user_id, barangay_id")
+      .select("description, category, priority, hazardous, lat, lon, user_id, report_id, barangay_id")
       .eq("report_id", report_id)
       .single();
 
@@ -74,23 +76,25 @@ export async function reportNotifBarangay(req, res) {
     }
 
     // Send email
+    const templatePath = path.join(process.cwd(), "../lib/utils/email-templates/report-barangay.html");
+    let htmlTemplate = fs.readFileSync(templatePath, "utf8");
+
+    htmlTemplate = htmlTemplate
+      .replace("${report.report_id}", report.report_id)
+      .replace("${report.description}", report.description)
+      .replace("${report.category}", report.category)
+      .replace("${report.priority}", report.priority)
+      .replace("${report.hazardous}", report.hazardous)
+      .replace("${report.deadline}", report.deadline)
+      .replace("${report.lat}", report.lat)
+      .replace("${report.lon}", report.lon)
+      .replace("${report.photo_urls_html}", report.photo_urls_html || "");
+
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: barangay.contact_email,
-      subject: "New Report Submission",
-      html: `
-        <h3>New Report Submitted</h3>
-        <p><strong>Report ID:</strong> ${report_id}</p>
-        <p><strong>Description:</strong> ${report.description}</p>
-        <p><strong>Category:</strong> ${report.category}</p>
-        <p><strong>Priority:</strong> ${report.priority}</p>
-        <p><strong>Hazardous:</strong> ${report.hazardous}</p>
-        <p><strong>Location:</strong> 
-          <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
-            View on Google Maps
-          </a>
-        </p>
-      `,
+      subject: `New Cleanliness Report: ${report.title}`,
+      html: htmlTemplate,
     });
 
     console.log("Email sent successfully to:", barangay.contact_email);
@@ -126,6 +130,7 @@ export async function reportNotifBarangay(req, res) {
     return res.status(500).json({ error: "Internal server error" });
   }
 }
+
 export async function officialAssignment(req, res) {
   const { report_id } = req.body;
 
@@ -135,11 +140,9 @@ export async function officialAssignment(req, res) {
       .select("official_id")
       .eq("report_id", report_id);
 
-    if (assignError || !assignments || assignments.length === 0) {
+    if (assignError || !assignments?.length) {
       console.error("❌ No officials assigned:", assignError);
-      return res
-        .status(404)
-        .json({ error: "No officials assigned to this report" });
+      return res.status(404).json({ error: "No officials assigned to this report" });
     }
 
     const { data: report, error: reportError } = await supabase
@@ -153,6 +156,9 @@ export async function officialAssignment(req, res) {
       return res.status(404).json({ error: "Report not found" });
     }
 
+    const templatePath = path.join(process.cwd(), "../lib/utils/email-templates/official-assignment.html");
+    const htmlTemplate = fs.readFileSync(templatePath, "utf8");
+
     for (const assignment of assignments) {
       const { data: official, error: userError } = await supabase
         .from("users")
@@ -161,12 +167,33 @@ export async function officialAssignment(req, res) {
         .single();
 
       if (userError || !official) {
-        console.error(
-          `❌ Official not found for ID ${assignment.official_id}:`,
-          userError
-        );
+        console.error(`❌ Official not found for ID ${assignment.official_id}:`, userError);
         continue;
       }
+
+      const filledTemplate = htmlTemplate
+        .replace(/\$\{report\.report_id\}/g, report.report_id)
+        .replace(/\$\{report\.title\}/g, report.title || "N/A")
+        .replace(/\$\{report\.description\}/g, report.description || "No description provided.")
+        .replace(/\$\{report\.category\}/g, report.category || "Uncategorized")
+        .replace(/\$\{report\.priority\}/g, report.priority || "Normal")
+        .replace(/\$\{report\.hazardous\}/g, report.hazardous || "No")
+        .replace(/\$\{report\.deadline\}/g, report.deadline || "Not set")
+        .replace(/\$\{report\.lat\}/g, report.lat || "0")
+        .replace(/\$\{report\.lon\}/g, report.lon || "0")
+        .replace(/\$\{report\.photo_urls_html\}/g, report.photo_urls_html || "");
+
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: official.email,
+        subject: `Official Assignment: ${report.title || "New Report"}`,
+        html: filledTemplate,
+      });
+
+      console.log(`📧 Email sent successfully to ${official.email}`);
+
+      // ✅ Move email log here
+      const phTime = DateTime.now().setZone("Asia/Manila").toISO();
 
       const { error: emailError } = await supabase.from("email").insert([
         {
@@ -176,6 +203,7 @@ export async function officialAssignment(req, res) {
           content: `You've been assigned to report: ${report.description}`,
           email: official.email,
           role: "official",
+          status: ["sent"],
           created_at: new Date().toISOString(),
           context: "official assignment",
         },
@@ -184,33 +212,10 @@ export async function officialAssignment(req, res) {
       if (emailError) {
         console.error("❌ Error inserting into email log:", emailError);
       }
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: official.email,
-        subject: `Official Notification: ${report.title}`,
-        html: `
-          <h3>You've been assigned a new report</h3>
-          <p><strong>Report ID:</strong> ${report.report_id}</p>
-          <p><strong>Title:</strong> ${report.title}</p>
-          <p><strong>Description:</strong> ${report.description}</p>
-          <p><strong>Category:</strong> ${report.category}</p>
-          <p><strong>Priority:</strong> ${report.priority}</p>
-          <p><strong>Hazardous:</strong> ${report.hazardous}</p>
-          <p><strong>Deadline:</strong> ${report.deadline}</p>
-          <p><strong>Location:</strong> 
-            <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
-              View on Google Maps
-            </a>
-          </p>
-        `,
-      });
-
-      console.log(`📧 Email sent successfully to ${official.email}`);
     }
 
     return res.status(200).json({
-      message: "Emails sent to all assigned officials",
+      message: "Emails sent and logged for all assigned officials",
       report_id,
     });
   } catch (error) {
@@ -219,13 +224,14 @@ export async function officialAssignment(req, res) {
   }
 }
 
+
 export async function reportStatusChange(req, res) {
   const { report_id, newStatus } = req.body;
 
   try {
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("status, user_id, description")
+      .select("status, user_id, report_id, description")
       .eq("report_id", report_id)
       .single();
 
@@ -234,29 +240,26 @@ export async function reportStatusChange(req, res) {
       return res.status(404).json({ error: "Report not found" });
     }
 
+    // ✅ Only update if status is different
     if (newStatus !== report.status) {
-      await supabase
+      const { error: updateError } = await supabase
         .from("reports")
         .update({ status: newStatus })
         .eq("report_id", report_id);
+
+      if (updateError) {
+        console.error("❌ Failed to update report status:", updateError);
+        return res.status(400).json({ error: "Invalid status value" });
+      }
     } else {
       console.log(`ℹ️ No change. Status is already "${newStatus}"`);
-      return res.status(200).json({ message: "No status change applied" });
-    }
-
-    const { error: updateError } = await supabase
-      .from("reports")
-      .update({ status: newStatus })
-      .eq("report_id", report_id);
-
-    if (updateError) {
-      console.error("❌ Failed to update report status:", updateError);
-      return res.status(400).json({ error: "Invalid status value" });
+      // ❌ DON'T return here - continue to email logic!
+      // return res.status(200).json({ message: "No status change applied" });
     }
 
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("email")
+      .select("email, name")
       .eq("user_id", report.user_id)
       .single();
 
@@ -265,15 +268,16 @@ export async function reportStatusChange(req, res) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    if (newStatus === "resolved" && report.status !== "resolved") {
+    // ✅ Check if we should send email (status changed to resolved OR was already resolved but email not sent)
+    if (newStatus === "resolved") {
       // Insert into email log
       const { error: emailError } = await supabase.from("email").insert([
         {
           report_id,
           user_id: report.user_id,
-          title: "Report Approved", // required for populating so it doesnt go null and break
-          content: `Your report "${report.description}" has been approved.`, // required same here
-          role: "citizen", // role like you did with barangay/official
+          title: "Report Resolved!",
+          content: `Your report "${report.description}" has been resolved.`,
+          role: "citizen",
           email: user.email,
           status: ["sent"],
           created_at: new Date().toISOString(),
@@ -285,23 +289,28 @@ export async function reportStatusChange(req, res) {
         console.error("❌ Error inserting email log:", emailError);
       }
 
-      // Send notification email
+      // ✅ Load and use HTML template
+      const templatePath = path.resolve(process.cwd(), "../lib/utils/email-templates/report-resolved.html");
+      let template = await fs.readFileSync(templatePath, "utf8");
+
+      template = template
+        .replace(/\$\{REPORTER_NAME\}/g, user.name || "Citizen")
+        .replace(/\$\{REPORT_ID\}/g, report.report_id)
+        .replace(/\$\{DESCRIPTION\}/g, report.description || "No description provided.")
+        .replace(/\$\{RESOLVED_AT\}/g, new Date().toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }))
+
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: user.email,
-        subject: `Your Report Has Been Approved`,
-        html: `
-          <h3>Good news!</h3>
-          <p>Your report has been approved.</p>
-          <p><strong>Report ID:</strong> ${report_id}</p>
-          <p><strong>Description:</strong> ${report.description}</p>
-        `,
+        subject: "✅ Your Report Has Been Resolved",
+        html: template,
       });
+
 
       console.log(`📨 Approval email sent to: ${user.email}`);
     } else {
       console.log(
-        `ℹ️ No email sent. Status changed from ${report.status} to ${newStatus}`
+        `ℹ️ No email sent. Status is ${newStatus}`
       );
     }
 

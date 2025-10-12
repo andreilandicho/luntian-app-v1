@@ -52,7 +52,7 @@ class _LoadingPageState extends State<LoadingPage> {
               style: TextStyle(
                 fontFamily: 'Marykate',
                 fontSize: 60,
-                color: Colors.white,
+                color: Color(0xFFA5D6A7), // light green shade
               ),
             ),
           ],

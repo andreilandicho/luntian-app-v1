@@ -48,11 +48,24 @@ dependencies:
   url_launcher: ^6.1.11
   bcrypt: ^1.1.3
   fl_chart: ^0.66.0
+  rename: ^3.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo only luntian.png"
+  web:
+    generate: true
+    image_path: "assets/logo only luntian.png"
+    background_color: "#C8E6C9"
+    theme_color: "#A5D6A7"
+
 
 flutter:
   uses-material-design: true

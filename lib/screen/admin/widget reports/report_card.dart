@@ -349,6 +349,19 @@ class _ReportCardState extends State<ReportCard> {
         'status': 'in_progress',
       }).eq('report_id', reportId);
 
+      // --- 3️⃣ Call backend controller to send emails ---
+      final response = await http.post(
+        Uri.parse('http://localhost:3000/notif/officialAssignment'), // Adjust URL as needed
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'report_id': reportId}),
+      );
+
+      if (response.statusCode == 200) {
+        print("📧 Official assignment email(s) sent successfully");
+      } else {
+        print("⚠️ Email sending failed: ${response.body}");
+      }
+
       // Update local UI - create a comma-separated list of names
       final names = chosenPeople
           .map((p) => p["name"] ?? p["userName"] ?? "Unknown")

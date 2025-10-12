@@ -85,135 +85,146 @@ class SolvedReportCard extends StatelessWidget {
 
 
   void _showRatingModal(BuildContext context) {
-  int satisfactionRating = 0;
-  int responseTimeRating = 0;
-  String suggestion = "";
-  
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Rate Solution",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              const Text("Satisfaction:"),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      Icons.star,
-                      color: index < satisfactionRating ? Colors.amber : Colors.grey,
-                      size: 30,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        satisfactionRating = index + 1;
-                      });
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-              const Text("Response Time:"),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      Icons.star,
-                      color: index < responseTimeRating ? Colors.amber : Colors.grey,
-                      size: 30,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        responseTimeRating = index + 1;
-                      });
-                    },
-                  );
-                }),
-              ),
-              const SizedBox(height: 20),
-              const Text("Suggestion:"),
-              const SizedBox(height: 8),
-              TextField(
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "Enter your suggestions here...",
+    int satisfactionRating = 0;
+    int responseTimeRating = 0;
+    String suggestion = "";
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Rate Solution",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                onChanged: (value) {
-                  suggestion = value;
-                },
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: satisfactionRating == 0 || responseTimeRating == 0
-                      ? null // Disable button if ratings are not selected
-                      : () async {
-                          try {
-                            // Show loading
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-
-                            // Call the API
-                            print('Submitting rating for reportId: ${post['report_id']}');
-                            await RatingService.submitRating(
-                              reportId: post['report_id'],
-                              satisfactionStars: satisfactionRating,
-                              responseTimeStars: responseTimeRating,
-                              comments: suggestion,
-                            ).timeout(Duration(seconds: 10));
-
-                            // Close loading and modal
-                            Navigator.of(context).pop(); // Close loading
-                            Navigator.of(context).pop(); // Close modal
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Rating submitted successfully!")),
-                            );
-
-                            // Refresh the card to show "View Rating" button
-                            // You might want to trigger a state refresh here
-                            // For example: widget.onRatingSubmitted?.call();
-                            
-
-                          } catch (e) {
-                            Navigator.of(context).pop(); // Close loading if open
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Failed to submit rating: $e")),
-                            );
-                          }
-                        },
-                  child: const Text("Submit Rating"),
+                const SizedBox(height: 20),
+                const Text("Satisfaction:"),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        Icons.star,
+                        color: index < satisfactionRating ? Colors.amber : Colors.grey,
+                        size: 30,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          satisfactionRating = index + 1;
+                        });
+                      },
+                    );
+                  }),
                 ),
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
-    ),
-  );
-}
+                const SizedBox(height: 20),
+                const Text("Response Time:"),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        Icons.star,
+                        color: index < responseTimeRating ? Colors.amber : Colors.grey,
+                        size: 30,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          responseTimeRating = index + 1;
+                        });
+                      },
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+                const Text("Suggestion:"),
+                const SizedBox(height: 8),
+                TextField(
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: "Enter your suggestions here...",
+                  ),
+                  onChanged: (value) {
+                    suggestion = value;
+                  },
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: satisfactionRating == 0 || responseTimeRating == 0
+                        ? null
+                        : () async {
+                            BuildContext? dialogContext;
+
+                            try {
+                              // Show loading spinner
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (ctx) {
+                                  dialogContext = ctx;
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                },
+                              );
+
+                              // Call API
+                              await RatingService.submitRating(
+                                reportId: post['report_id'],
+                                satisfactionStars: satisfactionRating,
+                                responseTimeStars: responseTimeRating,
+                                comments: suggestion,
+                              ).timeout(const Duration(seconds: 10));
+
+                              // Close loading dialog
+                              if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+                              // Close bottom sheet
+                              Navigator.of(context).pop();
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Rating submitted successfully!")),
+                              );
+                            } catch (e) {
+                              // Close loading if open
+                              if (dialogContext != null) Navigator.of(dialogContext!).pop();
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("Failed to submit rating: $e")),
+                              );
+                            }
+                          },
+                    child: const Text("Submit Rating"),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showViewRatingModal(BuildContext context, Map<String, dynamic>? userRating) {
   if (userRating == null) return;
   showModalBottomSheet(

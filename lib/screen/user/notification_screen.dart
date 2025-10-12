@@ -130,8 +130,7 @@ class _NotificationPageState extends State<NotificationPage> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount:
-                      notifications.length > 20 ? 20 : notifications.length,
+                  itemCount: notifications.length,
                   itemBuilder: (context, index) {
                     final n = notifications[index];
                     final title = n['title'] ?? 'General';

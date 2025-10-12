@@ -48,7 +48,6 @@ class _ReportCardState extends State<ReportCard> {
   int _currentImageIndex = 0;
   late PageController _pageController;
   final GlobalKey _cardKey = GlobalKey();
-  final TextEditingController _commentController = TextEditingController();
 
 
   bool? _actionAccepted;
@@ -67,7 +66,6 @@ class _ReportCardState extends State<ReportCard> {
 
   @override
   void dispose() {
-    _commentController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -102,10 +100,10 @@ class _ReportCardState extends State<ReportCard> {
     if (latestSolution == null) throw Exception("No solution found for this report");
     final solutionId = latestSolution['update_id'];
 
-    // 2. Update reports table
+    /* 2. Update reports table
     await supabase.from('reports')
         .update({'status': 'resolved'})
-        .eq('report_id', reportId);
+        .eq('report_id', reportId); */
 
     // 3. Update report_solutions table
     await supabase.from('report_solutions')
@@ -121,7 +119,7 @@ class _ReportCardState extends State<ReportCard> {
     });
 
     // ✅ Notify citizen
-                                await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
+    await _notifyCitizenStatusChange(reportId.toString(), 'resolved');
   }
 
   // Reject solution
@@ -152,6 +150,18 @@ class _ReportCardState extends State<ReportCard> {
       'status': 'rejected',
       'comments': comment.isEmpty ? 'Rejected by admin' : comment,
     });
+
+    final response = await http.post(
+        Uri.parse('http://localhost:3000/notif/reportNotifBarangay'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'report_id': reportId}),
+      );
+
+      if (response.statusCode == 200) {
+        print("📧 Official assignment email(s) sent successfully");
+      } else {
+        print("⚠️ Email sending failed: ${response.body}");
+      }
   }
 
 
@@ -462,6 +472,7 @@ class _ReportCardState extends State<ReportCard> {
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
     builder: (sheetCtx) {
+      final TextEditingController commentController = TextEditingController();
       return StatefulBuilder(
         builder: (modalCtx, setModalState) {
           if (_loadingSolution) {
@@ -478,6 +489,7 @@ class _ReportCardState extends State<ReportCard> {
 
           // Step proof should be completed if there is proof, regardless of accept/reject
           final bool stepProofCompleted = hasProof;
+          
 
 
           return Padding(
@@ -589,7 +601,7 @@ class _ReportCardState extends State<ReportCard> {
 
                   // 📝 Admin Comment Input
                   TextField(
-                    controller: _commentController,
+                    controller: commentController,
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: "Add Comment",
@@ -617,7 +629,7 @@ class _ReportCardState extends State<ReportCard> {
                               onPressed: () async {
                                 try {
                                   final int reportId = int.parse(widget.report['reportId'].toString());
-                                  await _acceptLatestSolution(reportId, _commentController.text.trim());
+                                  await _acceptLatestSolution(reportId, commentController.text.trim());
                                   if (!mounted) return;
                                   setState(() => _actionAccepted = true);
                                   setModalState(() {});
@@ -650,7 +662,7 @@ class _ReportCardState extends State<ReportCard> {
                               onPressed: () async {
                                 try {
                                   final int reportId = int.parse(widget.report['reportId'].toString());
-                                  await _rejectLatestSolution(reportId, _commentController.text.trim());
+                                  await _rejectLatestSolution(reportId, commentController.text.trim());
                                   if (!mounted) return;
                                   setState(() => _actionAccepted = false);
                                   setModalState(() {});
@@ -704,7 +716,7 @@ class _ReportCardState extends State<ReportCard> {
                   ],
 
                   // Generate PDF
-                  if (_actionAccepted == true)
+                  /**if (_actionAccepted == true)
                     ElevatedButton.icon(
                       onPressed: () async {
                         try {
@@ -742,7 +754,7 @@ class _ReportCardState extends State<ReportCard> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                    ),
+                    ), **/
                 ],
               ),
             ),

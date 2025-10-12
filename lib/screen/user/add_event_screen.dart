@@ -111,23 +111,9 @@ class _AddEventScreenState extends State<AddEventScreen> {
       if (pickedFiles.isEmpty) return;
 
       for (final pickedFile in pickedFiles) {
-        final cropped = await ImageCropper().cropImage(
-          sourcePath: pickedFile.path,
-          aspectRatio: const CropAspectRatio(ratioX: 4, ratioY: 3),
-          compressQuality: 85,
-          uiSettings: [
-            AndroidUiSettings(
-              toolbarTitle: 'Crop Image',
-              toolbarColor: const Color(0xFF328E6E),
-              toolbarWidgetColor: Colors.white,
-              hideBottomControls: true,
-            ),
-            IOSUiSettings(title: 'Crop Image'),
-          ],
-        );
-        
-        if (cropped != null && mounted) {
-          setState(() => _selectedImages.add(File(cropped.path)));
+        // Use the original image directly without cropping
+        if (mounted) {
+          setState(() => _selectedImages.add(File(pickedFile.path)));
         }
       }
     } catch (e) {

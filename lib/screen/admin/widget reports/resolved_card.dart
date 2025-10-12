@@ -4,6 +4,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 
 import 'dart:math' as math;
@@ -278,7 +279,9 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                           ],
                         ),
                         child: Text(
-                          report["feedback"] ?? "No feedback provided.",
+                          (report["feedback"]?.isNotEmpty ?? false)
+                              ? report["feedback"]
+                              : " No feedback provided yet.",
                           style: const TextStyle(fontSize: 14, height: 1.5),
                         ),
                       ),
@@ -294,19 +297,27 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           children: [
-                            // Before photos
-                            ...((report["beforePhotos"] as List<String>?) ?? ["assets/garbage.png"])
-                                .map((url) => Padding(
-                                      padding: const EdgeInsets.only(right: 12),
-                                      child: _photoCard("Before", url),
-                                    )),
+                            // Before Photos
+                            ...((report["beforePhotos"] as List<dynamic>?)
+                                    ?.map((e) => e.toString())
+                                    .toList()
+                                ?? ["assets/garbage.png"])
+                              .map((url) => Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: _photoCard("Before", url),
+                                  )),
 
-                            // After photos
-                            ...((report["afterPhotos"] as List<String>?) ?? ["assets/clean.jpg"])
-                                .map((url) => Padding(
-                                      padding: const EdgeInsets.only(right: 12),
-                                      child: _photoCard("After", url),
-                                    )),
+                            // After Photos
+                            ...((report["afterPhotos"] as List<dynamic>?)
+                                    ?.map((e) => e.toString())
+                                    .toList()
+                                ?? ["assets/clean.jpg"])
+                              .map((url) => Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: _photoCard("After", url),
+                                  )),
+
+
                           ],
                         ),
                       ),
@@ -372,30 +383,59 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                             // Get all cleaned by names using the helper function
                             final cleanedByText = _getCleanedByText(widget.report);
 
+                            final logoImage = pw.MemoryImage((await rootBundle.load('assets/logo only luntian.png')).buffer.asUint8List(),);
+
                             pdf.addPage(
                               pw.MultiPage(
                                 pageFormat: PdfPageFormat.a4,
                                 margin: const pw.EdgeInsets.all(24),
                                 build: (pw.Context context) {
                                   return [
-                                    // --- Header ---
+                                    // --- Header with Logo ---
                                     pw.Container(
-                                      padding: const pw.EdgeInsets.all(12),
+                                      padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                                       decoration: pw.BoxDecoration(
-                                        color: PdfColors.blue800,
-                                        borderRadius: pw.BorderRadius.circular(6),
+                                        color: const PdfColor.fromInt(0xFF1B5E20), // dark green
+                                        borderRadius: pw.BorderRadius.circular(8),
                                       ),
                                       child: pw.Row(
+                                        crossAxisAlignment: pw.CrossAxisAlignment.center,
                                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                                         children: [
-                                          pw.Text(
-                                            "Clean-up Report",
-                                            style: pw.TextStyle(
-                                              color: PdfColors.white,
-                                              fontSize: 18,
-                                              fontWeight: pw.FontWeight.bold,
-                                            ),
+                                          // Logo and Title
+                                          pw.Row(
+                                            crossAxisAlignment: pw.CrossAxisAlignment.center,
+                                            children: [
+                                              pw.Container(
+                                                width: 40,
+                                                height: 40,
+                                                margin: const pw.EdgeInsets.only(right: 10),
+                                                child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                                              ),
+                                              pw.Column(
+                                                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                                children: [
+                                                  pw.Text(
+                                                    "Luntian",
+                                                    style: pw.TextStyle(
+                                                      color: PdfColors.white,
+                                                      fontSize: 14,
+                                                      fontWeight: pw.FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  pw.Text(
+                                                    "Clean-up Report",
+                                                    style: pw.TextStyle(
+                                                      color: PdfColors.white,
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
+
+                                          // Date
                                           pw.Text(
                                             DateFormat("dd MMM yyyy").format(
                                               widget.report["createdAt"] is DateTime
@@ -412,32 +452,40 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
 
                                     // --- Reporter Info ---
                                     pw.Text("Reporter Information",
-                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                        style: pw.TextStyle(
+                                            fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
                                     pw.Divider(),
                                     _pdfInfoRow("Name", widget.report["userName"]),
                                     _pdfInfoRow("Location", widget.report["location"]),
                                     _pdfInfoRow("Priority", widget.report["priority"]),
-                                    _pdfInfoRow(
-                                        "Hazardous", widget.report["hazardous"] == true ? "Yes" : "No"),
+                                    _pdfInfoRow("Hazardous", widget.report["hazardous"] == true ? "Yes" : "No"),
 
                                     pw.SizedBox(height: 16),
 
                                     // --- Report Details ---
                                     pw.Text("Report Details",
-                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                        style: pw.TextStyle(
+                                            fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
                                     pw.Divider(),
                                     _pdfInfoRow("Description", widget.report["description"]),
-                                    _pdfInfoRow("Date Reported",
-                                        widget.report["createdAt"]?.toString() ?? "Unknown"),
-                                    _pdfInfoRow("Date Solved",
-                                        widget.report["dateSolved"]?.toString() ?? "Pending"),
-                                    _pdfInfoRow("Cleaned By", cleanedByText), // Use the helper function here
+                                    _pdfInfoRow(
+                                        "Date Reported",
+                                        widget.report["createdAt"] != null
+                                            ? DateFormat("dd MMM yyyy").format(widget.report["createdAt"])
+                                            : "Unknown"),
+                                    _pdfInfoRow(
+                                        "Date Solved",
+                                        widget.report["dateSolved"] != null
+                                            ? DateFormat("dd MMM yyyy").format(widget.report["dateSolved"])
+                                            : "Pending"),
+                                    _pdfInfoRow("Cleaned By", cleanedByText),
 
                                     pw.SizedBox(height: 16),
 
                                     // --- Feedback ---
                                     pw.Text("Feedback",
-                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                        style: pw.TextStyle(
+                                            fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
                                     pw.Divider(),
                                     pw.Text(widget.report["feedback"] ?? "No feedback provided.",
                                         style: const pw.TextStyle(fontSize: 12)),
@@ -446,19 +494,19 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
 
                                     // --- Photos Section ---
                                     pw.Text("Photos",
-                                        style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                                        style: pw.TextStyle(
+                                            fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
                                     pw.Divider(),
 
                                     if (beforeImages.isNotEmpty) ...[
                                       pw.Text("Before:",
                                           style: pw.TextStyle(
-                                              fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                                              fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800)),
                                       pw.Wrap(
                                         spacing: 10,
                                         runSpacing: 10,
                                         children: beforeImages
-                                            .map((img) => pw.Image(img,
-                                                width: 150, height: 100, fit: pw.BoxFit.cover))
+                                            .map((img) => pw.Image(img, width: 150, height: 100, fit: pw.BoxFit.cover))
                                             .toList(),
                                       ),
                                       pw.SizedBox(height: 12),
@@ -467,13 +515,12 @@ void _showFeedbackDialog(Map<String, dynamic> report) {
                                     if (afterImages.isNotEmpty) ...[
                                       pw.Text("After:",
                                           style: pw.TextStyle(
-                                              fontSize: 12, fontWeight: pw.FontWeight.bold)),
+                                              fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800)),
                                       pw.Wrap(
                                         spacing: 10,
                                         runSpacing: 10,
                                         children: afterImages
-                                            .map((img) => pw.Image(img,
-                                                width: 150, height: 100, fit: pw.BoxFit.cover))
+                                            .map((img) => pw.Image(img, width: 150, height: 100, fit: pw.BoxFit.cover))
                                             .toList(),
                                       ),
                                       pw.SizedBox(height: 12),
@@ -655,7 +702,7 @@ Widget _buildDetailRow(String label, String value) {
     @override
   Widget build(BuildContext context) {
     final hazardous = widget.report["hazardous"] == true;
-    final images = List<String>.from(widget.report["images"]);
+    final images = List<String>.from(widget.report["images"] ?? []);
     final hasRating = widget.report.containsKey("rating");
 
     final cardContent = Container(
