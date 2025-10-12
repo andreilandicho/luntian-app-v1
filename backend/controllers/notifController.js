@@ -173,7 +173,7 @@ export async function reportNotifBarangay(req, res) {
 }
 
 export async function officialAssignment(req, res) {
-  const { report_id } = req.body;
+  const { report_id } = req.body; // ✅ Add this line
 
   try {
     const { data: assignments, error: assignError } = await supabase
@@ -197,8 +197,18 @@ export async function officialAssignment(req, res) {
       return res.status(404).json({ error: "Report not found" });
     }
 
-    const templatePath = path.join(process.cwd(), "../lib/utils/email-templates/official-assignment.html");
-    const htmlTemplate = fs.readFileSync(templatePath, "utf8");
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const templatePath = path.resolve(__dirname, "../backend-utils/email-templates/official-assignment.html");
+                                                
+    let template = await fs.readFile(templatePath, "utf8");
+
+    // ✅ Build photo URLs HTML
+    let photoUrlsHtml = "";
+    if (Array.isArray(report.photo_urls)) {
+      photoUrlsHtml = report.photo_urls.map(url =>
+        `<img src="${url}" style="max-width:120px; max-height:120px; margin:4px; border-radius:8px;" alt="Report Photo" />`
+      ).join("");
+    }
 
     for (const assignment of assignments) {
       const { data: official, error: userError } = await supabase
@@ -212,20 +222,21 @@ export async function officialAssignment(req, res) {
         continue;
       }
 
-      const filledTemplate = htmlTemplate
+      // ✅ Fill template (use 'template' not 'htmlTemplate')
+      const filledTemplate = template
         .replace(/\$\{report\.report_id\}/g, report.report_id)
         .replace(/\$\{report\.title\}/g, report.title || "N/A")
         .replace(/\$\{report\.description\}/g, report.description || "No description provided.")
         .replace(/\$\{report\.category\}/g, report.category || "Uncategorized")
         .replace(/\$\{report\.priority\}/g, report.priority || "Normal")
-        .replace(/\$\{report\.hazardous\}/g, report.hazardous || "No")
-        .replace(/\$\{report\.deadline\}/g, report.deadline || "Not set")
+        .replace(/\$\{report\.hazardous\}/g, report.hazardous ? "Yes" : "No")
+        .replace(/\$\{report\.deadline\}/g, report.report_deadline || "Not set")
         .replace(/\$\{report\.lat\}/g, report.lat || "0")
         .replace(/\$\{report\.lon\}/g, report.lon || "0")
-        .replace(/\$\{report\.photo_urls_html\}/g, report.photo_urls_html || "");
+        .replace(/\$\{report\.photo_urls_html\}/g, photoUrlsHtml);
 
+      // ✅ Send email ONCE
       await sendEmail({
-        //from: process.env.EMAIL_USER,
         to: official.email,
         subject: `Official Assignment: ${report.title || "New Report"}`,
         html: filledTemplate,
@@ -233,7 +244,7 @@ export async function officialAssignment(req, res) {
 
       console.log(`📧 Email sent successfully to ${official.email}`);
 
-      // ✅ Move email log here
+      // ✅ Log email
       const phTime = DateTime.now().setZone("Asia/Manila").toISO();
 
       const { error: emailError } = await supabase.from("email").insert([
@@ -244,8 +255,8 @@ export async function officialAssignment(req, res) {
           content: `You've been assigned to report: ${report.description}`,
           email: official.email,
           role: "official",
-          status: ["sent"],
-          created_at: new Date().toISOString(),
+          status: "sent",
+          created_at: phTime,
           context: "official assignment",
         },
       ]);
@@ -253,29 +264,6 @@ export async function officialAssignment(req, res) {
       if (emailError) {
         console.error("❌ Error inserting into email log:", emailError);
       }
-
-      await sendEmail({
-        // from: process.env.EMAIL_USER,
-        to: official.email,
-        subject: `Official Notification: ${report.title}`,
-        html: `
-          <h3>You've been assigned a new report</h3>
-          <p><strong>Report ID:</strong> ${report.report_id}</p>
-          <p><strong>Title:</strong> ${report.title}</p>
-          <p><strong>Description:</strong> ${report.description}</p>
-          <p><strong>Category:</strong> ${report.category}</p>
-          <p><strong>Priority:</strong> ${report.priority}</p>
-          <p><strong>Hazardous:</strong> ${report.hazardous}</p>
-          <p><strong>Deadline:</strong> ${report.deadline}</p>
-          <p><strong>Location:</strong> 
-            <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
-              View on Google Maps
-            </a>
-          </p>
-        `,
-      });
-
-      console.log(`📧 Email sent successfully to ${official.email}`);
     }
 
     return res.status(200).json({
