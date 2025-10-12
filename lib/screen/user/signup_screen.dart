@@ -35,8 +35,9 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> fetchBarangays() async {
+    //request url
     try {
-      final response = await http.get(Uri.parse('http://10.0.2.2:3000/barangays'));
+      final response = await http.get(Uri.parse('https://luntian-app-v1-production.up.railway.app/barangays'));
       print('Barangay response: ${response.body}');
       if (response.statusCode == 200) {
         setState(() {
@@ -85,7 +86,8 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> signUpRequest() async {
-    final url = Uri.parse('http://10.0.2.2:3000/users');
+    //request url
+    final url = Uri.parse('https://luntian-app-v1-production.up.railway.app/users');
     final response = await http.post(
       url,
       headers: {'Content-Type': 'application/json'},

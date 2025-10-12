@@ -211,8 +211,9 @@ class _LoginPageState extends State<LoginPage> {
         if (user.role == 'official') {
           // Fetch official data and store it
           try {
+            //request url
             final response = await http.get(
-              Uri.parse('http://10.0.2.2:3000/official/${user.id}'),
+              Uri.parse('https://luntian-app-v1-production.up.railway.app/official/${user.id}'),
               headers: {'Content-Type': 'application/json'},
             );
             if (response.statusCode == 200) {

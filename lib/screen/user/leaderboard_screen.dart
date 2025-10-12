@@ -97,9 +97,10 @@ class _LeaderboardPageState extends State<LeaderboardPage>
       _loadingProgress = 0.0;
     });
 
+    //request url
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:3000/leaderboards?period=$_selectedFilter')
+        Uri.parse('https://luntian-app-v1-production.up.railway.app/leaderboards?period=$_selectedFilter')
       );
       
       // Simulate progress updates

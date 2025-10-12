@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SubmittedSolutionService {
   // Replace with your actual API base url
-  static const String baseUrl = "http://10.0.2.2:3000";
+  static const String baseUrl = "https://luntian-app-v1-production.up.railway.app";
 
   Future<List<SubmittedSolution>> fetchSubmittedSolutions() async {
     final prefs = await SharedPreferences.getInstance();

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>New Report Assignment</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background-color:#f4f4f4;
+      padding:40px;
+    }
+    .main {
+      background:#fff;
+      border-radius:14px;
+      border:1px solid #e0e0e0;
+      box-shadow:0 6px 18px rgba(0,0,0,0.08);
+      max-width:670px;
+      margin:auto;
+      overflow:hidden;
+    }
+    .header {
+      padding:25px;
+      background:linear-gradient(90deg, #2e7d32, #388e3c);
+      border-bottom:4px solid #1b5e20;
+      color:#fff;
+    }
+    .badge {
+      padding:10px 22px;
+      border-radius:30px;
+      font-size:16px;
+      font-weight:600;
+      display:inline-block;
+      margin-top:20px;
+      background-color:#e3f2fd;
+      color:#0d47a1;
+      border:1px solid #90caf9;
+    }
+    .section {
+      padding:30px 40px;
+      color:#333;
+      font-size:15px;
+      line-height:1.6;
+    }
+    .footer {
+      background:#f9f9f9;
+      padding:18px;
+      text-align:center;
+      color:#666;
+      font-size:13px;
+    }
+    a { color:#2e7d32; text-decoration:none; }
+    table {
+      border: 1px solid #4CAF50;
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #4CAF50;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f9f9f9;
+      width: 35%;
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="header">
+      <img src="https://drive.google.com/uc?export=view&id=1LyRQb2O3IT4g5asXtjAT_J-5VNwbmhZH" 
+           alt="Luntian Logo" width="60" 
+           style="vertical-align:middle; border-radius:8px; margin-right:10px;">
+      <span style="font-size:22px; font-weight:700;">Barangay Cleanliness Report</span>
+      <br>
+      <span style="font-size:14px; opacity:0.9;">Official Assignment • Confidential</span>
+    </div>
+
+    <div class="section">
+      <div class="badge">New Assignment</div>
+
+      <p>Dear <b>Barangay Official</b>,</p>
+      <p>
+        You have been <b>assigned</b> to handle a new cleanliness report in your area.  
+        Please review the details below and take appropriate action as soon as possible.
+      </p>
+
+      <h3>Report Details</h3>
+      <table>
+        <tr>
+          <th>Report ID</th>
+          <td>${report.report_id}</td>
+        </tr>
+        <tr>
+          <th>Description</th>
+          <td>${report.description}</td>
+        </tr>
+        <tr>
+          <th>Category</th>
+          <td>${report.category}</td>
+        </tr>
+        <tr>
+          <th>Priority</th>
+          <td>${report.priority}</td>
+        </tr>
+        <tr>
+          <th>Hazardous</th>
+          <td>${report.hazardous}</td>
+        </tr>
+        <tr>
+          <th>Deadline</th>
+          <td>${report.deadline}</td>
+        </tr>
+        <tr>
+          <th>Location</th>
+          <td>
+            <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
+              View on Google Maps
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <h3>Photos</h3>
+      <div>${report.photo_urls_html}</div>
+
+      <p>
+        <i style="color:#777;">Please ensure timely action as per barangay cleanliness protocols.</i>
+      </p>
+    </div>
+
+    <div class="footer">
+      &copy; 2025 Luntian App • Official Assignment Notice<br>
+      <a href="https://yourwebsite.com">Visit our website</a> • 
+      <a href="mailto:luntian.app@gmail.com">Contact us</a>
+    </div>
+  </div>
+</body>
+</html>

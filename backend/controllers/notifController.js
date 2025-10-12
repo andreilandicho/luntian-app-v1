@@ -14,26 +14,79 @@
 //3. citizen status change emailer also with 1 once the status is met
 //4. due date emailer to barangay and official
 
-import nodemailer from "nodemailer";
-import { createClient } from "@supabase/supabase-js";
+// import nodemailer from "nodemailer";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
+import supabase from '../supabaseClient.js';
+import { sendEmail } from "../backend-utils/mailer.js";
 import { DateTime } from "luxon";
 import path from "path";
 import fs from "fs";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
-
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 
 //
+
+
+// Helper to build the HTML content from template and report data
+async function buildReportHtml(report) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const templatePath = path.resolve(__dirname, "../backend-utils/email-templates/report-submission.html");
+                                                
+  let template = await fs.readFile(templatePath, "utf8");
+
+  // Prepare variables for template
+  let mapsLink = "";
+  if (report.lat && report.lon) {
+    mapsLink = `<a href="https://www.google.com/maps/search/?api=1&query=${report.lat},${report.lon}" target="_blank" style="color:#2e7d32;">View on Google Maps</a>`;
+  }
+
+  let photoUrlsHtml = "";
+  if (Array.isArray(report.photo_urls)) {
+    photoUrlsHtml = report.photo_urls.map(url =>
+      `<img src="${url}" style="max-width:120px; max-height:120px; margin:4px; border-radius:8px;" alt="Report Photo" />`
+    ).join("");
+  }
+
+  let badgeText = "";
+  let badgeClass = "";
+  if (report.status === "expired") { badgeText = "Status: EXPIRED – Immediate Action Required"; badgeClass = "expired"; }
+  else if (report.status === "pending") { badgeText = "Status: PENDING – Requires Follow-Up"; badgeClass = "pending"; }
+  else if (report.status === "in_progress") { badgeText = "Status: IN PROGRESS – Ongoing"; badgeClass = "progress"; }
+  else { badgeText = "Status: ON TRACK"; badgeClass = "ontrack"; }
+
+  // Additional template variables
+  const createdAt = DateTime.fromISO(report.created_at).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+  const reportDeadline = report.report_deadline ? DateTime.fromISO(report.report_deadline).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm") : "";
+  const anonymous = report.anonymous ? "Yes" : "No";
+  const status = report.status;
+
+  template = template
+    .replace("${BADGE_TEXT}", badgeText)
+    .replace("${BADGE_CLASS}", badgeClass)
+    .replace("${REPORT_ID}", report.report_id)
+    .replace("${DESCRIPTIVE_LOCATION}", report.descriptive_location || "")
+    .replace("${CATEGORY}", report.category)
+    .replace("${PRIORITY}", report.priority)
+    .replace("${HAZARDOUS}", report.hazardous ? "Yes" : "No")
+    .replace("${GOOGLE_MAPS_LINK}", mapsLink)
+    .replace("${DESCRIPTION}", report.description || "")
+    .replace("${PHOTO_URLS_HTML}", photoUrlsHtml)
+    .replace("${ANONYMOUS}", anonymous)
+    .replace("${CREATED_AT}", createdAt)
+    .replace("${REPORT_DEADLINE}", reportDeadline)
+    .replace("${STATUS}", status);
+
+  return template;
+}
+
 export async function reportNotifBarangay(req, res) {
   try {
     const { report_id } = req.body;
@@ -41,7 +94,7 @@ export async function reportNotifBarangay(req, res) {
     // Fetch report details using report_id
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("description, category, priority, hazardous, lat, lon, user_id, report_id, barangay_id")
+      .select("report_id, user_id, barangay_id, descriptive_location, lat, lon, description, photo_urls, category, priority, hazardous, anonymous, status, created_at, report_deadline")
       .eq("report_id", report_id)
       .single();
 
@@ -68,33 +121,21 @@ export async function reportNotifBarangay(req, res) {
       .select("user_id")
       .eq("barangay_id", report.barangay_id)
       .eq("role", "barangay")
-      .single(); // This should return only one record
+      .single();
 
     if (userError || !barangayUser) {
       console.error("Error fetching barangay user:", userError);
       return res.status(404).json({ error: "Barangay user not found" });
     }
 
+    // Build the HTML content using template
+    const html = await buildReportHtml(report);
+
     // Send email
-    const templatePath = path.join(process.cwd(), "../lib/utils/email-templates/report-barangay.html");
-    let htmlTemplate = fs.readFileSync(templatePath, "utf8");
-
-    htmlTemplate = htmlTemplate
-      .replace("${report.report_id}", report.report_id)
-      .replace("${report.description}", report.description)
-      .replace("${report.category}", report.category)
-      .replace("${report.priority}", report.priority)
-      .replace("${report.hazardous}", report.hazardous)
-      .replace("${report.deadline}", report.deadline)
-      .replace("${report.lat}", report.lat)
-      .replace("${report.lon}", report.lon)
-      .replace("${report.photo_urls_html}", report.photo_urls_html || "");
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
       to: barangay.contact_email,
-      subject: `New Cleanliness Report: ${report.title}`,
-      html: htmlTemplate,
+      subject: "New Report Submission!",
+      html: html,
     });
 
     console.log("Email sent successfully to:", barangay.contact_email);
@@ -104,7 +145,7 @@ export async function reportNotifBarangay(req, res) {
     // Insert email log with the correct barangay user_id
     const { error: emailError } = await supabase.from("email").insert({
       report_id,
-      user_id: barangayUser.user_id, // Correct user_id from users table
+      user_id: barangayUser.user_id,
       title: "New Report Submission",
       content: `New report received: ${report.description}`,
       role: "barangay",
@@ -183,8 +224,8 @@ export async function officialAssignment(req, res) {
         .replace(/\$\{report\.lon\}/g, report.lon || "0")
         .replace(/\$\{report\.photo_urls_html\}/g, report.photo_urls_html || "");
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      await sendEmail({
+        //from: process.env.EMAIL_USER,
         to: official.email,
         subject: `Official Assignment: ${report.title || "New Report"}`,
         html: filledTemplate,
@@ -212,6 +253,29 @@ export async function officialAssignment(req, res) {
       if (emailError) {
         console.error("❌ Error inserting into email log:", emailError);
       }
+
+      await sendEmail({
+        // from: process.env.EMAIL_USER,
+        to: official.email,
+        subject: `Official Notification: ${report.title}`,
+        html: `
+          <h3>You've been assigned a new report</h3>
+          <p><strong>Report ID:</strong> ${report.report_id}</p>
+          <p><strong>Title:</strong> ${report.title}</p>
+          <p><strong>Description:</strong> ${report.description}</p>
+          <p><strong>Category:</strong> ${report.category}</p>
+          <p><strong>Priority:</strong> ${report.priority}</p>
+          <p><strong>Hazardous:</strong> ${report.hazardous}</p>
+          <p><strong>Deadline:</strong> ${report.deadline}</p>
+          <p><strong>Location:</strong> 
+            <a href="https://www.google.com/maps/?q=${report.lat},${report.lon}" target="_blank">
+              View on Google Maps
+            </a>
+          </p>
+        `,
+      });
+
+      console.log(`📧 Email sent successfully to ${official.email}`);
     }
 
     return res.status(200).json({
@@ -275,9 +339,9 @@ export async function reportStatusChange(req, res) {
         {
           report_id,
           user_id: report.user_id,
-          title: "Report Resolved!",
-          content: `Your report "${report.description}" has been resolved.`,
-          role: "citizen",
+          title: "Report Solved", // required for populating so it doesnt go null and break
+          content: `Your report "${report.description}" has been solved. Open Luntian to view solutions. Please rate the submitted solutions so that we can improve our service.`, // required same here
+          role: "citizen", // role like you did with barangay/official
           email: user.email,
           status: ["sent"],
           created_at: new Date().toISOString(),
@@ -289,18 +353,9 @@ export async function reportStatusChange(req, res) {
         console.error("❌ Error inserting email log:", emailError);
       }
 
-      // ✅ Load and use HTML template
-      const templatePath = path.resolve(process.cwd(), "../lib/utils/email-templates/report-resolved.html");
-      let template = await fs.readFileSync(templatePath, "utf8");
-
-      template = template
-        .replace(/\$\{REPORTER_NAME\}/g, user.name || "Citizen")
-        .replace(/\$\{REPORT_ID\}/g, report.report_id)
-        .replace(/\$\{DESCRIPTION\}/g, report.description || "No description provided.")
-        .replace(/\$\{RESOLVED_AT\}/g, new Date().toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }))
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      // Send notification email
+      await sendEmail({
+        // from: process.env.EMAIL_USER,
         to: user.email,
         subject: "✅ Your Report Has Been Resolved",
         html: template,

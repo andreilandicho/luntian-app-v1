@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class BarangayService {
-  final String baseUrl = 'http://10.0.2.2:3000';
-  
+  //request url
+  final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
+
   Future<Map<String, dynamic>?> getBarangayInfo(int barangayId) async {
   final response = await http.get(Uri.parse('$baseUrl/barangays/$barangayId'));
   if (response.statusCode == 200) {

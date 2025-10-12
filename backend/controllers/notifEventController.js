@@ -1,19 +1,20 @@
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 import { DateTime } from "luxon";
+import { sendEmail } from "../backend-utils/mailer.js";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 
 export async function eventNotifBarangay(req, res) {
   try {
@@ -76,8 +77,8 @@ export async function eventNotifBarangay(req, res) {
       'Date not specified';
 
     // Send email notification
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
+      // from: process.env.EMAIL_USER,
       to: barangay.contact_email,
       subject: `New Event Proposal: ${event.title}`,
       html: `
@@ -209,8 +210,8 @@ export async function eventApprovalNotification(req, res) {
     }
 
     // Send email notification to event creator
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    await sendEmail({
+      //from: process.env.EMAIL_USER,
       to: creator.email,
       subject: emailSubject,
       html: htmlContent,
