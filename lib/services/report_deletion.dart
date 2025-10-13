@@ -8,7 +8,7 @@ class DeleteService {
   Future<bool> deleteReport(int reportId, int userId) async {
   try {
     final response = await http.delete(
-      Uri.parse('$baseUrl/reports/delete/$reportId?userId=$userId'), // ✅ Send userId as query param
+      Uri.parse('$baseUrl/report_deleter/delete/$reportId?userId=$userId'), // ✅ Send userId as query param
       headers: {'Content-Type': 'application/json'},
     );
 

@@ -14,6 +14,7 @@ import rating from './routes/rating.js'
 import "./backend-utils/cron.js"; // Import cron jobs to run them
 import "./backend-utils/email-expired-reports.js";
 import badgesRouter from './routes/badges.js';
+import report_deleter from './routes/delete-report.js';
 // import emailExpiredReportsHandler from './routes/email-expired-reports.js';
 //for sign up email verification
 import sendOTPHandler from './routes/otp-mailer/send-otp.js';
@@ -53,6 +54,7 @@ app.use("/notif", notif);
 app.use("/rating", rating);
 app.use('/badges', badgesRouter);
 app.use("/barangay_masterlist", barangay_masterlist);
+app.use("/report_deleter", report_deleter);
 
 //for maintenance officials
 app.use('/official', maintenanceOfficialRouter);
