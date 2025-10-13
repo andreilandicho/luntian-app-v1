@@ -5,12 +5,15 @@ class DeleteService {
   final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
 
   /// Delete a report
-  Future<bool> deleteReport(int reportId, int userId) async {
+Future<bool> deleteReport(int reportId, int userId) async {
   try {
     final response = await http.delete(
-      Uri.parse('$baseUrl/report_deleter/delete/$reportId?userId=$userId'), // ✅ Send userId as query param
+      Uri.parse('$baseUrl/report_deleter/delete/$reportId?userId=$userId'),
       headers: {'Content-Type': 'application/json'},
     );
+
+    print('Delete response status: ${response.statusCode}'); // Add logging
+    print('Delete response body: ${response.body}'); // Add logging
 
     if (response.statusCode == 200) {
       return true;
@@ -22,7 +25,7 @@ class DeleteService {
       throw Exception('Failed to delete report: ${response.body}');
     }
   } catch (e) {
-    print('Error deleting report: $e');
+    print('Full error details: $e'); // This will now show more details
     throw Exception('Error deleting report: $e');
   }
 }

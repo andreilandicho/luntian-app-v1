@@ -5,7 +5,7 @@ import supabase from '../supabaseClient.js';
 const router = express.Router();
 router.delete('/delete/:reportId', async (req, res) => {
   const { reportId } = req.params;
-  const { userId } = req.query.userId; 
+  const { userId } = req.query;
 
   try {
     // Check if report exists and belongs to user
