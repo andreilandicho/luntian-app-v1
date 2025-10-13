@@ -22,7 +22,8 @@ class ProfileService {
   Future<List<Map<String, dynamic>>> getUserBadges(int userId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/users/$userId/badges'),
+        Uri.parse('$baseUrl/badges/$userId'),
+        // Uri.parse('http://10.0.2.2:3000/badges/$userId'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -108,39 +109,25 @@ String _getFileExtension(String filePath) {
   List<Map<String, dynamic>> _getDummyBadges(int userId) {
     return [
       {
-        'name': 'Top Reporter',
-        'earned': true,
-        'description': 'Submit 10 valid reports.',
-        'progress': 10,
+        'name': 'The Gina Lopez Badge',
+        'earned': false,
+        'description': 'Submit 10 reports for a better environment.',
+        'progress': 0,
         'goal': 10
       },
       {
-        'name': 'Eco Warrior',
-        'earned': true,
-        'description': 'Create 3 cleanup events.',
-        'progress': 3,
+        'name': 'The Anna Oposa Badge',
+        'earned': false,
+        'description': 'Report 3 marine or water-related issues.',
+        'progress': 0,
         'goal': 3
       },
       {
-        'name': 'Event Initiator',
+        'name': 'The Rodne Galicha Badge',
         'earned': false,
-        'description': 'Organize your first event.',
+        'description': 'Successfully organize your first event.',
         'progress': 0,
         'goal': 1
-      },
-      {
-        'name': 'Report Master',
-        'earned': false,
-        'description': 'Get 50 upvotes on reports.',
-        'progress': 35,
-        'goal': 50
-      },
-      {
-        'name': 'Community Helper',
-        'earned': false,
-        'description': 'Join 5 events as a volunteer.',
-        'progress': 1,
-        'goal': 5
       },
     ];
   }

@@ -21,6 +21,7 @@ import verifyOTPHandler from './routes/otp-mailer/verify-otp.js';
 import checkEmailCitizenHandler from './routes/check-email-citizen.js';
 import checkEmailExistsHandler from './routes/check-email-exists.js';
 import resetPasswordHandler from './routes/reset-password.js';
+import barangay_masterlist from './routes/fetch-barangay-masterlist.js';
 
 
 //for web use
@@ -51,6 +52,7 @@ app.use('/notifications', notificationsRouter);
 app.use("/notif", notif);
 app.use("/rating", rating);
 app.use('/badges', badgesRouter);
+app.use("/barangay_masterlist", barangay_masterlist);
 
 //for maintenance officials
 app.use('/official', maintenanceOfficialRouter);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/user_model.dart';
+import 'package:flutter_application_1/screen/admin/pending.dart';
 import 'package:flutter_application_1/services/auth_service.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
@@ -30,10 +31,10 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   String address = '';
   bool isLoadingUserInfo = true;
   String userInfoError = '';
-  
-  // List<Map<String, dynamic>>badges = [];
-
-  final List<String> badges = ['Top Reporter', 'Eco Warrior'];
+    // Badges from API
+  List<Map<String, dynamic>> allBadges = [];
+  bool isLoadingBadges = true;
+  String badgesError = '';
 
   // These will be replaced by fetched data
   List<Map<String, dynamic>> userReports = [];
@@ -45,64 +46,41 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
   List<Map<String, dynamic>> userEvents = [];
   bool isLoadingEvents = true;
   String eventsError = '';
-  
-  // Badges
-
-  // Simulated badge data (you can replace this with actual data logic later)
-  late List<Map<String, dynamic>> allBadges;
 
   @override
   void initState() {
     super.initState();
-
-    allBadges = [
-      {
-        //check if the total reports created by the user id in the reports table is 10+
-        'name': 'Top Reporter',
-        'earned': true,
-        'description': 'Submit 10 valid reports.',
-        'progress': 10,
-        'goal': 10
-      },
-      {
-        //check if the total events created by the user id in the events table is 3+
-        'name': 'Eco Warrior',
-        'earned': true,
-        'description': 'Create 3 cleanup events.',
-        'progress': 3,
-        'goal': 3
-      },
-      {
-        //check if there is at least one event created by the user id in the events table
-        'name': 'Event Initiator',
-        'earned': false,
-        'description': 'Organize your first event.',
-        'progress': 0,
-        'goal': 1
-      },
-      {
-        //check if ang total upvotes ng reports based sa signed in na user id ay 50+
-        'name': 'Report Master',
-        'earned': false,
-        'description': 'Get 50 upvotes on reports.',
-        'progress': 0,
-        'goal': 50
-      },
-      {
-        //check if the total events interested ang user id sa volunteer_events_interested table ay 5+
-        'name': 'Community Helper',
-        'earned': false,
-        'description': 'Join 5 events as a volunteer.',
-        'progress': 1,
-        'goal': 5
-      },
-    ];
-
     _fetchUserReports();
     _fetchUserEvents();
     _fetchUserInfo();
+    _fetchUserBadges();
   }
-
+  //Fetch user badges from backend
+  Future<void> _fetchUserBadges() async {
+    if (widget.user == null) {
+      if (!mounted) return;
+      setState(() {
+        isLoadingBadges = false;
+        badgesError = 'No user found';
+      });
+      return;
+    }
+    
+    try {
+      final badges = await ProfileService().getUserBadges(widget.user!.id);
+      if (!mounted) return;
+      setState(() {
+        allBadges = badges;
+        isLoadingBadges = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        isLoadingBadges = false;
+        badgesError = e.toString();
+      });
+    }
+  }
   // Fetch user info
   Future<void> _fetchUserInfo() async {
     if (widget.user == null) return;
@@ -137,9 +115,9 @@ class _ProfilePageState extends State<ProfilePage> with TickerProviderStateMixin
       setState(() {
         userReports = reports.map((r) => r.toMap()).toList();
         isLoadingReports = false;
-        // Optionally, update badge progress here
-        final upvotes = userReports.fold<int>(0, (sum, r) => sum + (r['upvotes'] ?? 0) as int);
-        allBadges.firstWhere((b) => b['name'] == 'Report Master')['progress'] = upvotes;
+        // Optionally, update badge progress here <cause the 404 error bad state: no element>
+        // final upvotes = userReports.fold<int>(0, (sum, r) => sum + (r['upvotes'] ?? 0) as int);
+        // allBadges.firstWhere((b) => b['name'] == 'Report Master')['progress'] = upvotes;
       });
     } catch (e) {
       if(!mounted) return;
@@ -470,40 +448,44 @@ void _showSettingsSheet() {
   }
 
 
-  void _showAllBadges() {
+void _showAllBadges() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Your Badges'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: allBadges.length,
-            itemBuilder: (context, index) {
-              final badge = allBadges[index];
-              return ListTile(
-                leading: Icon(
-                  badge['earned'] ? Icons.emoji_events : Icons.lock_outline,
-                  color: badge['earned'] ? Colors.green : Colors.grey,
-                ),
-                title: Text(
-                  badge['name'],
-                  style: TextStyle(
-                    color: badge['earned'] ? Colors.black : Colors.grey,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                subtitle: Text(
-                  badge['goal'] != null
-                      ? '${badge['progress']}/${badge['goal']} ${badge['description'].toLowerCase()}'
-                      : badge['description'],
-                  style: TextStyle(
-                    color: badge['earned'] ? Colors.black87 : Colors.grey[600],
-                  ),
-                ),
-              );
-            },
+        content: isLoadingBadges
+            ? const Center(child: CircularProgressIndicator())
+            : badgesError.isNotEmpty
+                ? Text('Error: $badgesError', style: const TextStyle(color: Colors.red))
+                : SizedBox(
+                    width: double.maxFinite,
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: allBadges.length,
+                      itemBuilder: (context, index) {
+                        final badge = allBadges[index];
+                        return ListTile(
+                          leading: Icon(
+                            badge['earned'] ? Icons.emoji_events : Icons.lock_outline,
+                            color: badge['earned'] ? Colors.green : Colors.grey,
+                          ),
+                          title: Text(
+                            badge['name'],
+                            style: TextStyle(
+                              color: badge['earned'] ? Colors.black : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(
+                            badge['goal'] != null
+                                ? '${badge['progress']}/${badge['goal']} - ${badge['description']}'
+                                : badge['description'],
+                            style: TextStyle(
+                              color: badge['earned'] ? Colors.black87 : Colors.grey[600],
+                            ),
+                          ),
+                        );
+                      },
           ),
         ),
         actions: [
@@ -756,6 +738,7 @@ void _showSettingsSheet() {
                       style: const TextStyle(
                         fontFamily: 'Poppins',
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D2D2D),
                       ),
                     ),
                     subtitle: Text(DateFormat('MMM dd, yyyy • h:mm a').format(DateTime.now())),
@@ -927,6 +910,7 @@ Widget build(BuildContext context) {
       onRefresh: () async {
         await _fetchUserReports();
         await _fetchUserEvents();
+        await _fetchUserBadges();
       },
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -978,11 +962,13 @@ Widget build(BuildContext context) {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: earnedBadges.map((badge) {
-                    return Container(
+                isLoadingBadges
+                    ? const CircularProgressIndicator()
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: earnedBadges.map((badge) {
+                          return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFDBB727),

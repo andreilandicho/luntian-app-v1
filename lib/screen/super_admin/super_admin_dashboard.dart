@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:flutter_application_1/screen/admin/login_screen.dart';
 import 'package:bcrypt/bcrypt.dart';
-
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class SuperAdminDashboard extends StatefulWidget {
   const SuperAdminDashboard({super.key});
@@ -47,29 +48,27 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     }
   }
 
- Future<void> _deleteBarangayAccount(String userId) async {
-  try {
-    await Supabase.instance.client
-        .from('users')
-        .delete()
-        .eq('user_id', userId); // use user_id instead of id
+  Future<void> _deleteBarangayAccount(String userId) async {
+    try {
+      await Supabase.instance.client
+          .from('users')
+          .delete()
+          .eq('user_id', userId);
 
-    await _loadBarangayData();
+      await _loadBarangayData();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account deleted successfully')),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error deleting account: $e')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting account: $e')),
+      );
+    }
   }
-}
-
-
 
   void _showDeleteConfirmation(Map<String, dynamic> user) {
-    final userId = user['user_id']?.toString(); // ensure String
+    final userId = user['user_id']?.toString();
     final userName = user['name'] ?? 'Unknown User';
 
     if (userId == null) {
@@ -107,8 +106,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-
-
   void _showAddBarangayDialog() {
     showDialog(
       context: context,
@@ -120,20 +117,18 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-
-      // ✅ HEADER + CONTENT
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ HEADER with logo and LUNTIAN
+              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: mainColor, // Luntian green
+                  color: mainColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -170,7 +165,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                               ),
                               TextButton(
                                 onPressed: () {
-                                  Navigator.pop(context); // Close the dialog
+                                  Navigator.pop(context);
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
@@ -191,13 +186,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   ],
                 ),
               ),
-
-
-
-
               const SizedBox(height: 20),
 
-              // ✅ STATISTICS
+              // Statistics
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -206,10 +197,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                   _statCard("Inactive", _inactiveBarangays, Colors.redAccent),
                 ],
               ),
-
               const SizedBox(height: 20),
 
-              // ✅ LIST OF BARANGAYS
+              // List of Barangays
               Expanded(
                 child: Container(
                   width: double.infinity,
@@ -246,28 +236,22 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
                                   final isActive = b['is_active'] == true;
 
                                   return Card(
-                                    margin:
-                                        const EdgeInsets.symmetric(vertical: 6),
+                                    margin: const EdgeInsets.symmetric(vertical: 6),
                                     child: ListTile(
                                       leading: CircleAvatar(
                                         backgroundColor: isActive
                                             ? Colors.green
                                             : Colors.grey,
                                         child: Text(
-                                          b['name']?.substring(0, 1)
-                                                  .toUpperCase() ??
-                                              '?',
-                                          style: const TextStyle(
-                                              color: Colors.white),
+                                          b['name']?.substring(0, 1).toUpperCase() ?? '?',
+                                          style: const TextStyle(color: Colors.white),
                                         ),
                                       ),
                                       title: Text(b['name'] ?? 'Unknown'),
                                       subtitle: Text(b['email'] ?? 'No email'),
                                       trailing: IconButton(
-                                        icon: const Icon(Icons.delete,
-                                            color: Colors.red),
-                                        onPressed: () =>
-                                            _showDeleteConfirmation(b),
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () => _showDeleteConfirmation(b),
                                       ),
                                     ),
                                   );
@@ -282,8 +266,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
           ),
         ),
       ),
-
-      // ✅ ADD BUTTON fixed at bottom
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: SizedBox(
@@ -306,7 +288,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
     );
   }
 
-  // ✅ Helper widget for stats
   Widget _statCard(String label, int value, Color color) {
     return Expanded(
       child: Card(
@@ -344,10 +325,80 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _searchController = TextEditingController();
+  
   bool _isLoading = false;
+  bool _isLoadingMasterlist = false;
+  
+  List<Map<String, dynamic>> _masterlist = [];
+  List<Map<String, dynamic>> _filteredMasterlist = [];
+  Map<String, dynamic>? _selectedBarangay;
+
+  final String baseUrl = 'https://luntian-app-v1-production.up.railway.app';
+  // final String baseUrl = 'http://localhost:3000';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMasterlist();
+    _searchController.addListener(_filterMasterlist);
+  }
+
+  Future<void> _loadMasterlist() async {
+    setState(() => _isLoadingMasterlist = true);
+    
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/barangay_masterlist/masterlist'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        setState(() {
+          _masterlist = List<Map<String, dynamic>>.from(data);
+          _filteredMasterlist = _masterlist;
+        });
+      }
+    } catch (e) {
+      print('Error loading masterlist: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading barangay list: $e')),
+        );
+      }
+    } finally {
+      setState(() => _isLoadingMasterlist = false);
+    }
+  }
+
+  void _filterMasterlist() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredMasterlist = _masterlist;
+      } else {
+        _filteredMasterlist = _masterlist.where((item) {
+          final address = item['full_address']?.toString().toLowerCase() ?? '';
+          final barangay = item['barangay']?.toString().toLowerCase() ?? '';
+          final municipality = item['municipality']?.toString().toLowerCase() ?? '';
+          return address.contains(query) || 
+                 barangay.contains(query) || 
+                 municipality.contains(query);
+        }).toList();
+      }
+    });
+  }
 
   Future<void> _addBarangay() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    if (_selectedBarangay == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a barangay from the list')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -355,33 +406,32 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
       final name = _nameController.text.trim();
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
+      final masterlistId = _selectedBarangay!['barangay_masterlist_id'];
 
-      // ✅ Check if barangay name already exists
-      final existing = await supabase
-          .from('users')
-          .select('name') // no need for 'id'
-          .eq('name', name)
-          .eq('role', 'barangay')
-          .maybeSingle();
-
-      if (existing != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Barangay name "$name" already exists')),
-          );
-        }
-        return;
-      }
-
-      // ✅ Hash the password securely
+      // Hash the password
       final hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
 
-      // ✅ Insert new barangay record
+      // Insert into barangays table first
+      final barangayInsert = await supabase
+          .from('barangays')
+          .insert({
+            'name': name,
+            'city': _selectedBarangay!['municipality'],
+            'contact_email': email,
+            'masterlist_id': masterlistId,
+          })
+          .select()
+          .single();
+
+      final barangayId = barangayInsert['barangay_id'];
+
+      // Insert into users table
       await supabase.from('users').insert({
         'name': name,
         'email': email,
         'password': hashedPassword,
         'role': 'barangay',
+        'barangay_id': barangayId,
         'is_active': true,
         'is_approved': true,
         'created_at': DateTime.now().toIso8601String(),
@@ -405,29 +455,151 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     const mainColor = Color(0xFF2E7D32);
 
     return AlertDialog(
       title: const Text(
-        "Add Barangay",
+        "Add Barangay Account",
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 400,
+          width: MediaQuery.of(context).size.width * 0.9,
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _inputField(_nameController, "Barangay Name", Icons.location_city),
+                // Barangay Selection Dropdown
+                const Text(
+                  'Select Barangay from Masterlist',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                
+                _isLoadingMasterlist
+                    ? const Center(child: CircularProgressIndicator())
+                    : Column(
+                        children: [
+                          // Search Field
+                          TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search barangay...',
+                              prefixIcon: const Icon(Icons.search, color: mainColor),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          
+                          // Selected Barangay Display
+                          if (_selectedBarangay != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: mainColor),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.check_circle, color: mainColor),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _selectedBarangay!['full_address'],
+                                      style: const TextStyle(fontSize: 13),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, size: 20),
+                                    onPressed: () {
+                                      setState(() => _selectedBarangay = null);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              constraints: const BoxConstraints(maxHeight: 200),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: _filteredMasterlist.isEmpty
+                                  ? const Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(16),
+                                        child: Text('No barangays found'),
+                                      ),
+                                    )
+                                  : ListView.builder(
+                                      shrinkWrap: true,
+                                      itemCount: _filteredMasterlist.length,
+                                      itemBuilder: (context, index) {
+                                        final item = _filteredMasterlist[index];
+                                        final hasAccount = item['has_account'] == true;
+                                        
+                                        return ListTile(
+                                          dense: true,
+                                          enabled: !hasAccount,
+                                          title: Text(
+                                            item['full_address'],
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: hasAccount 
+                                                  ? Colors.grey 
+                                                  : Colors.black,
+                                            ),
+                                          ),
+                                          trailing: hasAccount
+                                              ? const Chip(
+                                                  label: Text(
+                                                    'Account Exists',
+                                                    style: TextStyle(fontSize: 10),
+                                                  ),
+                                                  backgroundColor: Colors.orange,
+                                                  padding: EdgeInsets.symmetric(horizontal: 4),
+                                                )
+                                              : const Icon(Icons.arrow_forward_ios, size: 16),
+                                          onTap: hasAccount
+                                              ? null
+                                              : () {
+                                                  setState(() {
+                                                    _selectedBarangay = item;
+                                                    _searchController.clear();
+                                                  });
+                                                },
+                                        );
+                                      },
+                                    ),
+                            ),
+                        ],
+                      ),
+                
+                const SizedBox(height: 16),
+                
+                // Account Details
+                const Text(
+                  'Account Details',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                
+                _inputField(_nameController, "Barangay Office Name", Icons.location_city),
                 const SizedBox(height: 12),
-                _inputField(_emailController, "Email Address", Icons.email),
+                _inputField(_emailController, "Contact Email", Icons.email),
                 const SizedBox(height: 12),
                 _passwordField(_passwordController, "Password"),
                 const SizedBox(height: 12),
@@ -459,17 +631,15 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
                     color: Colors.white,
                   ),
                 )
-              : const Text('Create'),
+              : const Text('Create Account'),
         ),
       ],
     );
   }
 
-  Widget _inputField(TextEditingController c, String label, IconData icon,
-      {bool obscure = false}) {
+  Widget _inputField(TextEditingController c, String label, IconData icon) {
     return TextFormField(
       controller: c,
-      obscureText: obscure,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF2E7D32)),
@@ -490,13 +660,10 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
       ),
       validator: (v) {
         if (v == null || v.isEmpty) return "Please enter a password";
-
-        // ✅ Strong password check
         final regex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$');
         if (!regex.hasMatch(v)) {
           return "Password must be at least 8 chars, include\nuppercase, lowercase, number & special char.";
         }
-
         return null;
       },
     );
@@ -525,8 +692,7 @@ class _AddBarangayDialogState extends State<AddBarangayDialog> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 }
-
-

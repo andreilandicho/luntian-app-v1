@@ -1,4 +1,3 @@
-// badges.js - Updated with proper queries for your schema
 import express from 'express';
 import supabase from '../supabaseClient.js';
 import cors from 'cors';
@@ -6,84 +5,73 @@ import cors from 'cors';
 const router = express.Router();
 router.use(cors());
 
-// create badges inspired with environmentalists
-//Gina Lopez - Environmentalist and Philanthropist query reports table for a user has reported 5 issues per month
-//Illac Diaz - Social Entrepreneur query volunteer_events table for a user has organized 3 events
-//Anna Oposa - Marine Conservationist query reports table for a user has reported 5 marine-related issues query reports submitted with category either '
-
 // GET /api/badges/:userId
 router.get('/:userId', async (req, res) => {
   const userId = req.params.userId;
 
   try {
-    // 1. The Gina Lopez Badge: Query if a user has submitted a total of 10 reports for the current month (use user id and report_date)
+    // 1. The Gina Lopez Badge: 10 reports in current month
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
     const { data: reportsByUser, error: reportsError } = await supabase
       .from('reports')
       .select('report_id')
       .eq('user_id', userId)
+      .gte('created_at', startOfMonth)
+      .lte('created_at', endOfMonth);
+    
     if (reportsError) throw reportsError;
     const topReporterProgress = reportsByUser?.length || 0;
 
-    //2. The Anna Oposa Badge: Query if a user has submitted a report with any of the following categories: Baradong Kanal, Masangsang Na Estero, Oil/Chemical Spills
-
-    //3. The Rodne Galicha Badge: If a user has organized at least 1 event that has been marked as 'completed' or 'approved'
-
+    // 2. The Anna Oposa Badge: Marine-related reports
+    const { data: marineReports, error: marineReportsError } = await supabase
+      .from('reports')
+      .select('report_id')
+      .eq('user_id', userId)
+      .in('category', ['Baradong Kanal', 'Masangsang Na Estero', 'Oil/Chemical Spills']);
     
-    const { data: cleanupEvents, error: cleanupEventsError } = await supabase
-      .from('volunteer_events')
-      .select('event_id')
-      .eq('created_by', userId)
-      .eq('status', 'approved'); // Only approved events
-    if (cleanupEventsError) throw cleanupEventsError;
-    const ecoWarriorProgress = cleanupEvents?.length || 0;
+    if (marineReportsError) throw marineReportsError;
+    const ecoWarriorProgress = marineReports?.length || 0;
 
-    // 3. 
+    // 3. The Rodne Galicha Badge: Organized events
     const { data: successfulEvents, error: eventsError } = await supabase
       .from('volunteer_events')
       .select('event_id')
-      .eq('created_by', userId)
-      .in('status', ['completed', 'approved']); // Count successful events
+      .eq('created_by', userId);
+    
     if (eventsError) throw eventsError;
     const eventInitiatorProgress = successfulEvents?.length || 0;
 
-
-    // Compose badges with proper qualification
+    // Compose badges array (matching frontend expectations)
     const badges = [
       {
         name: "The Gina Lopez Badge",
         earned: topReporterProgress >= 10,
-        description: "Get 10 reports approved.",
+        description: "Get 10 reports approved this month.",
         progress: Math.min(topReporterProgress, 10),
         goal: 10,
-        qualification: "The Gina Lopez Badge is awarded to citizens who have demonstrated exceptional commitment to environmental advocacy by submitting a total of 10 reports in a month."
-        // This badge honors the legacy of Gina Lopez, a renowned environmentalist and philanthropist known for her relentless efforts in protecting the environment and promoting sustainable practices.
       },
       {
-        name: "Eco Warrior",
+        name: "The Anna Oposa Badge",
         earned: ecoWarriorProgress >= 3,
-        description: "Successfully complete 3 cleanup events.",
+        description: "Report 3 marine or water-related issues.",
         progress: Math.min(ecoWarriorProgress, 3),
         goal: 3,
-        qualification: "The Anna Oposa Badge is awarded to citizens..."
       },
       {
-        name: "Event Initiator",
+        name: "The Rodne Galicha Badge",
         earned: eventInitiatorProgress >= 1,
         description: "Successfully organize your first event.",
         progress: Math.min(eventInitiatorProgress, 1),
         goal: 1,
-        qualification: "The Rodney Galicha Badge is awarded to citizens..."
       }
     ];
 
-    res.json({ 
-      badges,
-      stats: {
-        reportsByUser: topReporterProgress,
-        cleanupEvents: ecoWarriorProgress,
-        successfulEvents: eventInitiatorProgress
-      }
-    });
+    // ✅ Return just the badges array (not wrapped in object)
+    res.json(badges);
+    
   } catch (err) {
     console.error('Badges API Error:', err);
     res.status(500).json({ error: err.message || "Error fetching badges" });

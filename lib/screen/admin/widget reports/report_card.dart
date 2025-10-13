@@ -349,9 +349,9 @@ class _ReportCardState extends State<ReportCard> {
         'status': 'in_progress',
       }).eq('report_id', reportId);
 
-      // --- 3️⃣ Call backend controller to send emails ---
+      // --- call backend controller to send emails
       final response = await http.post(
-        Uri.parse('http://localhost:3000/notif/officialAssignment'), // Adjust URL as needed
+        Uri.parse('https://luntian-app-v1-production.up.railway.app/notif/officialAssignment'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'report_id': reportId}),
       );
