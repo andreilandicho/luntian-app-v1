@@ -236,7 +236,7 @@ router.get('/solved/:barangayId', async (req, res) => {
 
 router.delete('/delete/:reportId', async (req, res) => {
   const { reportId } = req.params;
-  const { userId } = req.body; // Pass userId from frontend
+  const { userId } = req.query.userId; 
 
   try {
     // Check if report exists and belongs to user

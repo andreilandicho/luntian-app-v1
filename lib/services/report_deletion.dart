@@ -6,27 +6,26 @@ class DeleteService {
 
   /// Delete a report
   Future<bool> deleteReport(int reportId, int userId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/reports/delete/$reportId'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'userId': userId}),
-      );
+  try {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/reports/delete/$reportId?userId=$userId'), // ✅ Send userId as query param
+      headers: {'Content-Type': 'application/json'},
+    );
 
-      if (response.statusCode == 200) {
-        return true;
-      } else if (response.statusCode == 403) {
-        throw Exception('You can only delete your own reports');
-      } else if (response.statusCode == 404) {
-        throw Exception('Report not found');
-      } else {
-        throw Exception('Failed to delete report: ${response.body}');
-      }
-    } catch (e) {
-      print('Error deleting report: $e');
-      throw Exception('Error deleting report: $e');
+    if (response.statusCode == 200) {
+      return true;
+    } else if (response.statusCode == 403) {
+      throw Exception('You can only delete your own reports');
+    } else if (response.statusCode == 404) {
+      throw Exception('Report not found');
+    } else {
+      throw Exception('Failed to delete report: ${response.body}');
     }
+  } catch (e) {
+    print('Error deleting report: $e');
+    throw Exception('Error deleting report: $e');
   }
+}
 
   Future<bool> deleteEvent(int eventId, int userId) async {
     try {
