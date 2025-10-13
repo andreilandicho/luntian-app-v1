@@ -774,6 +774,9 @@ Widget _buildFilterButtons() {
                                     onImageTap: _showImage,
                                     currentPages: currentPages,
                                     currentUserId: widget.currentUserId,
+                                    onDeleted: () async {
+                                      await widget.onRefresh();
+                                    },
                                   ),
                                 );
                               },

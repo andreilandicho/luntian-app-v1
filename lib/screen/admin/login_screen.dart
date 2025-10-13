@@ -260,7 +260,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         const Text(
-                                          "Don't have an account? ",
+                                          "© Luntian 2025. All rights reserved.",
                                           style: TextStyle(fontFamily: 'Poppins'),
                                         ),
                                         GestureDetector(
@@ -271,7 +271,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                                             );
                                           },
                                           child: const Text(
-                                            "Sign Up",
+                                            "",
                                             style: TextStyle(
                                               color: Colors.blue,
                                               fontWeight: FontWeight.bold,
@@ -497,7 +497,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Text(
-                            "Don't have an account? ",
+                            "© Luntian 2025. All rights reserved.",
                             style: TextStyle(fontFamily: 'Poppins'),
                           ),
                           GestureDetector(
@@ -508,7 +508,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                               );
                             },
                             child: const Text(
-                              "Sign Up",
+                              "",
                               style: TextStyle(
                                 color: Colors.blue,
                                 fontWeight: FontWeight.bold,

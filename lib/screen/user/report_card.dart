@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/report_model.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_application_1/services/report_deletion.dart';
 
 class ReportCard extends StatelessWidget {
   final Map<String, dynamic> post;
@@ -13,6 +14,7 @@ class ReportCard extends StatelessWidget {
   final void Function(BuildContext, String) onImageTap;
   final Map<int, int> currentPages;
   final int currentUserId; 
+  final VoidCallback? onDeleted;
 
   const ReportCard({
     super.key,
@@ -25,6 +27,7 @@ class ReportCard extends StatelessWidget {
     required this.onImageTap,
     required this.currentPages,
     required this.currentUserId, 
+    this.onDeleted,
   });
 
   Color _getPriorityColor(String? priority) {
@@ -37,6 +40,88 @@ class ReportCard extends StatelessWidget {
         return Colors.green;
       default:
         return Colors.grey;
+    }
+  }
+  Future<void> _confirmDeleteReport(BuildContext context) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Report'),
+        content: const Text(
+          'Are you sure you want to delete this report? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true && context.mounted) {
+      await _deleteReport(context);
+    }
+  }
+
+  Future<void> _deleteReport(BuildContext context) async {
+    try {
+      // Show loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Deleting report...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      final deleteService = DeleteService();
+      await deleteService.deleteReport(post['report_id'], currentUserId);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        if (onDeleted != null) {
+          onDeleted!();
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -235,10 +320,16 @@ Widget build(BuildContext context) {
                                 ),
                                 if (isOwner)
                                   ListTile(
-                                    leading: const Icon(Icons.delete, color: Colors.red),
-                                    title: const Text('Delete', style: TextStyle(color: Colors.red)),
-                                    onTap: () => Navigator.pop(context),
-                                  ),
+                                      leading: const Icon(Icons.delete, color: Colors.red),
+                                      title: const Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                      onTap: () {
+                                        Navigator.pop(context);
+                                        _confirmDeleteReport(context);
+                                      },
+                                    ),
                               ],
                             ),
                           ),
