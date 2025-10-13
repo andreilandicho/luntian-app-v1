@@ -253,7 +253,7 @@ export async function officialAssignment(req, res) {
           content: `You've been assigned to report: ${report.description}`,
           email: official.email,
           role: "official",
-          status: "sent",
+          status: ["sent"],
           created_at: phTime,
           context: "official assignment",
         },
