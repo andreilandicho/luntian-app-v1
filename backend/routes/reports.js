@@ -234,7 +234,7 @@ router.get('/solved/:barangayId', async (req, res) => {
   }
 });
 
-router.delete('/:reportId', async (req, res) => {
+router.delete('/delete/:reportId', async (req, res) => {
   const { reportId } = req.params;
   const { userId } = req.body; // Pass userId from frontend
 
