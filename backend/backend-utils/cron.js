@@ -98,6 +98,7 @@ cron.schedule(
           // Send email
           await sendEmail({
             //from: process.env.EMAIL_USER,
+            from: 'no-reply@luntian.me',
             to: barangay.contact_email,
             subject: subject,
             html: html,

@@ -21,6 +21,7 @@ export default async function sendOTPHandler(req, res) {
     // Send email
     await sendEmail({
       // from: process.env.EMAIL_USER,
+      from: 'no-reply@luntian.me',
       to: email,
       subject: mailSubject,
       text: `Your verification code is: ${otp}`,
