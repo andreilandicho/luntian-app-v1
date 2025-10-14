@@ -3,7 +3,7 @@ description: "A new Flutter project."
 publish_to: 'none'
 
 # build apk version
-version: 1.0.0+1  # 1.0.0 = version name, 1 = build number
+version: 1.0.0+2  # 1.0.0 = version name, 2 = build number
 
 environment:
   sdk: ^3.7.2
@@ -23,6 +23,9 @@ dependencies:
   path: ^1.9.0
   flutter_slidable: ^4.0.0
   flutter_rating_bar: ^4.0.0
+  # for timestapping
+  image: ^4.0.17 
+  fluttertoast: ^8.2.1
   image_picker: ^1.0.5
   image_cropper: ^9.1.0
   cached_network_image: ^3.3.0

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image/image.dart' as img;
 
 final supabase = Supabase.instance.client;
 
@@ -102,6 +103,8 @@ class _AddPageState extends State<AddPage> {
       final image = await _cameraController.takePicture();
       final directory = await getApplicationDocumentsDirectory();
       final name = path.basename(image.path);
+
+      
       final savedImage = await File(image.path).copy('${directory.path}/$name');
       setState(() {
         _capturedImages.add(savedImage);
@@ -111,6 +114,7 @@ class _AddPageState extends State<AddPage> {
     }
   }
   
+
   // Method to upload selected images to Supabase
   Future<List<String>> _uploadSelectedImagesToSupabase() async {
     List<String> uploadedUrls = [];
