@@ -348,8 +348,9 @@ List<Map<String, dynamic>> get _filteredReports {
           label: const Text('Send Email'),
           onPressed: () async {
             final content = emailController.text;
-            final subject = 'Report Escalation - Urgent Attention Required';
-            final recipient = 'mhd@manila.gov.ph';
+            final subject = 'Report Escalation From Luntian App';
+            // final recipient = 'mhd@manila.gov.ph';
+            final recipient = 'dps@manila.gov.ph';
             final mailtoUri = Uri(
               scheme: 'mailto',
               path: recipient,
@@ -456,8 +457,8 @@ void _showClipboardFallbackDialog(String content) {
     } else {
       assignedOfficialsText = report["all_assigned_officials"].join(", ");
     }
-    
-    return "Dear Manila Health Department,\n\n"
+
+    return "Good day! Department of Public Services,\n\n"
         "I am writing to escalate the following report that requires urgent attention:\n\n"
         "Report ID: ${report["report_id"]}\n"
         "Reporter Name: ${report["reporter_name"]}\n"

@@ -8,14 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// const transporter = nodemailer.createTransport({
-//   service: "gmail",
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASS,
-//   },
-// });
-
 export async function eventNotifBarangay(req, res) {
   try {
     const { event_id } = req.body;

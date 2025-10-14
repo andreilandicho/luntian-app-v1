@@ -157,6 +157,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   List<Map<String, dynamic>> _events = [];
   List<Map<String, dynamic>> _approvedEvents = [];
+  List<Map<String, dynamic>> _rejectedEvents = [];
 
   bool _loading = false;
 
@@ -205,11 +206,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
       final pending = <Map<String, dynamic>>[];
       final approved = <Map<String, dynamic>>[];
+      final rejected = <Map<String, dynamic>>[];
 
       for (final e in data) {
         final map = Map<String, dynamic>.from(e);
         if (map['approval_status'] == 'approved') {
           approved.add(map);
+        } else if (map['approval_status'] == 'rejected') {
+          rejected.add(map);
         } else {
           pending.add(map);
         }
@@ -218,6 +222,7 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _events = pending;
         _approvedEvents = approved;
+        _rejectedEvents = rejected;
       });
     } catch (e) {
       debugPrint("❌ Error fetching profile/events: $e");
@@ -229,58 +234,66 @@ class _ProfilePageState extends State<ProfilePage> {
 
 
 
-  Future<void> _updateEventStatus(int index, String status,
-      {String? comment}) async {
-    try {
-      final event = _events[index];
-      final id = event['event_id'];
-      final barangayId = event['barangay_id'];
+  Future<void> _updateEventStatus(int index, String status, {String? comment}) async {
+  try {
+    final event = _events[index];
+    final id = event['event_id'];
+    final barangayId = event['barangay_id'];
 
-      if (status == "rejected") {
-        // Delete the event if rejected
-        await Supabase.instance.client
-          .from('volunteer_events')
-          .delete()
-          .eq('event_id', id);
+    // Update status for all cases (approved, rejected, pending, etc.)
+    await Supabase.instance.client
+      .from('volunteer_events')
+      .update({
+        'approval_status': status,
+        if (comment != null) 'comment': comment,
+      })
+      .eq('event_id', id);
 
-          //Send the rejected email
-          await _eventService.updateEventApprovalStatus(id, "rejected", barangayId);
-        
-        setState(() {
-          _events.removeAt(index);
-        });
+    // Send notification email for status change
+    await _eventService.updateEventApprovalStatus(id, status, barangayId);
+
+    setState(() {
+      if (status == "approved") {
+        final approved = {...event, "approval_status": "approved"};
+        _approvedEvents.add(approved);
+        _events.removeAt(index);
       } else {
-        // Update status for other cases (approved, pending, etc.)
-        await Supabase.instance.client
-          .from('volunteer_events')
-          .update({
-            'approval_status': status,
-            if (comment != null) 'comment': comment,
-          })
-          .eq('event_id', id);
-        
-        //emailer for approved events
-        if(status == "approved"){
-          await _eventService.updateEventApprovalStatus(id, "approved", barangayId);
+        _events[index]["approval_status"] = status;
+        if (comment != null) {
+          _events[index]["comment"] = comment;
         }
-
-        setState(() {
-          if (status == "approved") {
-            final approved = {...event, "approval_status": "approved"};
-            _approvedEvents.add(approved);
-            _events.removeAt(index);
-          } else {
-            _events[index]["approval_status"] = status;
-            if (comment != null) {
-              _events[index]["comment"] = comment;
-            }
-          }
-        });
       }
-    } catch (e) {
-      debugPrint("❌ Error updating event: $e");
-    }
+    });
+  } catch (e) {
+    debugPrint("❌ Error updating event: $e");
   }
+}
+Future<void> _revertRejectedEvent(int index) async {
+  final event = _rejectedEvents[index];
+  final eventId = event['event_id'];
+  final barangayId = event['barangay_id'];
+
+  try {
+    await Supabase.instance.client
+        .from('volunteer_events')
+        .update({'approval_status': 'pending'})
+        .eq('event_id', eventId);
+
+    // Optionally, send notification email for status change
+    await _eventService.updateEventApprovalStatus(eventId, 'pending', barangayId);
+
+    // Refresh events
+    await _fetchProfileAndEvents();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Event reverted to pending")),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error reverting event: $e")),
+    );
+  }
+}
 
   Future<void> _cancelApprovedEvent(int index) async {
     final event = _approvedEvents[index];
@@ -327,7 +340,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
 
-  // 📌 Example: update user profile
+  //to-implement: update profile
   Future<void> _updateProfile(String newName) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -385,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final isWide = MediaQuery.of(context).size.width > 700;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Admin Profile"),
@@ -406,6 +419,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     tabs: [
                       Tab(text: "Pending (${_events.length})"),
                       Tab(text: "Approved (${_approvedEvents.length})"),
+                      Tab(text: "Rejected (${_rejectedEvents.length})"),
                     ],
                   ),
                   Expanded(
@@ -413,6 +427,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         _buildEventList(_events, true),
                         _buildEventList(_approvedEvents, false),
+                        _buildEventList(_rejectedEvents, false),
                       ],
                     ),
                   ),
@@ -446,6 +461,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final List<dynamic> photos = event["photo_urls"] ?? [];
     final PageController pageController = PageController();
     int currentIndex = 0;
+    final isRejected = event["approval_status"] == "rejected";
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10),
@@ -641,7 +657,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   if (showActions) const Divider(height: 20),
-                  if (showActions)
+                  if (showActions && !isRejected)
                     // For Pending tab
                     Wrap(
                       spacing: 10,
@@ -656,6 +672,21 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     )
+                  else if (isRejected) // Rejected tab
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.undo, color: Colors.orange),
+                        label: const Text(
+                          "Revert to Pending",
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                        onPressed: () => _revertRejectedEvent(index!),
+                      ),
+                    ),
+                  )
                   else
                     // For Approved tab
                     Padding(
