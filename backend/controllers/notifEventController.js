@@ -126,7 +126,7 @@ export async function eventNotifBarangay(req, res) {
 // Add this function for event approval notifications
 export async function eventApprovalNotification(req, res) {
   try {
-    const { event_id, approval_status } = req.body;
+    const { event_id, approval_status, comment} = req.body;
     
     if (!event_id || !approval_status) {
       return res.status(400).json({ error: "Missing required parameters" });
@@ -185,6 +185,13 @@ export async function eventApprovalNotification(req, res) {
     } else if (approval_status === 'rejected') {
       emailSubject = `Event Rejected: ${event.title}`;
       emailContent = `Your event "${event.title}" was not approved.`;
+      const rejectionReasonHtml = comment ? `
+        <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #d32f2f;">
+          <h4 style="margin-top: 0; color: #d32f2f;">Reason for Rejection:</h4>
+          <p style="white-space: pre-wrap;">${comment}</p>
+        </div>
+      ` : '';
+      
       htmlContent = `
         <h2 style="color: #d32f2f;">Event Not Approved</h2>
         <p>We regret to inform you that your event proposal was not approved by the barangay.</p>
@@ -194,6 +201,8 @@ export async function eventApprovalNotification(req, res) {
           <p><strong>Date:</strong> ${eventDate}</p>
           <p><strong>Description:</strong> ${event.description}</p>
         </div>
+        
+        ${rejectionReasonHtml}
         
         <p>Please contact your barangay office for more information or to discuss how to modify your event proposal.</p>
       `;

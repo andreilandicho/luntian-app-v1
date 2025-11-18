@@ -656,6 +656,43 @@ Future<void> _revertRejectedEvent(int index) async {
                         style: const TextStyle(color: Colors.blueGrey),
                       ),
                     ),
+
+                  // show rejection reasons
+                  if (isRejected && event["comment"] != null && event["comment"].toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.info_outline, color: Colors.red, size: 18),
+                              SizedBox(width: 6),
+                              Text(
+                                "Rejection Reason:",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            event["comment"],
+                            style: const TextStyle(color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (showActions) const Divider(height: 20),
                   if (showActions && !isRejected)
                     // For Pending tab
@@ -667,7 +704,11 @@ Future<void> _revertRejectedEvent(int index) async {
                           child: const Text("Approve"),
                         ),
                         OutlinedButton(
-                          onPressed: () => _updateEventStatus(index!, "rejected"),
+                          // onPressed: () => _updateEventStatus(index!, "rejected"),
+                          onPressed: () => _showRejectionDialog(index!),
+                          style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
                           child: const Text("Reject"),
                         ),
                       ],
@@ -1207,6 +1248,151 @@ void _openAddEventDialog() {
   );
 }
 
+// ========for rejecting event with reasons ========
+
+void _showRejectionDialog(int index) {
+  // Predefined rejection reasons
+  final List<String> rejectionReasons = [
+    "Insufficient details provided",
+    "Event date conflicts with other scheduled events",
+    "Not aligned with barangay priorities",
+    "Requires additional permits or approvals",
+    "Safety concerns",
+    "Budget constraints",
+  ];
+
+  final Map<String, bool> selectedReasons = {
+    for (var reason in rejectionReasons) reason: false
+  };
+
+  final TextEditingController customNoteController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: const [
+                Icon(Icons.cancel, color: Colors.red),
+                SizedBox(width: 8),
+                Text("Reject Event"),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Please select reason(s) for rejection:",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Checkboxes for predefined reasons
+                    ...rejectionReasons.map((reason) {
+                      return CheckboxListTile(
+                        dense: true,
+                        title: Text(reason),
+                        value: selectedReasons[reason],
+                        onChanged: (bool? value) {
+                          setDialogState(() {
+                            selectedReasons[reason] = value ?? false;
+                          });
+                        },
+                        controlAffinity: ListTileControlAffinity.leading,
+                      );
+                    }).toList(),
+                    const SizedBox(height: 16),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    const Text(
+                      "Additional Comments (Optional):",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: customNoteController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: "Enter any additional notes or specific reasons...",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  // Build the rejection comment
+                  final List<String> selectedReasonsList = selectedReasons.entries
+                      .where((entry) => entry.value)
+                      .map((entry) => entry.key)
+                      .toList();
+
+                  if (selectedReasonsList.isEmpty && customNoteController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Please provide at least one reason for rejection"),
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Construct the full comment
+                  String fullComment = "";
+                  
+                  if (selectedReasonsList.isNotEmpty) {
+                    fullComment += "Reasons for rejection:\n";
+                    for (int i = 0; i < selectedReasonsList.length; i++) {
+                      fullComment += "${i + 1}. ${selectedReasonsList[i]}\n";
+                    }
+                  }
+
+                  if (customNoteController.text.trim().isNotEmpty) {
+                    if (fullComment.isNotEmpty) {
+                      fullComment += "\nAdditional Comments:\n";
+                    }
+                    fullComment += customNoteController.text.trim();
+                  }
+
+                  Navigator.pop(ctx);
+
+                  // Now call the update function with the rejection comment
+                  await _updateEventStatus(index, "rejected", comment: fullComment);
+                },
+                child: const Text("Reject Event"),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
 
 
