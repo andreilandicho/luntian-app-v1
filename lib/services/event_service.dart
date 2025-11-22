@@ -194,7 +194,7 @@ Future<void> notifyAllCitizensAboutEvent(int eventId, int barangayId) async {
 }
 
 //emailer for approval updates for event
-Future<void> updateEventApprovalStatus(int eventId, String status, int barangayId) async {
+Future<void> updateEventApprovalStatus(int eventId, String status, int barangayId, {String? comment}) async {
   try {
     // Send the notification
     final url = '$baseUrl/notif/eventApproval';
@@ -203,7 +203,8 @@ Future<void> updateEventApprovalStatus(int eventId, String status, int barangayI
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'event_id': eventId,
-        'approval_status': status
+        'approval_status': status,
+        'comment': comment,
       }),
     );
     

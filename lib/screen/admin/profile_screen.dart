@@ -249,7 +249,7 @@ class _ProfilePageState extends State<ProfilePage> {
       .eq('event_id', id);
 
     // Send notification email for status change
-    await _eventService.updateEventApprovalStatus(id, status, barangayId);
+    await _eventService.updateEventApprovalStatus(id, status, barangayId, comment:comment);
 
     setState(() {
       if (status == "approved") {
