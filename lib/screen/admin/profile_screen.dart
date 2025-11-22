@@ -245,7 +245,6 @@ class _ProfilePageState extends State<ProfilePage> {
       .from('volunteer_events')
       .update({
         'approval_status': status,
-        if (comment != null) 'comment': comment,
       })
       .eq('event_id', id);
 
@@ -656,43 +655,6 @@ Future<void> _revertRejectedEvent(int index) async {
                         style: const TextStyle(color: Colors.blueGrey),
                       ),
                     ),
-
-                  // show rejection reasons
-                  if (isRejected && event["comment"] != null && event["comment"].toString().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: const [
-                              Icon(Icons.info_outline, color: Colors.red, size: 18),
-                              SizedBox(width: 6),
-                              Text(
-                                "Rejection Reason:",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            event["comment"],
-                            style: const TextStyle(color: Colors.black87),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                   if (showActions) const Divider(height: 20),
                   if (showActions && !isRejected)
                     // For Pending tab
