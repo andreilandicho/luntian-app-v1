@@ -362,6 +362,195 @@ export async function reportStatusChange(req, res) {
   }
 }
 
+// Add this new function to your existing controller file
+export async function notifyCitizenReportResolved(req, res) {
+  const { report_id } = req.body;
+
+  try {
+    // Fetch report details
+    const { data: report, error: reportError } = await supabase
+      .from("reports")
+      .select("report_id, user_id, description, category, status, created_at")
+      .eq("report_id", report_id)
+      .single();
+
+    if (reportError || !report) {
+      console.error("❌ Report not found:", reportError);
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    // Check if report is actually resolved
+    if (report.status !== "resolved") {
+      return res.status(400).json({ 
+        error: "Report is not resolved", 
+        current_status: report.status 
+      });
+    }
+
+    // Fetch citizen details
+    const { data: citizen, error: citizenError } = await supabase
+      .from("users")
+      .select("email, name")
+      .eq("user_id", report.user_id)
+      .single();
+
+    if (citizenError || !citizen) {
+      console.error("❌ Citizen not found:", citizenError);
+      return res.status(404).json({ error: "Citizen not found" });
+    }
+
+    // Load and fill the template
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const templatePath = path.resolve(__dirname, "../backend-utils/email-templates/report-resolved.html");
+    
+    let template;
+    try {
+      template = await fs.readFile(templatePath, "utf8");
+    } catch (error) {
+      console.error("❌ Error loading resolved template:", error);
+      // Fallback template
+      template = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>✅ Your Report Has Been Resolved!</h2>
+          <p><strong>Report ID:</strong> \${report_id}</p>
+          <p><strong>Description:</strong> \${description}</p>
+          <p><strong>Category:</strong> \${category}</p>
+          <p>Thank you for your contribution to making our community better!</p>
+          <p>Please log in to Luntian to view the resolution details and provide feedback.</p>
+        </div>
+      `;
+    }
+
+    // Prepare template variables
+    const resolveDate = DateTime.now().setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+    const createdAt = DateTime.fromISO(report.created_at).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+
+    const html = template
+      .replace(/\$\{report\.report_id\}/g, report.report_id)
+      .replace(/\$\{report\.description\}/g, report.description || "No description provided")
+      .replace(/\$\{report\.category\}/g, report.category || "Uncategorized")
+      .replace(/\$\{resolve_date\}/g, resolveDate)
+      .replace(/\$\{created_at\}/g, createdAt)
+      .replace(/\$\{citizen\.name\}/g, citizen.name || "Valued Citizen");
+
+    // Send email to citizen
+    await sendEmail({
+      to: citizen.email,
+      subject: "✅ Your Report Has Been Resolved!",
+      html: html,
+    });
+
+    console.log("📧 Resolution email sent to citizen:", citizen.email);
+
+    // Log the email
+    const phTime = DateTime.now().setZone("Asia/Manila").toISO();
+
+    const { error: emailError } = await supabase.from("email").insert({
+      report_id: report.report_id,
+      user_id: report.user_id,
+      title: "Report Resolved",
+      content: `Your report "${report.description}" has been resolved. Thank you for your contribution.`,
+      role: "citizen",
+      email: citizen.email,
+      status: ["sent"],
+      created_at: phTime,
+      context: "report_resolved",
+    });
+
+    if (emailError) {
+      console.error("❌ Error inserting email log:", emailError);
+    } else {
+      console.log("✅ Email log saved for citizen notification");
+    }
+
+    return res.status(200).json({
+      message: "Citizen notified of resolved report",
+      report_id: report.report_id,
+      citizen_email: citizen.email,
+    });
+
+  } catch (error) {
+    console.error("🔥 Error in notifyCitizenReportResolved:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Then modify your existing reportStatusChange function to call this new function:
+export async function reportStatusChange(req, res) {
+  const { report_id, newStatus } = req.body;
+
+  try {
+    const { data: report, error: reportError } = await supabase
+      .from("reports")
+      .select("status, user_id, report_id, description")
+      .eq("report_id", report_id)
+      .single();
+
+    if (reportError || !report) {
+      console.error("❌ Report not found:", reportError);
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    // ✅ Only update if status is different
+    if (newStatus !== report.status) {
+      const { error: updateError } = await supabase
+        .from("reports")
+        .update({ status: newStatus })
+        .eq("report_id", report_id);
+
+      if (updateError) {
+        console.error("❌ Failed to update report status:", updateError);
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+    }
+
+    // ✅ If status changed to resolved, notify the citizen
+    if (newStatus === "resolved") {
+      // Call the new function to notify citizen
+      await notifyCitizenReportResolved({ body: { report_id } }, {
+        status: (code) => ({
+          json: (data) => {
+            if (code !== 200) {
+              console.error("Failed to notify citizen:", data);
+            }
+          }
+        })
+      });
+
+      // Also keep your existing email log for status change context
+      const { data: user, error: userError } = await supabase
+        .from("users")
+        .select("email")
+        .eq("user_id", report.user_id)
+        .single();
+
+      if (!userError && user) {
+        const phTime = DateTime.now().setZone("Asia/Manila").toISO();
+        
+        await supabase.from("email").insert({
+          report_id,
+          user_id: report.user_id,
+          title: "Report Status Updated",
+          content: `Report status changed to ${newStatus}`,
+          role: "citizen", 
+          email: user.email,
+          status: ["sent"],
+          created_at: phTime,
+          context: "status_change",
+        });
+      }
+    }
+
+    return res.status(200).json({ 
+      message: "Report status updated and notifications sent",
+      newStatus: newStatus 
+    });
+
+  } catch (error) {
+    console.error("🔥 Error in reportStatusChange:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
 // async function dueDateReminder(req) {
 // this is created on the utils since its cron job can be created here but the source of the cron job
 //files might make it harder for adjustment going back and forth on the files
