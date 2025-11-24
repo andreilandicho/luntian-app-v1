@@ -275,13 +275,100 @@ export async function officialAssignment(req, res) {
 }
 
 
+// export async function reportStatusChange(req, res) {
+//   const { report_id, newStatus } = req.body;
+
+//   try {
+//     const { data: report, error: reportError } = await supabase
+//       .from("reports")
+//       .select("status, user_id, report_id, description")
+//       .eq("report_id", report_id)
+//       .single();
+
+//     if (reportError || !report) {
+//       console.error("❌ Report not found:", reportError);
+//       return res.status(404).json({ error: "Report not found" });
+//     }
+
+//     // ✅ Only update if status is different
+//     if (newStatus !== report.status) {
+//       const { error: updateError } = await supabase
+//         .from("reports")
+//         .update({ status: newStatus })
+//         .eq("report_id", report_id);
+
+//       if (updateError) {
+//         console.error("❌ Failed to update report status:", updateError);
+//         return res.status(400).json({ error: "Invalid status value" });
+//       }
+//     } else {
+//       console.log(`ℹ️ No change. Status is already "${newStatus}"`);
+//       // ❌ DON'T return here - continue to email logic!
+//       // return res.status(200).json({ message: "No status change applied" });
+//     }
+
+//     const { data: user, error: userError } = await supabase
+//       .from("users")
+//       .select("email, name")
+//       .eq("user_id", report.user_id)
+//       .single();
+
+//     if (userError || !user) {
+//       console.error("❌ User not found for report:", userError);
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // ✅ Check if we should send email (status changed to resolved OR was already resolved but email not sent)
+//     if (newStatus === "resolved") {
+//       // Insert into email log
+//       const { error: emailError } = await supabase.from("email").insert([
+//         {
+//           report_id,
+//           user_id: report.user_id,
+//           title: "Report Solved", // required for populating so it doesnt go null and break
+//           content: `Your report "${report.description}" has been solved. Open Luntian to view solutions. Please rate the submitted solutions so that we can improve our service.`, // required same here
+//           role: "citizen", // role like you did with barangay/official
+//           email: user.email,
+//           status: ["sent"],
+//           created_at: new Date().toISOString(),
+//           context: "report status change",
+//         },
+//       ]);
+
+//       if (emailError) {
+//         console.error("❌ Error inserting email log:", emailError);
+//       }
+
+//       // Send notification email
+//       await sendEmail({
+//         // from: process.env.EMAIL_USER,
+//         to: user.email,
+//         subject: "✅ Your Report Has Been Resolved",
+//         html: template,
+//       });
+
+
+//       console.log(`📨 Approval email sent to: ${user.email}`);
+//     } else {
+//       console.log(
+//         `ℹ️ No email sent. Status is ${newStatus}`
+//       );
+//     }
+
+//     return res.status(200).json({ message: "Report status processed" });
+//   } catch (error) {
+//     console.error("🔥 Error in reportStatusChange:", error.message);
+//     return res.status(500).json({ error: "Internal server error" });
+//   }
+// }
+
 export async function reportStatusChange(req, res) {
   const { report_id, newStatus } = req.body;
 
   try {
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("status, user_id, report_id, description")
+      .select("status, user_id, report_id, description, barangay_id")
       .eq("report_id", report_id)
       .single();
 
@@ -303,8 +390,6 @@ export async function reportStatusChange(req, res) {
       }
     } else {
       console.log(`ℹ️ No change. Status is already "${newStatus}"`);
-      // ❌ DON'T return here - continue to email logic!
-      // return res.status(200).json({ message: "No status change applied" });
     }
 
     const { data: user, error: userError } = await supabase
@@ -318,16 +403,16 @@ export async function reportStatusChange(req, res) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // ✅ Check if we should send email (status changed to resolved OR was already resolved but email not sent)
+    // ✅ Check if we should send email to the report submitter
     if (newStatus === "resolved") {
-      // Insert into email log
+      // Insert into email log for the citizen who submitted the report
       const { error: emailError } = await supabase.from("email").insert([
         {
           report_id,
           user_id: report.user_id,
-          title: "Report Solved", // required for populating so it doesnt go null and break
-          content: `Your report "${report.description}" has been solved. Open Luntian to view solutions. Please rate the submitted solutions so that we can improve our service.`, // required same here
-          role: "citizen", // role like you did with barangay/official
+          title: "Report Solved",
+          content: `Your report "${report.description}" has been solved. Open Luntian to view solutions. Please rate the submitted solutions so that we can improve our service.`,
+          role: "citizen",
           email: user.email,
           status: ["sent"],
           created_at: new Date().toISOString(),
@@ -339,23 +424,36 @@ export async function reportStatusChange(req, res) {
         console.error("❌ Error inserting email log:", emailError);
       }
 
-      // Send notification email
+      // Send notification email to the citizen who submitted the report
       await sendEmail({
-        // from: process.env.EMAIL_USER,
         to: user.email,
         subject: "✅ Your Report Has Been Resolved",
-        html: template,
+        html: template, // Make sure you have the template defined or loaded
       });
 
+      console.log(`📨 Resolution email sent to report submitter: ${user.email}`);
 
-      console.log(`📨 Approval email sent to: ${user.email}`);
+      // ✅ Also notify ALL citizens in the barangay
+      await notifyBarangayCitizensReportResolved({ body: { report_id } }, {
+        status: (code) => ({
+          json: (data) => {
+            if (code !== 200) {
+              console.error("Failed to notify barangay citizens:", data);
+            } else {
+              console.log("✅ All barangay citizens notified successfully");
+            }
+          }
+        })
+      });
     } else {
-      console.log(
-        `ℹ️ No email sent. Status is ${newStatus}`
-      );
+      console.log(`ℹ️ No email sent. Status is ${newStatus}`);
     }
 
-    return res.status(200).json({ message: "Report status processed" });
+    return res.status(200).json({ 
+      message: "Report status processed and notifications sent",
+      newStatus: newStatus 
+    });
+
   } catch (error) {
     console.error("🔥 Error in reportStatusChange:", error.message);
     return res.status(500).json({ error: "Internal server error" });
