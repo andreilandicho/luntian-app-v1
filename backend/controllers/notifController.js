@@ -715,62 +715,6 @@ export async function notifyBarangayCitizensReportResolved(req, res) {
     return res.status(500).json({ error: "Internal server error" });
   }
 }
-
-// Then update your reportStatusChange function to call this instead:
-export async function reportStatusChange(req, res) {
-  const { report_id, newStatus } = req.body;
-
-  try {
-    const { data: report, error: reportError } = await supabase
-      .from("reports")
-      .select("status, user_id, report_id, description, barangay_id")
-      .eq("report_id", report_id)
-      .single();
-
-    if (reportError || !report) {
-      console.error("❌ Report not found:", reportError);
-      return res.status(404).json({ error: "Report not found" });
-    }
-
-    // ✅ Only update if status is different
-    if (newStatus !== report.status) {
-      const { error: updateError } = await supabase
-        .from("reports")
-        .update({ status: newStatus })
-        .eq("report_id", report_id);
-
-      if (updateError) {
-        console.error("❌ Failed to update report status:", updateError);
-        return res.status(400).json({ error: "Invalid status value" });
-      }
-    }
-
-    // ✅ If status changed to resolved, notify ALL citizens in the barangay
-    if (newStatus === "resolved") {
-      // Call the function to notify all barangay citizens
-      await notifyBarangayCitizensReportResolved({ body: { report_id } }, {
-        status: (code) => ({
-          json: (data) => {
-            if (code !== 200) {
-              console.error("Failed to notify barangay citizens:", data);
-            } else {
-              console.log("✅ All barangay citizens notified successfully");
-            }
-          }
-        })
-      });
-    }
-
-    return res.status(200).json({ 
-      message: "Report status updated and barangay notifications sent",
-      newStatus: newStatus 
-    });
-
-  } catch (error) {
-    console.error("🔥 Error in reportStatusChange:", error.message);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-}
 // async function dueDateReminder(req) {
 // this is created on the utils since its cron job can be created here but the source of the cron job
 //files might make it harder for adjustment going back and forth on the files
