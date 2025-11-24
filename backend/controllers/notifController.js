@@ -475,14 +475,157 @@ export async function notifyCitizenReportResolved(req, res) {
   }
 }
 
-// Then modify your existing reportStatusChange function to call this new function:
+export async function notifyBarangayCitizensReportResolved(req, res) {
+  const { report_id } = req.body;
+
+  try {
+    // Fetch report details with barangay information
+    const { data: report, error: reportError } = await supabase
+      .from("reports")
+      .select("report_id, user_id, barangay_id, description, category, status, created_at")
+      .eq("report_id", report_id)
+      .single();
+
+    if (reportError || !report) {
+      console.error("❌ Report not found:", reportError);
+      return res.status(404).json({ error: "Report not found" });
+    }
+
+    // Check if report is actually resolved
+    if (report.status !== "resolved") {
+      return res.status(400).json({ 
+        error: "Report is not resolved", 
+        current_status: report.status 
+      });
+    }
+
+    // Fetch ALL users in the barangay (citizens)
+    const { data: barangayCitizens, error: citizensError } = await supabase
+      .from("users")
+      .select("user_id, email, name")
+      .eq("barangay_id", report.barangay_id)
+      .eq("role", "citizen"); // Only citizens, not officials
+
+    if (citizensError) {
+      console.error("❌ Error fetching barangay citizens:", citizensError);
+      return res.status(404).json({ error: "Error fetching barangay citizens" });
+    }
+
+    if (!barangayCitizens || barangayCitizens.length === 0) {
+      console.log("ℹ️ No citizens found in this barangay");
+      return res.status(200).json({ 
+        message: "No citizens to notify in this barangay",
+        report_id: report.report_id
+      });
+    }
+
+    // Load the template
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const templatePath = path.resolve(__dirname, "../backend-utils/email-templates/report-resolved-barangay.html");
+    
+    let template;
+    try {
+      template = await fs.readFile(templatePath, "utf8");
+    } catch (error) {
+      console.error("❌ Error loading barangay resolved template:", error);
+      // Fallback template
+      template = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>✅ Community Report Resolved!</h2>
+          <p><strong>Report ID:</strong> \${report_id}</p>
+          <p><strong>Description:</strong> \${description}</p>
+          <p><strong>Category:</strong> \${category}</p>
+          <p>A report in your barangay has been successfully resolved!</p>
+          <p>Thank you for being part of our community. Together we make our neighborhood better!</p>
+          <p>Log in to Luntian to view more details about resolved reports in our area.</p>
+        </div>
+      `;
+    }
+
+    // Prepare template variables
+    const resolveDate = DateTime.now().setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+    const createdAt = DateTime.fromISO(report.created_at).setZone("Asia/Manila").toFormat("yyyy-MM-dd HH:mm");
+
+    const html = template
+      .replace(/\$\{report\.report_id\}/g, report.report_id)
+      .replace(/\$\{report\.description\}/g, report.description || "No description provided")
+      .replace(/\$\{report\.category\}/g, report.category || "Uncategorized")
+      .replace(/\$\{resolve_date\}/g, resolveDate)
+      .replace(/\$\{created_at\}/g, createdAt);
+
+    let successfulEmails = 0;
+    let failedEmails = 0;
+
+    // Send email to ALL citizens in the barangay
+    for (const citizen of barangayCitizens) {
+      try {
+        await sendEmail({
+          to: citizen.email,
+          subject: "✅ Community Report Resolved in Your Barangay!",
+          html: html,
+        });
+
+        console.log(`📧 Resolution email sent to citizen: ${citizen.email}`);
+
+        // Log each email
+        const phTime = DateTime.now().setZone("Asia/Manila").toISO();
+
+        await supabase.from("email").insert({
+          report_id: report.report_id,
+          user_id: citizen.user_id,
+          title: "Community Report Resolved",
+          content: `A report in your barangay has been resolved: ${report.description}`,
+          role: "citizen",
+          email: citizen.email,
+          status: ["sent"],
+          created_at: phTime,
+          context: "barangay_report_resolved",
+        });
+
+        successfulEmails++;
+      } catch (emailError) {
+        console.error(`❌ Failed to send email to ${citizen.email}:`, emailError);
+        failedEmails++;
+        
+        // Log failed email attempt
+        const phTime = DateTime.now().setZone("Asia/Manila").toISO();
+        await supabase.from("email").insert({
+          report_id: report.report_id,
+          user_id: citizen.user_id,
+          title: "Community Report Resolved - Failed",
+          content: `Failed to send resolution notification: ${report.description}`,
+          role: "citizen",
+          email: citizen.email,
+          status: ["failed"],
+          created_at: phTime,
+          context: "barangay_report_resolved",
+        });
+      }
+    }
+
+    return res.status(200).json({
+      message: "Barangay citizens notified of resolved report",
+      report_id: report.report_id,
+      barangay_id: report.barangay_id,
+      citizens_notified: successfulEmails,
+      citizens_failed: failedEmails,
+      total_citizens: barangayCitizens.length
+    });
+
+  } catch (error) {
+    console.error("🔥 Error in notifyBarangayCitizensReportResolved:", error.message);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Then update your reportStatusChange function to call this instead:
 export async function reportStatusChange(req, res) {
   const { report_id, newStatus } = req.body;
 
   try {
     const { data: report, error: reportError } = await supabase
       .from("reports")
-      .select("status, user_id, report_id, description")
+      .select("status, user_id, report_id, description, barangay_id")
       .eq("report_id", report_id)
       .single();
 
@@ -504,45 +647,24 @@ export async function reportStatusChange(req, res) {
       }
     }
 
-    // ✅ If status changed to resolved, notify the citizen
+    // ✅ If status changed to resolved, notify ALL citizens in the barangay
     if (newStatus === "resolved") {
-      // Call the new function to notify citizen
-      await notifyCitizenReportResolved({ body: { report_id } }, {
+      // Call the function to notify all barangay citizens
+      await notifyBarangayCitizensReportResolved({ body: { report_id } }, {
         status: (code) => ({
           json: (data) => {
             if (code !== 200) {
-              console.error("Failed to notify citizen:", data);
+              console.error("Failed to notify barangay citizens:", data);
+            } else {
+              console.log("✅ All barangay citizens notified successfully");
             }
           }
         })
       });
-
-      // Also keep your existing email log for status change context
-      const { data: user, error: userError } = await supabase
-        .from("users")
-        .select("email")
-        .eq("user_id", report.user_id)
-        .single();
-
-      if (!userError && user) {
-        const phTime = DateTime.now().setZone("Asia/Manila").toISO();
-        
-        await supabase.from("email").insert({
-          report_id,
-          user_id: report.user_id,
-          title: "Report Status Updated",
-          content: `Report status changed to ${newStatus}`,
-          role: "citizen", 
-          email: user.email,
-          status: ["sent"],
-          created_at: phTime,
-          context: "status_change",
-        });
-      }
     }
 
     return res.status(200).json({ 
-      message: "Report status updated and notifications sent",
+      message: "Report status updated and barangay notifications sent",
       newStatus: newStatus 
     });
 
